@@ -1,0 +1,34 @@
+{
+    "name": "linux",
+    "kind": "chunk",
+    "configure-commands": [
+        "make defconfig",
+        "scripts/config -e SATA_AHCI",
+        "scripts/config -e ATA_GENERIC",
+        "scripts/config -e HAVE_IDE",
+        "scripts/config -d BLK_DEV_IDE_SATA",
+        "scripts/config -e EXT2_FS",
+        "scripts/config -e EXT2_FS_XATTR",
+        "scripts/config -e EXT2_FS_POSIX_ACL",
+        "scripts/config -e EXT2_FS_SECURITY",
+        "scripts/config -e EXT2_FS_XIP",
+        "scripts/config -e EXT3_FS",
+        "scripts/config -d EXT3_DEFAULTS_TO_ORDERED",
+        "scripts/config -e EXT3_FS_XATTR",
+        "scripts/config -e EXT3_FS_POSIX_ACL",
+        "scripts/config -e EXT3_FS_SECURITY",
+        "scripts/config -e EXT4_FS",
+        "scripts/config -e EXT4_FS_XATTR",
+        "scripts/config -e EXT4_FS_POSIX_ACL",
+        "scripts/config -e EXT4_FS_SECURITY",
+        "scripts/config -d EXT4_DEBUG",
+        "scripts/config -d JBD_DEBUG",
+        "scripts/config -d JBD2_DEBUG"
+    ],
+    "build-commands": [
+        "make"
+    ],
+    "install-commands": [
+        "cp arch/*/boot/bzImage \"$DESTDIR\"/vmlinuz"
+    ]
+}

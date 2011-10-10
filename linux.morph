@@ -29,6 +29,6 @@
         "make"
     ],
     "install-commands": [
-        "cp arch/*/boot/bzImage \"$DESTDIR\"/vmlinuz"
+        "cp arch/x86/boot/bzImage \"$DESTDIR\"/vmlinuz"
     ]
 }

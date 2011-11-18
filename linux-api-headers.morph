@@ -7,6 +7,7 @@
     ],
     "install-commands": [
         "make INSTALL_HDR_PATH=dest headers_install",
+        "install -d \"$DESTDIR/usr/include\"",
         "cp -r dest/include/* \"$DESTDIR/usr/include\""
     ]
 }

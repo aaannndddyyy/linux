@@ -26,21 +26,9 @@
         "scripts/config -d JBD2_DEBUG"
     ],
     "build-commands": [
-        "make",
-        "make mrproper",
-        "make headers_check",
-        "make INSTALL_HDR_PATH=dest headers_install"
+        "make"
     ],
     "install-commands": [
-        "echo xxxx files in source tree: && find . && cp arch/x86/boot/bzImage \"$DESTDIR\"/vmlinuz",
-        "cp -r dest/include/* \"$DESTDIR/usr/include\""
-    ],
-    "chunks": {
-        "linux": [
-            "vmlinuz"
-        ],
-        "linux-api-headers": [
-            "usr/include"
-        ]
-    }
+        "cp arch/x86/boot/bzImage \"$DESTDIR\"/vmlinuz"
+    ]
 }

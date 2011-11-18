@@ -1,0 +1,12 @@
+{
+    "name": "linux-api-headers",
+    "kind": "chunk",
+    "build-commands": [
+        "make mrproper",
+        "make headers_check"
+    ],
+    "install-commands": [
+        "make INSTALL_HDR_PATH=dest headers_install",
+        "cp -r dest/include/* \"$DESTDIR/usr/include\""
+    ]
+}

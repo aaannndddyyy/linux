@@ -32,8 +32,7 @@
         "make INSTALL_HDR_PATH=dest headers_install"
     ],
     "install-commands": [
-        "echo xxxx files in source tree: && find .",
-        "cp arch/x86/boot/bzImage \"$DESTDIR\"/vmlinuz",
+        "echo xxxx files in source tree: && find . && cp arch/x86/boot/bzImage \"$DESTDIR\"/vmlinuz",
         "cp -r dest/include/* \"$DESTDIR/usr/include\""
     ],
     "chunks": {

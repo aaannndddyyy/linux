@@ -23,12 +23,15 @@
         "scripts/config -e EXT4_FS_SECURITY",
         "scripts/config -d EXT4_DEBUG",
         "scripts/config -d JBD_DEBUG",
-        "scripts/config -d JBD2_DEBUG"
+        "scripts/config -d JBD2_DEBUG",
+        "scripts/config -e IKCONFIG",
+        "scripts/config -e IKCONFIG_PROC"
     ],
     "build-commands": [
         "make"
     ],
     "install-commands": [
-        "cp arch/x86/boot/bzImage \"$DESTDIR\"/vmlinuz"
+        "make INSTALL_PATH=\"$DESTDIR\" install",
+        "make INSTALL_MOD_PATH=\"$DESTDIR\" modules_install"
     ]
 }

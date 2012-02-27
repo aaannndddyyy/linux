@@ -8,6 +8,8 @@
         "scripts/config -e ATA_GENERIC",
         "scripts/config -e HAVE_IDE",
         "scripts/config -d BLK_DEV_IDE_SATA",
+        "scripts/config -e DEVTMPFS",
+        "scripts/config --set-str UEVENT_HELPER_PATH ''",
         "scripts/config -e EXT2_FS",
         "scripts/config -e EXT2_FS_XATTR",
         "scripts/config -e EXT2_FS_POSIX_ACL",
@@ -32,7 +34,7 @@
         "make"
     ],
     "install-commands": [
-        "make INSTALL_PATH=\"$DESTDIR\" install",
+        "make INSTALL_PATH=\"$DESTDIR\"/boot install",
         "make INSTALL_MOD_PATH=\"$DESTDIR\" modules_install"
     ]
 }

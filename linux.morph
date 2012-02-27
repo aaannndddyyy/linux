@@ -35,6 +35,7 @@
         "make"
     ],
     "install-commands": [
+        "mkdir -p \"$DESTDIR\"/boot",
         "make INSTALL_PATH=\"$DESTDIR\"/boot install",
         "make INSTALL_MOD_PATH=\"$DESTDIR\" modules_install"
     ]

@@ -28,6 +28,9 @@
         "scripts/config -d EXT4_DEBUG",
         "scripts/config -d JBD_DEBUG",
         "scripts/config -d JBD2_DEBUG",
+        "scripts/config -e R8169",
+        "scripts/config -e 8139TOO",
+        "scripts/config -e 8139CP",
         "scripts/config -e IKCONFIG",
         "scripts/config -e IKCONFIG_PROC"
     ],

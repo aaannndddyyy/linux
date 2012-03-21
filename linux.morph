@@ -8,6 +8,8 @@
         "scripts/config -e ATA_GENERIC",
         "scripts/config -e HAVE_IDE",
         "scripts/config -d BLK_DEV_IDE_SATA",
+        "scripts/config -e BTRFS_FS",
+        "scripts/config -e BTRFS_FS_POSIX_ACL",
         "scripts/config -e DEVTMPFS",
         "scripts/config -e DEVTMPFS_MOUNT",
         "scripts/config --set-str UEVENT_HELPER_PATH ''",

@@ -31,6 +31,7 @@
         "scripts/config -d JBD_DEBUG",
         "scripts/config -d JBD2_DEBUG",
         "scripts/config -e BLK_DEV_LOOP",
+        "scripts/config -d BLK_DEV_CRYPTOLOOP",
         "scripts/config --set-val BLK_DEV_LOOP_MIN_COUNT 8",
         "scripts/config -e VIRTIO",
         "scripts/config -e VIRTIO_RING",

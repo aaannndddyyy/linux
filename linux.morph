@@ -11,10 +11,10 @@
         "scripts/config -e IKCONFIG_PROC"
     ],
     "build-commands": [
-        "make zImage"
+        "make uImage"
     ],
     "install-commands": [
         "mkdir -p \"$DESTDIR\"/boot",
-        "cp arch/arm/boot/zImage \"$DESTDIR\"/boot/zImage"
+        "cp arch/arm/boot/uImage \"$DESTDIR\"/boot/uImage"
     ]
 }

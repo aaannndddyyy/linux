@@ -208,7 +208,7 @@ MV_STATUS mvCtrlUpdatePexId(MV_VOID)
 	/* MV_U32 socFreq, tmpSocCores;		*/
 	/* MV_U32 socCores = 0;				*/
 	MV_U32 pmCtrl;
-#if defined(DB_88F78X60) || defined(RD_88F78460_SERVER) || defined (DB_88F78X60_REV2)
+#if defined(DB_88F78X60) || defined(RD_88F78460_SERVER) || defined (DB_88F78X60_REV2) || defined(CSB1726_MV78X60_A0)
 	MV_U32 devVendId;
 	int i;
 	int j;
@@ -223,7 +223,7 @@ MV_STATUS mvCtrlUpdatePexId(MV_VOID)
 		MV_REG_WRITE(POWER_MNG_CTRL_REG,
 			(pmCtrl & ~PMC_PEXSTOPCLOCK_MASK(0)) | PMC_PEXSTOPCLOCK_EN(0));
 	}
-#if defined(DB_88F78X60) || defined (DB_88F78X60_REV2)
+#if defined(DB_88F78X60) || defined (DB_88F78X60_REV2) || defined(CSB1726_MV78X60_A0)
 	devVendId = MV_REG_READ(PEX_CFG_DIRECT_ACCESS(0, PEX_DEVICE_AND_VENDOR_ID));
 	/* socFreq   = MV_REG_READ(MPP_SAMPLE_AT_RESET(0)) & SAR0_DDR3_FREQ_MASK; */
 	/* tmpSocCores  = (MV_REG_READ(MPP_SAMPLE_AT_RESET(1)) & SAR1_CPU_CORE_MASK) >> SAR1_CPU_CORE_OFFSET; */

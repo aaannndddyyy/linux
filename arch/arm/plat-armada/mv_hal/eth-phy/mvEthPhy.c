@@ -1861,6 +1861,39 @@ MV_VOID mvEth1340PhyBasicInit(void)
 		/* reg |= ETH_PHY_CTRL_RESET_MASK; */
 		/* mvEthPhyRegWrite(i,ETH_PHY_CTRL_REG, reg);   software reset */
 
+#ifdef CSB1726_MV78X60_A0
+		// CSB1726 uses 88E1322 in SGMII to auto mode (110 or 111)
+		// the following is per Marvell app note "88E1340/88E1322 Auto-Media Detect"
+		// Doc. # MV-S301681-00
+
+		/*		
+		The following procedure must be followed after the device is powered-up
+		and hardware reset is deasserted:
+		a. Write to P0 and P2. Reg 20_6.2:0 = ‘101’ and Reg 20_6.15 = ‘1’
+		b. Write to all ports (P0, P1, P2, and P3). Reg 0_4 = 0x9140
+		c. Write to any ports. Reg 27_4.1:0 = ‘11’ and Reg 27_4.14 = ‘1’
+		*/	
+
+		if ((i == 0) || (i == 2))
+		{
+			// page 6, register 20
+			mvEthPhyRegWrite(i, 22, 6);
+			mvEthPhyRegRead(i, 20, &reg);
+			reg &= ~(0x8005);
+			reg |= 0x8005;
+			mvEthPhyRegWrite(i, 20, reg);
+		}
+		// page 4 register 0
+		mvEthPhyRegWrite(i, 22, 4);
+		mvEthPhyRegWrite(i, 0, 0x9140);
+
+		// page 4 register 27
+		mvEthPhyRegWrite(i, 22, 4);
+		mvEthPhyRegRead(i, 27, &reg);
+		reg &= ~(0x6003);
+		reg |= 0x6003;
+		mvEthPhyRegWrite(i, 27, reg);
+#else
 		/* Enable QSGMII AN */
 		/* Set page to 4. */
 		mvEthPhyRegWrite(i, 0x16, 4);
@@ -1868,6 +1901,7 @@ MV_VOID mvEth1340PhyBasicInit(void)
 		mvEthPhyRegWrite(i, 0x0, 0x1140);
 		/* Set page to 0. */
 		mvEthPhyRegWrite(i, 0x16, 0);
+#endif
 
 
 	    mvEthPhyRegWrite(i, 0x16, 0x0000);

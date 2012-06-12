@@ -489,7 +489,28 @@ MV_NFC_FLASH_INFO flashDeviceInfo[] = {
 		.model = "Micron 8Gb 8bit",
 	.bb_page = 0,		/* Manufacturer Bad block marking page in block */
 	.flags = (NFC_CLOCK_UPSCALE_200M | NFC_FLAGS_ONFI_MODE_3_SET)
-	}
+	},
+	{		/* Micron 4Gb MT29F4G08ABADAWP (added for CSB1726-Marvell-MV78460-A0 SOM) */
+	.tADL = 100,	/* tADL, Address to write data delay */
+	.tCH = 5,	/* tCH, Enable signal hold time */
+	.tCS = 25,	/* tCS, Enable signal setup time */
+	.tWH = 10,	/* tWH, ND_nWE high duration */
+	.tWP = 15,	/* tWP, ND_nWE pulse time */
+	.tRH = 10,	/* tRH, ND_nRE high duration */
+	.tRP = 15,	/* tRP, ND_nRE pulse width */			
+	.tR = 25241, 	/* tR = data transfer from cell to register */
+	.tWHR = 60,	/* tWHR, ND_nWE high to ND_nRE low delay for status read */
+	.tAR = 10,	/* tAR, ND_ALE low to ND_nRE low delay */
+	.tRHW = 100,	/* tRHW, ND_nRE high to ND_nWE low delay */
+	.pgPrBlk = 64,	/* Pages per block - detected */
+	.pgSz = 2048,	/* Page size */
+	.oobSz = 64,	/* Spare size */ 
+	.blkNum = 2048,	/* Number of blocks/sectors in the flash */
+	.id = 0xDC2C,	/* Device ID 0xDevice,Vendor */
+	.model = "Micron 4Gb 8bit",
+	.bb_page = 0,	/* Manufacturer Bad block marking page in block */
+	.flags = NFC_CLOCK_UPSCALE_200M
+	},
 };
 
 /* Defined Command set */

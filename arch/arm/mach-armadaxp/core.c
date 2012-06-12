@@ -2136,3 +2136,149 @@ MACHINE_START(ARMADA_XP_FPGA, "Marvell Armada XP FPGA Board")
 	.timer		= &axp_timer,
 	.init_machine	= axp_fpga_init,
 MACHINE_END
+
+/*****************************************************************************
+ * CSB1726 ARMADA XP BOARD: Main Initialization
+ ****************************************************************************/
+static void __init axp_csb1726_init(void)
+{
+#ifdef CONFIG_MV_AMP_ENABLE
+	/* Init Resource sharing */
+	if(mvUnitMapIsRsrcLimited() == MV_FALSE)
+		mvUnitMapSetAllMine();
+#endif	
+	
+	/* Call Aurora/cpu special configurations */
+	cpu_fabric_common_init();
+
+	/* Select appropriate Board ID for Machine */
+	gBoardId = CSB1726_MV78X60_A0_ID;
+
+	/* Before initializing the HAL, select Z1A serdes cfg if needed */
+	//if (support_Z1A_serdes_cfg)
+	//	mvBoardSerdesZ1ASupport();
+	/* Bypass serdes reconfiguration since already done at bootloader */
+        mvBoardSerdesConfigurationEnableSet(MV_FALSE);
+
+	/* init the Board environment */
+	mvBoardEnvInit();
+
+	/* init the controller environment */
+	if( mvCtrlEnvInit() ) {
+		printk( "Controller env initialization failed.\n" );
+		return;
+	}
+
+	armadaxp_setup_cpu_mbus();
+
+	/* Init the CPU windows setting and the access protection windows. */
+	if( mvCpuIfInit(mv_sys_map())) {
+		printk( "Cpu Interface initialization failed.\n" );
+		return;
+	}
+
+	/* Init Tclk & SysClk */
+	mvTclk = mvBoardTclkGet();
+	mvSysclk = mvBoardSysClkGet();
+
+	elf_hwcap &= ~HWCAP_JAVA;
+
+#ifndef CONFIG_MV_UART_PORT	
+	serial_initialize(0);
+#else
+	serial_initialize(CONFIG_MV_UART_PORT);
+#endif
+
+	/* At this point, the CPU windows are configured according to default definitions in mvSysHwConfig.h */
+	/* and cpuAddrWinMap table in mvCpuIf.c. Now it's time to change defaults for each platform.         */
+	/*mvCpuIfAddDecShow();*/
+
+	print_board_info();
+
+	mv_gpio_init();
+
+	/* RTC */
+	if(mvUnitMapIsMine(RTC) == MV_TRUE)
+		rtc_init();
+
+	/* SPI */
+	if(mvUnitMapIsMine(SPI) == MV_TRUE)
+		mvSysSpiInit(0, _16M);
+
+	/* ETH-PHY */
+	mvSysEthPhyInit();
+
+	/* Sata */
+#ifdef CONFIG_SATA_MV
+	if(mvUnitMapIsMine(SATA) == MV_TRUE)
+		armadaxp_sata_init(&dbdsmp_sata_data);
+#endif
+#ifdef CONFIG_MTD_NAND_NFC
+	/* NAND */	
+	if(mvUnitMapIsMine(NAND) == MV_TRUE)
+		axp_db_nfc_init();
+#endif
+	/* HWMON */
+	if(mvUnitMapIsMine(HWMON) == MV_TRUE)
+		armadaxp_hwmon_init();
+
+	/* XOR */
+#ifdef XOR0_ENABLE
+	if(mvUnitMapIsMine(XOR0) == MV_TRUE)
+		armadaxp_xor0_init();
+#endif
+	if(mvUnitMapIsMine(XOR1) == MV_TRUE)
+		armadaxp_xor1_init();
+
+	/* I2C */
+	if(mvUnitMapIsMine(I2C0) == MV_TRUE)
+		platform_device_register(&axp_i2c0);
+
+#ifdef CONFIG_FB_DOVE
+      if ((lcd0_enable == 1) && (lcd_panel == 0 ) && (mvUnitMapIsMine(I2C1) == MV_TRUE))
+        platform_device_register(&axp_i2c1);
+#endif
+	/* SDIO */
+#if defined(CONFIG_MV_INCLUDE_SDIO)
+	if(mvUnitMapIsMine(SDIO) == MV_TRUE)
+		sdio_initialize();
+#endif
+
+#ifdef CONFIG_MV_ETHERNET
+	/* Ethernet */
+	eth_init();
+#endif
+
+#ifdef CONFIG_MV_IPC_NET
+	platform_device_register(&mv_ipc_net);
+#endif
+
+#ifdef CONFIG_FB_DOVE
+	if(mvUnitMapIsMine(LCD) == MV_TRUE){ 
+		kw_lcd0_dmi.dram = &armadaxp_mbus_dram_info;
+		if (lcd_panel) {
+			kw_lcd0_dmi.lvds_info.enabled = 1;
+			kw_lcd0_dmi.fixed_full_div = 1;
+			kw_lcd0_dmi.full_div_val = 7;	
+	//		kw_lcd0_dmi.lcd_ref_clk = 27000000;
+			printk(KERN_INFO "LCD Panel enabled.\n");
+		}
+		clcd_platform_init(&kw_lcd0_dmi, &kw_lcd0_vid_dmi, &dsmp_backlight_data);
+	}
+#endif
+
+	return;
+}
+
+MACHINE_START(CSB1701_CSB1726, "Cogent Armada XP Development Board")
+	/* MAINTAINER("COGENT") */
+	.atag_offset	= 0x00000100,
+	.map_io		= axp_map_io,
+	.init_irq	= axp_init_irq,
+	.timer		= &axp_timer,
+	.init_machine	= axp_csb1726_init,
+#ifdef CONFIG_FB_DOVE
+	/* reserve memory for LCD */
+	.fixup		= axp_tag_fixup_mem32,
+#endif /* CONFIG_FB_DOVE */
+MACHINE_END

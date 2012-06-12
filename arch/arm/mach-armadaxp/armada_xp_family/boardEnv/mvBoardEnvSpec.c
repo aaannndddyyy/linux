@@ -1477,6 +1477,163 @@ MV_BOARD_INFO rd78460customerInfo = {
 };
 //////////////////////////////////////////////////////////////////////////////////////
 
+/*********************************************/
+/* ARMADA-XP CSB1726-MV78460-A0 BOARD Rev.P2 */
+/*********************************************/
+#define CSB1726_MV78X60_A0_BOARD_NAND_READ_PARAMS	0x000C0282
+#define CSB1726_MV78X60_A0_BOARD_NAND_WRITE_PARAMS	0x00010305
+/*NAND care support for small page chips*/
+#define CSB1726_MV78X60_A0_BOARD_NAND_CONTROL		0x01c00543
+
+#define CSB1726_MV78X60_A0_BOARD_NOR_READ_PARAMS	0x403E07CF
+#define CSB1726_MV78X60_A0_BOARD_NOR_WRITE_PARAMS	0x000F0F0F
+
+MV_U8 mvcsb1726a0DisableModuleDetection = 1;
+
+MV_U8	csb1726mv78X60a0InfoBoardDebugLedIf[] = {};
+
+MV_BOARD_TWSI_INFO	csb1726mv78X60a0InfoBoardTwsiDev[] = {
+	/* {{MV_BOARD_DEV_CLASS	devClass, MV_U8	twsiDevAddr, MV_U8 twsiDevAddrType}} */
+	{BOARD_TWSI_OTHER, 0x50, ADDR7_BIT}
+};
+
+MV_BOARD_MAC_INFO csb1726mv78X60a0InfoBoardMacInfo[] = {
+	/* {{MV_BOARD_MAC_SPEED	boardMacSpeed, MV_U8 boardEthSmiAddr}} */
+	{BOARD_MAC_SPEED_AUTO, 0x0,0x0},  /* to connector */ 
+	{BOARD_MAC_SPEED_AUTO, 0x1,0x0},  /* Port 1 on 88E1322 */
+	{BOARD_MAC_SPEED_AUTO, 0x0,0x0},  /* to connector */
+	{BOARD_MAC_SPEED_AUTO, 0x3,0x0}   /* Port 3 on 88E1322 */
+};
+
+MV_BOARD_MODULE_TYPE_INFO csb1726mv78X60a0InfoBoardModTypeInfo[] = {
+	{
+		.boardMppMod		= MV_BOARD_AUTO,
+		.boardOtherMod		= MV_BOARD_NONE
+	}
+};
+
+MV_BOARD_GPP_INFO csb1726mv78X60a0InfoBoardGppInfo[] = {
+	/* {{MV_BOARD_GPP_CLASS	devClass, MV_U8	gppPinNum}} */
+	{BOARD_GPP_SDIO_DETECT,    25}, /* from MPP map */
+	{BOARD_GPP_SDIO_WP,       29}
+	//{BOARD_GPP_SWITCH_PHY_INT,     16}
+};
+
+MV_DEV_CS_INFO csb1726mv78X60a0InfoBoardDeCsInfo[] = {
+	/*{deviceCS, params, devType, devWidth, busWidth }*/
+#if defined(MV_INCLUDE_SPI)
+	{SPI_CS0, N_A, BOARD_DEV_SPI_FLASH, 8, 8}, /* SPI DEV */
+#endif
+};
+
+MV_BOARD_MPP_INFO csb1726mv78X60a0InfoBoardMppConfigValue[] = {
+	{ {
+	CSB1726_MV78X60_A0_MPP0_7,
+	CSB1726_MV78X60_A0_MPP8_15,
+	CSB1726_MV78X60_A0_MPP16_23,
+	CSB1726_MV78X60_A0_MPP24_31,
+	CSB1726_MV78X60_A0_MPP32_39,
+	CSB1726_MV78X60_A0_MPP40_47,
+	CSB1726_MV78X60_A0_MPP48_55,
+	CSB1726_MV78X60_A0_MPP56_63,
+	CSB1726_MV78X60_A0_MPP64_67,
+	} },
+	//{ { /* MV_BOARD_TDM_32CH */
+	//	CSB1726_MV78X60_A0_MPP0_7,
+	//	CSB1726_MV78X60_A0_MPP8_15,
+	//	CSB1726_MV78X60_A0_MPP16_23,
+	//	(CSB1726_MV78X60_A0_MPP24_31 & 0x00000000) | 0x33333333,
+	//	(CSB1726_MV78X60_A0_MPP32_39 & 0xFFFF0000) | 0x00003333,
+	//	(CSB1726_MV78X60_A0_MPP40_47 & 0xFFFFF0FF) | 0x00000300,
+	//	CSB1726_MV78X60_A0_MPP48_55,
+	//	CSB1726_MV78X60_A0_MPP56_63,
+	//	CSB1726_MV78X60_A0_MPP64_67,
+	//} },
+	//{ { /* MV_BOARD_OTHER */
+	//	CSB1726_MV78X60_A0_MPP0_7,
+	//	CSB1726_MV78X60_A0_MPP8_15,
+	//	CSB1726_MV78X60_A0_MPP16_23,
+	//	CSB1726_MV78X60_A0_MPP24_31,
+	//	CSB1726_MV78X60_A0_MPP32_39,
+	//	CSB1726_MV78X60_A0_MPP40_47,
+	//	CSB1726_MV78X60_A0_MPP48_55,
+	//	CSB1726_MV78X60_A0_MPP56_63,
+	//	CSB1726_MV78X60_A0_MPP64_67,
+	//} },
+};
+
+MV_SERDES_CFG csb1726mv78X60a0InfoBoardSerdesConfigValue[] = {
+	/* A0 */
+	//{MV_TRUE, 0x33222211, 0x00001111, PEX_BUS_MODE_X1, PEX_BUS_MODE_X1, PEX_BUS_MODE_X4, PEX_BUS_MODE_X4, 0x00000030},/* Default: */
+	{MV_TRUE, 0x33222211, 0x00001111, PEX_BUS_MODE_X1, PEX_BUS_MODE_X1, PEX_BUS_MODE_X4, PEX_BUS_DISABLED, 0x00000030},/* Default: */
+	//{MV_TRUE, 0x33222211, 0x00001111, PEX_BUS_MODE_X1, PEX_BUS_DISABLED, PEX_BUS_MODE_X4, PEX_BUS_DISABLED, 0x00000030},/* Default: */
+};
+	
+//MV_BOARD_TDM_INFO	csb1726mv78X60a0Tdm880[]	= { {1}, {2} };
+//MV_BOARD_TDM_INFO	csb1726mv78X60a0Tdm792[]	= { {1}, {2}, {3}, {4}, {6}, {7} };
+//MV_BOARD_TDM_INFO	csb1726mv78X60a0Tdm3215[]	= { {1} };
+
+MV_BOARD_INFO csb1726mv78X60a0Info = {
+	.boardName			= "CSB1726-MV78460-A0",
+	.numBoardMppTypeValue		= ARRSZ(csb1726mv78X60a0InfoBoardModTypeInfo),
+	.pBoardModTypeValue		= csb1726mv78X60a0InfoBoardModTypeInfo,
+	.numBoardMppConfigValue		= ARRSZ(csb1726mv78X60a0InfoBoardMppConfigValue),
+	.pBoardMppConfigValue		= csb1726mv78X60a0InfoBoardMppConfigValue,
+	.numBoardSerdesConfigValue	= ARRSZ(csb1726mv78X60a0InfoBoardSerdesConfigValue),
+	.pBoardSerdesConfigValue	= csb1726mv78X60a0InfoBoardSerdesConfigValue,
+	.intsGppMaskLow			= 0,
+	.intsGppMaskMid			= 0,
+	.intsGppMaskHigh		= 0,
+	.numBoardDeviceIf		= ARRSZ(csb1726mv78X60a0InfoBoardDeCsInfo),
+	.pDevCsInfo			= csb1726mv78X60a0InfoBoardDeCsInfo,
+	.numBoardTwsiDev		= ARRSZ(csb1726mv78X60a0InfoBoardTwsiDev),
+	.pBoardTwsiDev			= csb1726mv78X60a0InfoBoardTwsiDev,
+	.numBoardMacInfo		= ARRSZ(csb1726mv78X60a0InfoBoardMacInfo),
+	.pBoardMacInfo			= csb1726mv78X60a0InfoBoardMacInfo,
+	.numBoardGppInfo		= ARRSZ(csb1726mv78X60a0InfoBoardGppInfo),
+	.pBoardGppInfo			= csb1726mv78X60a0InfoBoardGppInfo,
+	.activeLedsNumber		= ARRSZ(csb1726mv78X60a0InfoBoardDebugLedIf),
+	.pLedGppPin			= csb1726mv78X60a0InfoBoardDebugLedIf,
+	.ledsPolarity			= 0,
+
+	/* PMU Power */
+	.pmuPwrUpPolarity		= 0,
+	.pmuPwrUpDelay			= 80000,
+
+	/* GPP values */
+	.gppOutEnValLow			= CSB1726_MV78X60_A0_GPP_OUT_ENA_LOW,
+	.gppOutEnValMid			= CSB1726_MV78X60_A0_GPP_OUT_ENA_MID,
+	.gppOutEnValHigh		= CSB1726_MV78X60_A0_GPP_OUT_ENA_HIGH,
+	.gppOutValLow			= CSB1726_MV78X60_A0_GPP_OUT_VAL_LOW,
+	.gppOutValMid			= CSB1726_MV78X60_A0_GPP_OUT_VAL_MID,
+	.gppOutValHigh			= CSB1726_MV78X60_A0_GPP_OUT_VAL_HIGH,
+	.gppPolarityValLow		= CSB1726_MV78X60_A0_GPP_POL_LOW,
+	.gppPolarityValMid		= CSB1726_MV78X60_A0_GPP_POL_MID,
+	.gppPolarityValHigh		= CSB1726_MV78X60_A0_GPP_POL_HIGH,
+
+	/* TDM configuration */
+	/* We hold a different configuration array for each possible slic that
+	** can be connected to board.
+	** When modules are scanned, then we select the index of the relevant
+	** slic's information array.
+	** For RD and Customers boards we only need to initialize a single
+	** entry of the arrays below, and set the boardTdmInfoIndex to 0.
+	*/
+	.numBoardTdmInfo			= {},
+	.pBoardTdmInt2CsInfo			= {},
+	.boardTdmInfoIndex			= -1,
+
+	/* NAND init params */
+	.nandFlashReadParams		= CSB1726_MV78X60_A0_BOARD_NAND_READ_PARAMS,
+	.nandFlashWriteParams		= CSB1726_MV78X60_A0_BOARD_NAND_WRITE_PARAMS,
+	.nandFlashControl		= CSB1726_MV78X60_A0_BOARD_NAND_CONTROL,
+	/* NOR init params */
+	.norFlashReadParams		= CSB1726_MV78X60_A0_BOARD_NOR_READ_PARAMS,
+	.norFlashWriteParams		= CSB1726_MV78X60_A0_BOARD_NOR_WRITE_PARAMS
+};
+
+
+
 MV_BOARD_INFO *boardInfoTbl[] = {
 	&db88f78XX0Info,
 	&rd78460Info,
@@ -1488,5 +1645,6 @@ MV_BOARD_INFO *boardInfoTbl[] = {
 	&db78X60pcacrev2Info,
 	&rd78460ServerRev2Info,
 	&rd78460gpInfo,
-	&rd78460customerInfo
+	&rd78460customerInfo,
+	&csb1726mv78X60a0Info,
 };

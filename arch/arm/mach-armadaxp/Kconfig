@@ -87,6 +87,11 @@ config MACH_ARMADA_XP_FPGA
 	default y
 	help
 
+config MACH_CSB1701_CSB1726
+	bool "Cogent Armada XP Develpment Board"	
+	default y
+	help
+
 config CFU_DRAM_BYPASS
         bool "Bypass CFU to DRAM via Punit"
 	default n

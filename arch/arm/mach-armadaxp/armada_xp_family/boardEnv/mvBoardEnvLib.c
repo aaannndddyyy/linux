@@ -285,6 +285,7 @@ MV_BOOL mvBoardIsPortInSgmii(MV_U32 ethPortNum)
 	case RD_78460_NAS_ID:
 	case RD_78460_CUSTOMER_ID:
 	case DB_78X60_PCAC_REV2_ID:
+	case CSB1726_MV78X60_A0_ID:
 		return MV_TRUE;
 		break;
 
@@ -1416,6 +1417,8 @@ MV_VOID mvBoardIdSet(MV_VOID)
 		gBoardId = RD_78460_GP_ID;
 #elif defined(RD_78460_CUSTOMER)
 		gBoardId = RD_78460_CUSTOMER_ID;
+#elif defined(CSB1726_MV78X60_A0)
+		gBoardId = CSB1726_MV78X60_A0_ID;
 #else
 		mvOsPrintf("mvBoardIdSet: Board ID must be defined!\n");
 		while (1) {
@@ -2015,6 +2018,7 @@ MV_U16 mvBoardPexCapabilityGet(MV_VOID)
 	case DB_78X60_PCAC_REV2_ID:
 	case RD_78460_SERVER_ID:
 	case RD_78460_SERVER_REV2_ID:
+	case CSB1726_MV78X60_A0_ID:
 		sar = 0x1; /* Gen2 */
 		break;
 	case DB_88F78XX0_BP_ID:
@@ -2705,6 +2709,9 @@ MV_SERDES_CFG *mvBoardSerdesCfgGet(void)
 		if (mvBoardIsSwitchModuleConnected())
 			serdesCfg = 1;
 		break;
+	case CSB1726_MV78X60_A0_ID:
+			serdesCfg = 0;
+		break;
 	}
 
 	return &BOARD_INFO(boardId)->pBoardSerdesConfigValue[serdesCfg];
@@ -2741,6 +2748,7 @@ MV_BOARD_PEX_INFO *mvBoardPexInfoGet(void)
 	case RD_78460_CUSTOMER_ID:
 	case DB_78X60_AMC_ID:
 	case DB_78X60_PCAC_REV2_ID:
+	case CSB1726_MV78X60_A0_ID:
 		return &BOARD_INFO(boardId)->boardPexInfo;
 		break;
 	default:

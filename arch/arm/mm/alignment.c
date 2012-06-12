@@ -962,8 +962,10 @@ static int __init alignment_init(void)
 #endif
 
 	if (cpu_is_v6_unaligned()) {
+#ifndef CONFIG_ENABLE_UNALINGED_ACCESS_FAULT
 		cr_alignment &= ~CR_A;
 		cr_no_alignment &= ~CR_A;
+#endif
 		set_cr(cr_alignment);
 		ai_usermode = safe_usermode(ai_usermode, false);
 	}

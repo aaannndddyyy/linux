@@ -265,6 +265,8 @@ struct ucred {
 #define MSG_NOSIGNAL	0x4000	/* Do not generate SIGPIPE */
 #define MSG_MORE	0x8000	/* Sender will send more */
 #define MSG_WAITFORONE	0x10000	/* recvmmsg(): block until 1+ packets avail */
+#define MSG_KERNSPACE   0x20000
+#define MSG_NOCATCHSIG	0x40000
 
 #define MSG_EOF         MSG_FIN
 
@@ -332,6 +334,7 @@ extern int memcpy_toiovecend(const struct iovec *v, unsigned char *kdata,
 			     int offset, int len);
 extern int move_addr_to_kernel(void __user *uaddr, int ulen, struct sockaddr *kaddr);
 extern int put_cmsg(struct msghdr*, int level, int type, int len, void *data);
+extern void memcpy_tokerneliovec(struct iovec *iov, unsigned char *kdata, int len);
 
 struct timespec;
 

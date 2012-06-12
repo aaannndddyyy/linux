@@ -55,6 +55,9 @@
 #include <net/netns/generic.h>
 
 #define PPP_VERSION	"2.4.2"
+#if defined(CONFIG_MV_ETH_NFP_PPP) && defined(CONFIG_MV_ETH_NFP_LEARN)
+exte int nfp_hook_ppp_compnete(u32 chan, struct net_device *ppp_dev);
+#endif /* CONFIG_MV_ETH_NFP_PPP && CONFIG_MV_ETH_NFP_LEARN */
 
 /*
  * Network protocols we support.
@@ -2816,8 +2819,10 @@ ppp_connect_channel(struct channel *pch, int unit)
 	atomic_inc(&ppp->file.refcnt);
 	ppp_unlock(ppp);
 	ret = 0;
-
- outl:
+#if defined(CONFIG_MV_ETH_NFP_PPP) && defined(CONFIG_MV_ETH_NFP_LEARN)
+	nfp_hook_ppp_complete((u32)pch->chan, ppp->dev);
+#endif /* CONFIG_MV_ETH_NFP_PPP && CONFIG_MV_ETH_NFP_LEARN */ 
+outl:
 	write_unlock_bh(&pch->upl);
  out:
 	mutex_unlock(&pn->all_ppp_mutex);

@@ -101,6 +101,7 @@ static void __init csb1724_init(void)
 	kirkwood_mpp_conf(csb1724_mpp_config);
 
 	kirkwood_i2c_init();
+	kirkwood_i2c1_init();
 	kirkwood_ehci_init();
 	kirkwood_uart0_init();
 	kirkwood_ge00_init(&csb1724_ge00_data);

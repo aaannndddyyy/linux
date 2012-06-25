@@ -40,6 +40,7 @@
 /*
  * High Interrupt Controller
  */
+#define IRQ_KIRKWOOD_TWSI1	32
 #define IRQ_KIRKWOOD_UART_0	33
 #define IRQ_KIRKWOOD_UART_1	34
 #define IRQ_KIRKWOOD_GPIO_LOW_0_7	35

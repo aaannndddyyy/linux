@@ -409,6 +409,10 @@ void __init kirkwood_i2c_init(void)
 	orion_i2c_init(I2C_PHYS_BASE, IRQ_KIRKWOOD_TWSI, 8);
 }
 
+void __init kirkwood_i2c1_init(void)
+{
+	orion_i2c_1_init(I2C1_PHYS_BASE, IRQ_KIRKWOOD_TWSI1, 8);
+}
 
 /*****************************************************************************
  * UART0

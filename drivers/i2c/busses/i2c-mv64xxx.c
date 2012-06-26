@@ -612,6 +612,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	struct mv64xxx_i2c_pdata	*pdata = pd->dev.platform_data;
 	int	rc;
 
+
 	if ((!pdata && !pd->dev.of_node))
 		return -ENODEV;
 

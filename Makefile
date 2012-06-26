@@ -1,8 +1,8 @@
 VERSION = 3
 PATCHLEVEL = 6
 SUBLEVEL = 5
-EXTRAVERSION =
-NAME = Terrified Chipmunk
+EXTRAVERSION = -csb1724-slab1
+NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

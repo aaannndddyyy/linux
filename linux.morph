@@ -1,0 +1,22 @@
+{
+    "name": "linux",
+    "kind": "chunk",
+    "configure-commands": [
+        "make ARCH=arm csb1724_defconfig",
+        "scripts/config -e BTRFS_FS",
+        "scripts/config -e BTRFS_FS_POSIX_ACL",
+        "scripts/config -d BTRFS_FS_CHECK_INTEGRITY",
+        "scripts/config -e DEVTMPFS",
+        "scripts/config -e DEVTMPFS_MOUNT",
+        "scripts/config --set-str UEVENT_HELPER_PATH ''",
+        "scripts/config -e IKCONFIG",
+        "scripts/config -e IKCONFIG_PROC"
+    ],
+    "build-commands": [
+        "make ARCH=arm zImage"
+    ],
+    "install-commands": [
+        "mkdir -p \"$DESTDIR\"/boot",
+        "cp arch/arm/boot/zImage \"$DESTDIR\"/boot/zImage"
+    ]
+}

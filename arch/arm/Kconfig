@@ -1093,6 +1093,10 @@ source "arch/arm/mach-vt8500/Kconfig"
 
 source "arch/arm/mach-w90x900/Kconfig"
 
+config EMBEDDED_DTB
+	string "Embedded device tree blob" if OF
+	default ""
+
 # Definitions to make life easier
 config ARCH_ACORN
 	bool

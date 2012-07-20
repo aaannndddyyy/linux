@@ -44,6 +44,9 @@ $(obj)/xipImage: FORCE
 	@echo 'Kernel not configured for XIP (CONFIG_XIP_KERNEL!=y)'
 	@false
 
+#append Device Tree .dtb file after vmlinux
+cmd_do_append_dtb = if [ \"$(CONFIG_EMBEDDED_DTB)\" != \"\" ]; then cat $(CONFIG_EMBEDDED_DTB) >> $@ ; fi
+
 $(obj)/Image: vmlinux FORCE
 	$(call if_changed,objcopy)
 	@echo '  Kernel: $@ is ready'
@@ -53,6 +56,7 @@ $(obj)/compressed/vmlinux: $(obj)/Image FORCE
 
 $(obj)/zImage:	$(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
+	$(call if_changed,do_append_dtb)
 	@echo '  Kernel: $@ is ready'
 
 endif

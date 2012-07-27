@@ -2,6 +2,7 @@
 params_phys-y	:= 0x00000100
 initrd_phys-y	:= 0x00800000
 
+dtb-$(CONFIG_MACH_CSB1724_DT) += kirkwood-csb1724.dtb
 dtb-$(CONFIG_MACH_DREAMPLUG_DT) += kirkwood-dreamplug.dtb
 dtb-$(CONFIG_MACH_DLINK_KIRKWOOD_DT) += kirkwood-dns320.dtb
 dtb-$(CONFIG_MACH_DLINK_KIRKWOOD_DT) += kirkwood-dns325.dtb

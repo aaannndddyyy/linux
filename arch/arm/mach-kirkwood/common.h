@@ -94,6 +94,12 @@ void lsxl_init(void);
 static inline void lsxl_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_CSB1724_DT
+void csb1724_init(void);
+#else
+static inline void csb1724_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);

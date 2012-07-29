@@ -115,7 +115,7 @@ static void __init csb1724_init(void)
 static int __init csb1724_pci_init(void)
 {
 	if (machine_is_csb1724())
-		kirkwood_pcie_init(KW_PCIE1 | KW_PCIE0);
+		kirkwood_pcie_init(KW_PCIE1 | KW_PCIE0, KW_PCIE0 | KW_PCIE1);
 
 	return 0;
 }

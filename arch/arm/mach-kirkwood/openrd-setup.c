@@ -211,7 +211,7 @@ static int __init openrd_pci_init(void)
 	if (machine_is_openrd_base() ||
 	    machine_is_openrd_client() ||
 	    machine_is_openrd_ultimate())
-		kirkwood_pcie_init(KW_PCIE0);
+		kirkwood_pcie_init(KW_PCIE0, 0);
 
 	return 0;
 }

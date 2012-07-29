@@ -886,6 +886,11 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 
 	p = printk_buf;
 
+	if (0) {
+		extern void printascii(const char *);
+		printascii(printk_buf);
+	}
+
 	/* Read log level and handle special printk prefix */
 	plen = log_prefix(p, &current_log_level, &special);
 	if (plen) {

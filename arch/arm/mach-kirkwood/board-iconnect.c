@@ -17,7 +17,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/mtd/partitions.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
@@ -25,10 +24,6 @@
 #include <mach/kirkwood.h>
 #include "common.h"
 #include "mpp.h"
-
-static struct mv643xx_eth_platform_data iconnect_ge00_data = {
-	.phy_addr	= MV643XX_ETH_PHY_ADDR(11),
-};
 
 static unsigned int iconnect_mpp_config[] __initdata = {
 	MPP12_GPIO,
@@ -92,7 +87,7 @@ void __init iconnect_init(void)
 	kirkwood_nand_init(ARRAY_AND_SIZE(iconnect_nand_parts), 25);
 
 	kirkwood_ehci_init();
-	kirkwood_ge00_init(&iconnect_ge00_data);
+	kirkwood_ge00_init(NULL);
 
 	platform_device_register(&iconnect_button_device);
 }

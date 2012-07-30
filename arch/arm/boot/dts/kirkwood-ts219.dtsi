@@ -74,5 +74,8 @@
 			status = "okay";
 			nr-ports = <2>;
 		};
+		smi0: mdio@72000 {
+			status = "ok";
+		};
 	};
 };

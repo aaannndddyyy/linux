@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -28,10 +27,6 @@
 #include "common.h"
 #include "mpp.h"
 #include "tsx1x-common.h"
-
-static struct mv643xx_eth_platform_data qnap_ts219_ge00_data = {
-	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
-};
 
 static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP0_SPI_SCn,
@@ -62,10 +57,7 @@ void __init qnap_dt_ts219_init(void)
 	kirkwood_mpp_conf(qnap_ts219_mpp_config);
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (dev == MV88F6282_DEV_ID)
-		qnap_ts219_ge00_data.phy_addr = MV643XX_ETH_PHY_ADDR(0);
-
-	kirkwood_ge00_init(&qnap_ts219_ge00_data);
+	kirkwood_ge00_init(NULL);
 	kirkwood_ehci_init();
 
 	pm_power_off = qnap_tsx1x_power_off;

@@ -3,6 +3,15 @@
 /include/ "kirkwood-ts219.dtsi"
 
 / {
+	ocp@f1000000 {
+		egiga0 {
+			compatible = "marvell,mv643xx";
+			mdio = <&smi0>;
+			port_number = <0>;
+			phy_addr = <0x80>;
+			interrupts = <11>;
+		};
+	};
 	gpio_keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;

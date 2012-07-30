@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
-#include <linux/mv643xx_eth.h>
 #include <linux/of.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
@@ -28,10 +27,6 @@
 #include <mach/bridge-regs.h>
 #include "common.h"
 #include "mpp.h"
-
-static struct mv643xx_eth_platform_data dnskw_ge00_data = {
-	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
-};
 
 static unsigned int dnskw_mpp_config[] __initdata = {
 	MPP13_UART1_TXD,	/* Custom ... */
@@ -112,7 +107,7 @@ void __init dnskw_init(void)
 	kirkwood_mpp_conf(dnskw_mpp_config);
 
 	kirkwood_ehci_init();
-	kirkwood_ge00_init(&dnskw_ge00_data);
+	kirkwood_ge00_init(NULL);
 
 	platform_device_register(&dnskw_fan_device);
 

@@ -45,6 +45,19 @@
 			};
 
 		};
+
+		smi0: mdio@72000 {
+			status = "ok";
+		};
+
+		egiga0 {
+			compatible = "marvell,mv643xx";
+			mdio = <&smi0>;
+			port_number = <0>;
+			phy_addr = <0x88>;
+			interrupts = <11>;
+		};
+
 	};
 
 	gpio_keys {

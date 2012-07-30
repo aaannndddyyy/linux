@@ -105,5 +105,21 @@
 			clock-frequency = <100000>;
 			status = "disabled";
 		};
+
+		smi0: mdio@72000 {
+			compatible = "marvell,mdio-mv643xx";
+			reg = <0x72000 0x4000>;
+			interrupts = <46>;
+			status = "disabled";
+		};
+
+		smi1: mdio@76000 {
+			compatible = "marvell,mdio-mv643xx";
+			reg = <0x76000 0x4000>;
+			interrupts = <47>;
+			shared_smi = <&smi0>;
+			status = "disabled";
+		};
+
 	};
 };

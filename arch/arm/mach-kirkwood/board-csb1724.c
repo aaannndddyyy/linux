@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include "common.h"
 #include "mpp.h"
 
 static unsigned int csb1724_mpp_config[] __initdata = {
@@ -56,4 +57,6 @@ void __init csb1724_init(void)
 	 * Basic setup. Needs to be called early.
 	 */
 	kirkwood_mpp_conf(csb1724_mpp_config);
+	kirkwood_ge00_init(NULL);
+	kirkwood_ge01_init(NULL);
 }

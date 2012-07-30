@@ -299,7 +299,8 @@ void __init kirkwood_ehci_init(void)
  ****************************************************************************/
 void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	orion_ge00_init(eth_data,
+	if (eth_data)
+		orion_ge00_init(eth_data,
 			GE00_PHYS_BASE, IRQ_KIRKWOOD_GE00_SUM,
 			IRQ_KIRKWOOD_GE00_ERR);
 	/* The interface forgets the MAC address assigned by u-boot if
@@ -313,7 +314,8 @@ void __init kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data)
  ****************************************************************************/
 void __init kirkwood_ge01_init(struct mv643xx_eth_platform_data *eth_data)
 {
-	orion_ge01_init(eth_data,
+	if (eth_data)
+		orion_ge01_init(eth_data,
 			GE01_PHYS_BASE, IRQ_KIRKWOOD_GE01_SUM,
 			IRQ_KIRKWOOD_GE01_ERR);
 	clk_prepare_enable(ge1);

@@ -1,7 +1,7 @@
 VERSION = 3
 PATCHLEVEL = 4
 SUBLEVEL = 0
-EXTRAVERSION = -csb1724-bjd1
+EXTRAVERSION = -csb1724-msom
 NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*

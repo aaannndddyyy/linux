@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/i2c.h>
 
 #include <linux/mtd/partitions.h>
 #include <linux/ata_platform.h>
@@ -92,6 +93,12 @@ static unsigned int csb1724_mpp_config[] __initdata = {
 	MPP37_TW1_SCK,
 };
 
+static struct i2c_board_info i2c_board_info_csb1724[] = {
+	{
+		I2C_BOARD_INFO("smsc2517-usb", 0x2c),
+	},
+};
+
 static void __init csb1724_init(void)
 {
 	/*
@@ -100,6 +107,7 @@ static void __init csb1724_init(void)
 	kirkwood_init();
 	kirkwood_mpp_conf(csb1724_mpp_config);
 
+	i2c_register_board_info(0, ARRAY_AND_SIZE(i2c_board_info_csb1724));
 	kirkwood_i2c_init();
 	kirkwood_i2c1_init();
 	kirkwood_ehci_init();

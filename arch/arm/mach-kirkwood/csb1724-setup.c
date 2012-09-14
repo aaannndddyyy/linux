@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/mv643xx_eth.h>
 
@@ -21,6 +22,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
+#include <asm/system_misc.h>
 
 #include "common.h"
 #include "mpp.h"
@@ -100,6 +102,9 @@ static void __init csb1724_init(void)
 	kirkwood_init();
 	kirkwood_mpp_conf(csb1724_mpp_config);
 
+	orion_gpio_set_valid(28, 1);
+	orion_gpio_set_valid(29, 1);
+
 	kirkwood_i2c_init();
 	kirkwood_i2c1_init();
 	kirkwood_ehci_init();
@@ -121,6 +126,46 @@ static int __init csb1724_pci_init(void)
 }
 
 subsys_initcall(csb1724_pci_init);
+
+static int reset_gpio = -1;
+
+static void csb1724_do_restart(char mode, const char *cmd)
+{
+	printk(KERN_INFO "Resetting board\n");
+
+	gpio_direction_output(reset_gpio, 0);
+}
+
+static int __init csb1724_reset_setup(char *line)
+{
+	if (kstrtoint(line, 0, &reset_gpio))
+		printk(KERN_ERR "%s: unknown value '%s'\n", __func__, line);
+	return 1;
+}
+
+__setup("csb1724_reset=", csb1724_reset_setup);
+
+static int __init csb1724_reset_init(void)
+{
+	int ret;
+
+	if (reset_gpio >= 0) {
+		printk(KERN_INFO "%s: using gpio %d\n", __func__, reset_gpio);
+
+		ret = gpio_request(reset_gpio, "board reset");
+		if (ret != 0) {
+			printk(KERN_ERR "Failed to get gpio\n");
+			return ret;
+		}
+
+		arm_pm_restart = csb1724_do_restart;
+	}
+
+	return 0;
+}
+
+device_initcall(csb1724_reset_init);
+
 
 MACHINE_START(CSB1724, "Cogent CSB1724")
 	.atag_offset	= 0x100,

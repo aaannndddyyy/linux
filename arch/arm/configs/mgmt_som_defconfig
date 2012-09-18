@@ -780,7 +780,6 @@ CONFIG_BLK_DEV_RAM_SIZE=4096
 # CONFIG_EEPROM_MAX6875 is not set
 # CONFIG_EEPROM_93CX6 is not set
 # CONFIG_CB710_CORE is not set
-# CONFIG_IWMC3200TOP is not set
 
 #
 # Texas Instruments shared transport line discipline
@@ -1221,11 +1220,9 @@ CONFIG_WLAN=y
 # CONFIG_IWLWIFI is not set
 # CONFIG_IWL4965 is not set
 # CONFIG_IWL3945 is not set
-# CONFIG_IWM is not set
 CONFIG_LIBERTAS=m
 # CONFIG_LIBERTAS_USB is not set
 # CONFIG_LIBERTAS_CS is not set
-CONFIG_LIBERTAS_SDIO=m
 # CONFIG_LIBERTAS_DEBUG is not set
 # CONFIG_LIBERTAS_MESH is not set
 # CONFIG_HERMES is not set
@@ -1847,34 +1844,7 @@ CONFIG_USB_SERIAL_OPTION=y
 # CONFIG_USB_ULPI is not set
 # CONFIG_NOP_USB_XCEIV is not set
 # CONFIG_UWB is not set
-CONFIG_MMC=m
-# CONFIG_MMC_DEBUG is not set
-# CONFIG_MMC_UNSAFE_RESUME is not set
-# CONFIG_MMC_CLKGATE is not set
-
-#
-# MMC/SD/SDIO Card Drivers
-#
-CONFIG_MMC_BLOCK=m
-CONFIG_MMC_BLOCK_MINORS=8
-CONFIG_MMC_BLOCK_BOUNCE=y
-CONFIG_SDIO_UART=m
-# CONFIG_MMC_TEST is not set
-
-#
-# MMC/SD/SDIO Host Controller Drivers
-#
-# CONFIG_MMC_SDHCI is not set
-# CONFIG_MMC_SDHCI_PXAV3 is not set
-# CONFIG_MMC_SDHCI_PXAV2 is not set
-# CONFIG_MMC_TIFM_SD is not set
-CONFIG_MMC_MVSDIO=m
-# CONFIG_MMC_SDRICOH_CS is not set
-# CONFIG_MMC_CB710 is not set
-# CONFIG_MMC_VIA_SDMMC is not set
-# CONFIG_MMC_DW is not set
-# CONFIG_MMC_VUB300 is not set
-# CONFIG_MMC_USHC is not set
+# CONFIG_MMC is not set
 # CONFIG_MEMSTICK is not set
 CONFIG_NEW_LEDS=y
 CONFIG_LEDS_CLASS=y

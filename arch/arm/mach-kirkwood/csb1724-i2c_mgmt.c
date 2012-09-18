@@ -38,6 +38,8 @@ smsc2517_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	const u8 *reg = datablob;
 	const u8 *data = reg+1;
 
+	dev_info(&client->dev, "initialising usb hub\");
+
 	while (*reg || *data) {
 		if (i2c_smbus_write_block_data(client, *reg, 1, data) < 0)
 			return -ENODEV;

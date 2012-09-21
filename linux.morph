@@ -12,6 +12,8 @@
         "scripts/config -e BTRFS_FS_POSIX_ACL",
         "scripts/config -e DEVTMPFS",
         "scripts/config -e DEVTMPFS_MOUNT",
+        "scripts/config -e CGROUPS",
+        "scripts/config -e AUTOFS4_FS",
         "scripts/config --set-str UEVENT_HELPER_PATH ''",
         "scripts/config -e EXT2_FS",
         "scripts/config -e EXT2_FS_XATTR",

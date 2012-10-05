@@ -273,26 +273,28 @@ static struct hw_pci kirkwood_pci __initdata = {
 	.map_irq	= kirkwood_pcie_map_irq,
 };
 
-static void __init add_pcie_port(int index, unsigned long base)
+static void __init add_pcie_port(int index, unsigned long base, unsigned int hotplug)
 {
 	printk(KERN_INFO "Kirkwood PCIe port %d: ", index);
 
 	if (orion_pcie_link_up((void __iomem *)base)) {
 		printk(KERN_INFO "link up\n");
 		pcie_port_map[num_pcie_ports++] = index;
+	} else if (hotplug) {
+		printk(KERN_INFO "link down, adding (hotplug)\n");
 	} else
 		printk(KERN_INFO "link down, ignoring\n");
 }
 
-void __init kirkwood_pcie_init(unsigned int portmask)
+void __init kirkwood_pcie_init(unsigned int portmask, unsigned int hotmask)
 {
 	vga_base = KIRKWOOD_PCIE_MEM_PHYS_BASE;
 
 	if (portmask & KW_PCIE0)
-		add_pcie_port(0, PCIE_VIRT_BASE);
+		add_pcie_port(0, PCIE_VIRT_BASE, hotmask & KW_PCIE0);
 
 	if (portmask & KW_PCIE1)
-		add_pcie_port(1, PCIE1_VIRT_BASE);
+		add_pcie_port(1, PCIE1_VIRT_BASE, hotmask & KW_PCIE1);
 
 	kirkwood_pci.nr_controllers = num_pcie_ports;
 	pci_common_init(&kirkwood_pci);

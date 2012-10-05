@@ -1,7 +1,8 @@
 VERSION = 3
 PATCHLEVEL = 6
 SUBLEVEL = 0
-EXTRAVERSION =
+=======
+EXTRAVERSION = -csb1724-bjd1
 NAME = Terrified Chipmunk
 
 # *DOCUMENTATION*

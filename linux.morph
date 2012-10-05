@@ -47,7 +47,8 @@
         "scripts/config -e 8139TOO",
         "scripts/config -e 8139CP",
         "scripts/config -e IKCONFIG",
-        "scripts/config -e IKCONFIG_PROC"
+        "scripts/config -e IKCONFIG_PROC",
+        "scripts/config -d DEBUG_STACK_USAGE"
     ],
     "build-commands": [
         "make"

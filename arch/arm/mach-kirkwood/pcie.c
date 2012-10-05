@@ -282,6 +282,7 @@ static void __init add_pcie_port(int index, unsigned long base, unsigned int hot
 		pcie_port_map[num_pcie_ports++] = index;
 	} else if (hotplug) {
 		printk(KERN_INFO "link down, adding (hotplug)\n");
+		pcie_port_map[num_pcie_ports++] = index;
 	} else
 		printk(KERN_INFO "link down, ignoring\n");
 }

@@ -16,6 +16,8 @@
 
 #include <asm/ioctls.h>
 
+#include "../../mount.h"
+
 #define FANOTIFY_DEFAULT_MAX_EVENTS	16384
 #define FANOTIFY_DEFAULT_MAX_MARKS	8192
 #define FANOTIFY_DEFAULT_MAX_LISTENERS	128
@@ -59,8 +61,6 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 {
 	int client_fd;
-	struct dentry *dentry;
-	struct vfsmount *mnt;
 	struct file *new_file;
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
@@ -79,12 +79,10 @@ static int create_fd(struct fsnotify_group *group, struct fsnotify_event *event)
 	 * we need a new file handle for the userspace program so it can read even if it was
 	 * originally opened O_WRONLY.
 	 */
-	dentry = dget(event->path.dentry);
-	mnt = mntget(event->path.mnt);
 	/* it's possible this event was an overflow event.  in that case dentry and mnt
 	 * are NULL;  That's fine, just don't call dentry open */
-	if (dentry && mnt)
-		new_file = dentry_open(dentry, mnt,
+	if (event->path.dentry && event->path.mnt)
+		new_file = dentry_open(&event->path,
 				       group->fanotify_data.f_flags | FMODE_NONOTIFY,
 				       current_cred());
 	else
@@ -546,7 +544,7 @@ static int fanotify_remove_vfsmount_mark(struct fsnotify_group *group,
 
 	removed = fanotify_mark_remove_from_mask(fsn_mark, mask, flags);
 	fsnotify_put_mark(fsn_mark);
-	if (removed & mnt->mnt_fsnotify_mask)
+	if (removed & real_mount(mnt)->mnt_fsnotify_mask)
 		fsnotify_recalc_vfsmount_mask(mnt);
 
 	return 0;
@@ -623,7 +621,7 @@ static int fanotify_add_vfsmount_mark(struct fsnotify_group *group,
 	}
 	added = fanotify_mark_add_to_mask(fsn_mark, mask, flags);
 
-	if (added & ~mnt->mnt_fsnotify_mask)
+	if (added & ~real_mount(mnt)->mnt_fsnotify_mask)
 		fsnotify_recalc_vfsmount_mask(mnt);
 err:
 	fsnotify_put_mark(fsn_mark);

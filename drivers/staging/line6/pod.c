@@ -405,7 +405,7 @@ void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data,
 /*
 	Send channel number (i.e., switch to a different sound).
 */
-static void pod_send_channel(struct usb_line6_pod *pod, int value)
+static void pod_send_channel(struct usb_line6_pod *pod, u8 value)
 {
 	line6_invalidate_current(&pod->dumpreq);
 
@@ -419,7 +419,7 @@ static void pod_send_channel(struct usb_line6_pod *pod, int value)
 	Transmit PODxt Pro control parameter.
 */
 void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
-				  int value)
+				  u8 value)
 {
 	if (line6_transmit_parameter(&pod->line6, param, value) == 0)
 		pod_store_parameter(pod, param, value);
@@ -434,11 +434,11 @@ void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 static int pod_resolve(const char *buf, short block0, short block1,
 		       unsigned char *location)
 {
-	unsigned long value;
+	u8 value;
 	short block;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -560,10 +560,10 @@ static ssize_t pod_set_channel(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	unsigned long value;
+	u8 value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -892,10 +892,10 @@ static ssize_t pod_set_midi_postprocess(struct device *dev,
 {
 	struct usb_interface *interface = to_usb_interface(dev);
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	unsigned long value;
+	u8 value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -1149,14 +1149,10 @@ static struct snd_kcontrol_new pod_control_monitor = {
 static void pod_destruct(struct usb_interface *interface)
 {
 	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	struct usb_line6 *line6;
 
 	if (pod == NULL)
 		return;
-	line6 = &pod->line6;
-	if (line6 == NULL)
-		return;
-	line6_cleanup_audio(line6);
+	line6_cleanup_audio(&pod->line6);
 
 	del_timer(&pod->startup_timer);
 	cancel_work_sync(&pod->startup_work);

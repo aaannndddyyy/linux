@@ -2,6 +2,7 @@
 #define _LINUX_INIT_H
 
 #include <linux/compiler.h>
+#include <linux/types.h>
 
 /* These macros are used to mark some functions or 
  * initialized data (doesn't apply to uninitialized data)
@@ -156,7 +157,7 @@ void prepare_namespace(void);
 
 extern void (*late_time_init)(void);
 
-extern int initcall_debug;
+extern bool initcall_debug;
 
 #endif
   
@@ -190,6 +191,7 @@ extern int initcall_debug;
  * initializes variables that couldn't be statically initialized.
  *
  * This only exists for built-in code, not for modules.
+ * Keep main.c:initcall_level_names[] in sync.
  */
 #define pure_initcall(fn)		__define_initcall("0",fn,0)
 
@@ -279,7 +281,7 @@ void __init parse_early_options(char *cmdline);
 
 #else /* MODULE */
 
-/* Don't use these in modules, but some people do... */
+/* Don't use these in loadable modules, but some people do... */
 #define early_initcall(fn)		module_init(fn)
 #define core_initcall(fn)		module_init(fn)
 #define postcore_initcall(fn)		module_init(fn)

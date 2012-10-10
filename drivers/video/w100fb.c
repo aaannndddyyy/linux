@@ -1567,6 +1567,18 @@ static void w100_suspend(u32 mode)
 		val = readl(remapped_regs + mmPLL_CNTL);
 		val |= 0x00000004;  /* bit2=1 */
 		writel(val, remapped_regs + mmPLL_CNTL);
+
+		writel(0x00000000, remapped_regs + mmLCDD_CNTL1);
+		writel(0x00000000, remapped_regs + mmLCDD_CNTL2);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL1);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL2);
+		writel(0x00000000, remapped_regs + mmGENLCD_CNTL3);
+
+		val = readl(remapped_regs + mmMEM_EXT_CNTL);
+		val |= 0xF0000000;
+		val &= ~(0x00000001);
+		writel(val, remapped_regs + mmMEM_EXT_CNTL);
+
 		writel(0x0000001d, remapped_regs + mmPWRMGT_CNTL);
 	}
 }
@@ -1620,18 +1632,7 @@ static struct platform_driver w100fb_driver = {
 	},
 };
 
-int __init w100fb_init(void)
-{
-	return platform_driver_register(&w100fb_driver);
-}
-
-void __exit w100fb_cleanup(void)
-{
-	platform_driver_unregister(&w100fb_driver);
-}
-
-module_init(w100fb_init);
-module_exit(w100fb_cleanup);
+module_platform_driver(w100fb_driver);
 
 MODULE_DESCRIPTION("ATI Imageon w100 framebuffer driver");
 MODULE_LICENSE("GPL");

@@ -363,6 +363,11 @@ struct platform_device da8xx_wdt_device = {
 	.resource	= da8xx_watchdog_resources,
 };
 
+void da8xx_restart(char mode, const char *cmd)
+{
+	davinci_watchdog_reset(&da8xx_wdt_device);
+}
+
 int __init da8xx_register_watchdog(void)
 {
 	return platform_device_register(&da8xx_wdt_device);
@@ -541,6 +546,7 @@ static struct lcd_ctrl_config lcd_cfg = {
 	.sync_edge		= 0,
 	.sync_ctrl		= 1,
 	.raster_order		= 0,
+	.fifo_th		= 6,
 };
 
 struct da8xx_lcdc_platform_data sharp_lcd035q3dg01_pdata = {
@@ -826,7 +832,7 @@ static struct platform_device da8xx_spi_device[] = {
 	},
 };
 
-int __init da8xx_register_spi(int instance, struct spi_board_info *info,
+int __init da8xx_register_spi(int instance, const struct spi_board_info *info,
 			      unsigned len)
 {
 	int ret;

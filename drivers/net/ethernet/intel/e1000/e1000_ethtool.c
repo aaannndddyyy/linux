@@ -515,14 +515,14 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 			      struct ethtool_drvinfo *drvinfo)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	char firmware_version[32];
 
-	strncpy(drvinfo->driver,  e1000_driver_name, 32);
-	strncpy(drvinfo->version, e1000_driver_version, 32);
+	strlcpy(drvinfo->driver,  e1000_driver_name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, e1000_driver_version,
+		sizeof(drvinfo->version));
 
-	sprintf(firmware_version, "N/A");
-	strncpy(drvinfo->fw_version, firmware_version, 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->regdump_len = e1000_get_regs_len(netdev);
 	drvinfo->eedump_len = e1000_get_eeprom_len(netdev);
 }
@@ -1851,6 +1851,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_sset_count         = e1000_get_sset_count,
 	.get_coalesce           = e1000_get_coalesce,
 	.set_coalesce           = e1000_set_coalesce,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 void e1000_set_ethtool_ops(struct net_device *netdev)

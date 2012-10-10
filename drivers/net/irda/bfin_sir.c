@@ -158,7 +158,7 @@ static int bfin_sir_set_speed(struct bfin_sir_port *port, int speed)
 	/* If not add the 'RPOLC', we can't catch the receive interrupt.
 	 * It's related with the HW layout and the IR transiver.
 	 */
-	val |= IREN | RPOLC;
+	val |= UMOD_IRDA | RPOLC;
 	UART_PUT_GCTL(port, val);
 	return ret;
 }
@@ -432,7 +432,7 @@ static void bfin_sir_shutdown(struct bfin_sir_port *port, struct net_device *dev
 	bfin_sir_stop_rx(port);
 
 	val = UART_GET_GCTL(port);
-	val &= ~(UCEN | IREN | RPOLC);
+	val &= ~(UCEN | UMOD_MASK | RPOLC);
 	UART_PUT_GCTL(port, val);
 
 #ifdef CONFIG_SIR_BFIN_DMA
@@ -518,10 +518,10 @@ static void bfin_sir_send_work(struct work_struct *work)
 	 * reset all the UART.
 	 */
 	val = UART_GET_GCTL(port);
-	val &= ~(IREN | RPOLC);
+	val &= ~(UMOD_MASK | RPOLC);
 	UART_PUT_GCTL(port, val);
 	SSYNC();
-	val |= IREN | RPOLC;
+	val |= UMOD_IRDA | RPOLC;
 	UART_PUT_GCTL(port, val);
 	SSYNC();
 	/* bfin_sir_set_speed(port, self->speed); */
@@ -806,18 +806,7 @@ static struct platform_driver bfin_ir_driver = {
 	},
 };
 
-static int __init bfin_sir_init(void)
-{
-	return platform_driver_register(&bfin_ir_driver);
-}
-
-static void __exit bfin_sir_exit(void)
-{
-	platform_driver_unregister(&bfin_ir_driver);
-}
-
-module_init(bfin_sir_init);
-module_exit(bfin_sir_exit);
+module_platform_driver(bfin_ir_driver);
 
 module_param(max_rate, int, 0);
 MODULE_PARM_DESC(max_rate, "Maximum baud rate (115200, 57600, 38400, 19200, 9600)");

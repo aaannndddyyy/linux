@@ -13,14 +13,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
-
-#include <asm/gpio.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
@@ -179,7 +178,8 @@ static struct gpio_leds_priv * __devinit gpio_leds_create_of(struct platform_dev
 	if (!count)
 		return NULL;
 
-	priv = kzalloc(sizeof_gpio_leds_priv(count), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof_gpio_leds_priv(count),
+			GFP_KERNEL);
 	if (!priv)
 		return NULL;
 
@@ -216,7 +216,6 @@ static struct gpio_leds_priv * __devinit gpio_leds_create_of(struct platform_dev
 err:
 	for (count = priv->num_leds - 2; count >= 0; count--)
 		delete_gpio_led(&priv->leds[count]);
-	kfree(priv);
 	return NULL;
 }
 
@@ -240,8 +239,9 @@ static int __devinit gpio_led_probe(struct platform_device *pdev)
 	int i, ret = 0;
 
 	if (pdata && pdata->num_leds) {
-		priv = kzalloc(sizeof_gpio_leds_priv(pdata->num_leds),
-				GFP_KERNEL);
+		priv = devm_kzalloc(&pdev->dev,
+				sizeof_gpio_leds_priv(pdata->num_leds),
+					GFP_KERNEL);
 		if (!priv)
 			return -ENOMEM;
 
@@ -254,7 +254,6 @@ static int __devinit gpio_led_probe(struct platform_device *pdev)
 				/* On failure: unwind the led creations */
 				for (i = i - 1; i >= 0; i--)
 					delete_gpio_led(&priv->leds[i]);
-				kfree(priv);
 				return ret;
 			}
 		}
@@ -278,7 +277,6 @@ static int __devexit gpio_led_remove(struct platform_device *pdev)
 		delete_gpio_led(&priv->leds[i]);
 
 	dev_set_drvdata(&pdev->dev, NULL);
-	kfree(priv);
 
 	return 0;
 }
@@ -293,21 +291,9 @@ static struct platform_driver gpio_led_driver = {
 	},
 };
 
-MODULE_ALIAS("platform:leds-gpio");
-
-static int __init gpio_led_init(void)
-{
-	return platform_driver_register(&gpio_led_driver);
-}
-
-static void __exit gpio_led_exit(void)
-{
-	platform_driver_unregister(&gpio_led_driver);
-}
-
-module_init(gpio_led_init);
-module_exit(gpio_led_exit);
+module_platform_driver(gpio_led_driver);
 
 MODULE_AUTHOR("Raphael Assenat <raph@8d.com>, Trent Piepho <tpiepho@freescale.com>");
 MODULE_DESCRIPTION("GPIO LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-gpio");

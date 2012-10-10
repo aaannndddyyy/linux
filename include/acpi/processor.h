@@ -59,10 +59,7 @@ struct acpi_processor_cx {
 	u8 entry_method;
 	u8 index;
 	u32 latency;
-	u32 latency_ticks;
 	u32 power;
-	u32 usage;
-	u64 time;
 	u8 bm_sts_skip;
 	char desc[ACPI_CX_DESC_LEN];
 };
@@ -195,6 +192,7 @@ struct acpi_processor_flags {
 	u8 has_cst:1;
 	u8 power_setup_done:1;
 	u8 bm_rld_set:1;
+	u8 need_hotplug_init:1;
 };
 
 struct acpi_processor {
@@ -224,6 +222,7 @@ struct acpi_processor_errata {
 	} piix4;
 };
 
+extern void acpi_processor_load_module(struct acpi_processor *pr);
 extern int acpi_processor_preregister_performance(struct
 						  acpi_processor_performance
 						  __percpu *performance);
@@ -332,8 +331,8 @@ int acpi_processor_cst_has_changed(struct acpi_processor *pr);
 int acpi_processor_hotplug(struct acpi_processor *pr);
 int acpi_processor_power_exit(struct acpi_processor *pr,
 			      struct acpi_device *device);
-int acpi_processor_suspend(struct acpi_device * device, pm_message_t state);
-int acpi_processor_resume(struct acpi_device * device);
+int acpi_processor_suspend(struct device *dev);
+int acpi_processor_resume(struct device *dev);
 extern struct cpuidle_driver acpi_idle_driver;
 
 /* in processor_thermal.c */

@@ -99,12 +99,13 @@ static int __devinit asic3_led_probe(struct platform_device *pdev)
 
 	ret = mfd_cell_enable(pdev);
 	if (ret < 0)
-		goto ret0;
+		return ret;
 
-	led->cdev = kzalloc(sizeof(struct led_classdev), GFP_KERNEL);
+	led->cdev = devm_kzalloc(&pdev->dev, sizeof(struct led_classdev),
+				GFP_KERNEL);
 	if (!led->cdev) {
 		ret = -ENOMEM;
-		goto ret1;
+		goto out;
 	}
 
 	led->cdev->name = led->name;
@@ -115,15 +116,12 @@ static int __devinit asic3_led_probe(struct platform_device *pdev)
 
 	ret = led_classdev_register(&pdev->dev, led->cdev);
 	if (ret < 0)
-		goto ret2;
+		goto out;
 
 	return 0;
 
-ret2:
-	kfree(led->cdev);
-ret1:
+out:
 	(void) mfd_cell_disable(pdev);
-ret0:
 	return ret;
 }
 
@@ -132,8 +130,6 @@ static int __devexit asic3_led_remove(struct platform_device *pdev)
 	struct asic3_led *led = pdev->dev.platform_data;
 
 	led_classdev_unregister(led->cdev);
-
-	kfree(led->cdev);
 
 	return mfd_cell_disable(pdev);
 }
@@ -179,21 +175,9 @@ static struct platform_driver asic3_led_driver = {
 	},
 };
 
-MODULE_ALIAS("platform:leds-asic3");
-
-static int __init asic3_led_init(void)
-{
-	return platform_driver_register(&asic3_led_driver);
-}
-
-static void __exit asic3_led_exit(void)
-{
-	platform_driver_unregister(&asic3_led_driver);
-}
-
-module_init(asic3_led_init);
-module_exit(asic3_led_exit);
+module_platform_driver(asic3_led_driver);
 
 MODULE_AUTHOR("Paul Parsons <lost.distance@yahoo.com>");
 MODULE_DESCRIPTION("HTC ASIC3 LED driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:leds-asic3");

@@ -175,11 +175,13 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 	}
 	memset(&entry->template, 0, sizeof(entry->template));
 	memcpy(entry->template.digest, iint->digest, IMA_DIGEST_SIZE);
-	strncpy(entry->template.file_name, filename, IMA_EVENT_NAME_LEN_MAX);
+	strcpy(entry->template.file_name,
+	       (strlen(filename) > IMA_EVENT_NAME_LEN_MAX) ?
+	       file->f_dentry->d_name.name : filename);
 
 	result = ima_store_template(entry, violation, inode);
-	if (!result)
+	if (!result || result == -EEXIST)
 		iint->flags |= IMA_MEASURED;
-	else
+	if (result < 0)
 		kfree(entry);
 }

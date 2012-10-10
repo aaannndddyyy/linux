@@ -26,7 +26,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx1.h>
-#include <mach/irqs.h>
 
 #include "devices-imx1.h"
 
@@ -134,7 +133,7 @@ static void __init mx1ads_timer_init(void)
 	mx1_clocks_init(32000);
 }
 
-struct sys_timer mx1ads_timer = {
+static struct sys_timer mx1ads_timer = {
 	.init	= mx1ads_timer_init,
 };
 
@@ -147,6 +146,7 @@ MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	.handle_irq = imx1_handle_irq,
 	.timer = &mx1ads_timer,
 	.init_machine = mx1ads_init,
+	.restart	= mxc_restart,
 MACHINE_END
 
 MACHINE_START(MXLADS, "Freescale MXLADS")
@@ -157,4 +157,5 @@ MACHINE_START(MXLADS, "Freescale MXLADS")
 	.handle_irq = imx1_handle_irq,
 	.timer = &mx1ads_timer,
 	.init_machine = mx1ads_init,
+	.restart	= mxc_restart,
 MACHINE_END

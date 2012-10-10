@@ -280,7 +280,7 @@ static int sh_sir_set_baudrate(struct sh_sir_self *self, u32 baudrate)
 	}
 
 	clk = clk_get(NULL, "irda_clk");
-	if (!clk) {
+	if (IS_ERR(clk)) {
 		dev_err(dev, "can not get irda_clk\n");
 		return -EIO;
 	}
@@ -685,7 +685,7 @@ static int sh_sir_stop(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 
-	dev_info(&ndev->dev, "stoped\n");
+	dev_info(&ndev->dev, "stopped\n");
 
 	return 0;
 }
@@ -808,18 +808,7 @@ static struct platform_driver sh_sir_driver = {
 	},
 };
 
-static int __init sh_sir_init(void)
-{
-	return platform_driver_register(&sh_sir_driver);
-}
-
-static void __exit sh_sir_exit(void)
-{
-	platform_driver_unregister(&sh_sir_driver);
-}
-
-module_init(sh_sir_init);
-module_exit(sh_sir_exit);
+module_platform_driver(sh_sir_driver);
 
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
 MODULE_DESCRIPTION("SuperH IrDA driver");

@@ -568,6 +568,12 @@ static void rtas_flash_firmware(int reboot_type)
 	}
 
 	/*
+	 * Just before starting the firmware flash, cancel the event scan work
+	 * to avoid any soft lockup issues.
+	 */
+	rtas_cancel_event_scan();
+
+	/*
 	 * NOTE: the "first" block must be under 4GB, so we create
 	 * an entry with no data blocks in the reserved buffer in
 	 * the kernel data segment.
@@ -703,7 +709,7 @@ static int __init rtas_flash_init(void)
 
 	if (rtas_token("ibm,update-flash-64-and-reboot") ==
 		       RTAS_UNKNOWN_SERVICE) {
-		printk(KERN_ERR "rtas_flash: no firmware flash support\n");
+		pr_info("rtas_flash: no firmware flash support\n");
 		return 1;
 	}
 

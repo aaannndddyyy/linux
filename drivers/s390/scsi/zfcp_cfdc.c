@@ -5,12 +5,13 @@
  * Access Control Lists / Control File Data Channel;
  * handling of response code and states for ports and LUNs.
  *
- * Copyright IBM Corporation 2008, 2010
+ * Copyright IBM Corp. 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/compat.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>

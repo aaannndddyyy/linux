@@ -47,23 +47,25 @@ struct stmmac_stats {
 	offsetof(struct stmmac_priv, xstats.m)}
 
 static const struct stmmac_stats stmmac_gstrings_stats[] = {
+	/* Transmit errors */
 	STMMAC_STAT(tx_underflow),
 	STMMAC_STAT(tx_carrier),
 	STMMAC_STAT(tx_losscarrier),
 	STMMAC_STAT(vlan_tag),
 	STMMAC_STAT(tx_deferred),
 	STMMAC_STAT(tx_vlan),
-	STMMAC_STAT(rx_vlan),
 	STMMAC_STAT(tx_jabber),
 	STMMAC_STAT(tx_frame_flushed),
 	STMMAC_STAT(tx_payload_error),
 	STMMAC_STAT(tx_ip_header_error),
+	/* Receive errors */
 	STMMAC_STAT(rx_desc),
 	STMMAC_STAT(sa_filter_fail),
 	STMMAC_STAT(overflow_error),
 	STMMAC_STAT(ipc_csum_error),
 	STMMAC_STAT(rx_collision),
 	STMMAC_STAT(rx_crc),
+	STMMAC_STAT(dribbling_bit),
 	STMMAC_STAT(rx_length),
 	STMMAC_STAT(rx_mii),
 	STMMAC_STAT(rx_multicast),
@@ -73,6 +75,8 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(sa_rx_filter_fail),
 	STMMAC_STAT(rx_missed_cntr),
 	STMMAC_STAT(rx_overflow_cntr),
+	STMMAC_STAT(rx_vlan),
+	/* Tx/Rx IRQ errors */
 	STMMAC_STAT(tx_undeflow_irq),
 	STMMAC_STAT(tx_process_stopped_irq),
 	STMMAC_STAT(tx_jabber_irq),
@@ -82,12 +86,23 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(rx_watchdog_irq),
 	STMMAC_STAT(tx_early_irq),
 	STMMAC_STAT(fatal_bus_error_irq),
+	/* Extra info */
 	STMMAC_STAT(threshold),
 	STMMAC_STAT(tx_pkt_n),
 	STMMAC_STAT(rx_pkt_n),
 	STMMAC_STAT(poll_n),
 	STMMAC_STAT(sched_timer_n),
 	STMMAC_STAT(normal_irq_n),
+	STMMAC_STAT(normal_irq_n),
+	STMMAC_STAT(mmc_tx_irq_n),
+	STMMAC_STAT(mmc_rx_irq_n),
+	STMMAC_STAT(mmc_rx_csum_offload_irq_n),
+	STMMAC_STAT(irq_receive_pmt_irq_n),
+	STMMAC_STAT(irq_tx_path_in_lpi_mode_n),
+	STMMAC_STAT(irq_tx_path_exit_lpi_mode_n),
+	STMMAC_STAT(irq_rx_path_in_lpi_mode_n),
+	STMMAC_STAT(irq_rx_path_exit_lpi_mode_n),
+	STMMAC_STAT(phy_eee_wakeup_error_n),
 };
 #define STMMAC_STATS_LEN ARRAY_SIZE(stmmac_gstrings_stats)
 
@@ -185,9 +200,10 @@ static void stmmac_ethtool_getdrvinfo(struct net_device *dev,
 	struct stmmac_priv *priv = netdev_priv(dev);
 
 	if (priv->plat->has_gmac)
-		strcpy(info->driver, GMAC_ETHTOOL_NAME);
+		strlcpy(info->driver, GMAC_ETHTOOL_NAME, sizeof(info->driver));
 	else
-		strcpy(info->driver, MAC100_ETHTOOL_NAME);
+		strlcpy(info->driver, MAC100_ETHTOOL_NAME,
+			sizeof(info->driver));
 
 	strcpy(info->version, DRV_MODULE_VERSION);
 	info->fw_version[0] = '\0';
@@ -360,6 +376,11 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 					     (*(u32 *)p);
 			}
 		}
+		if (priv->eee_enabled) {
+			int val = phy_get_eee_err(priv->phydev);
+			if (val)
+				priv->xstats.phy_eee_wakeup_error_n = val;
+		}
 	}
 	for (i = 0; i < STMMAC_STATS_LEN; i++) {
 		char *p = (char *)priv + stmmac_gstrings_stats[i].stat_offset;
@@ -458,7 +479,47 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-static struct ethtool_ops stmmac_ethtool_ops = {
+static int stmmac_ethtool_op_get_eee(struct net_device *dev,
+				     struct ethtool_eee *edata)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	if (!priv->dma_cap.eee)
+		return -EOPNOTSUPP;
+
+	edata->eee_enabled = priv->eee_enabled;
+	edata->eee_active = priv->eee_active;
+	edata->tx_lpi_timer = priv->tx_lpi_timer;
+
+	return phy_ethtool_get_eee(priv->phydev, edata);
+}
+
+static int stmmac_ethtool_op_set_eee(struct net_device *dev,
+				     struct ethtool_eee *edata)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	priv->eee_enabled = edata->eee_enabled;
+
+	if (!priv->eee_enabled)
+		stmmac_disable_eee_mode(priv);
+	else {
+		/* We are asking for enabling the EEE but it is safe
+		 * to verify all by invoking the eee_init function.
+		 * In case of failure it will return an error.
+		 */
+		priv->eee_enabled = stmmac_eee_init(priv);
+		if (!priv->eee_enabled)
+			return -EOPNOTSUPP;
+
+		/* Do not change tx_lpi_timer in case of failure */
+		priv->tx_lpi_timer = edata->tx_lpi_timer;
+	}
+
+	return phy_ethtool_set_eee(priv->phydev, edata);
+}
+
+static const struct ethtool_ops stmmac_ethtool_ops = {
 	.begin = stmmac_check_if_running,
 	.get_drvinfo = stmmac_ethtool_getdrvinfo,
 	.get_settings = stmmac_ethtool_getsettings,
@@ -474,7 +535,10 @@ static struct ethtool_ops stmmac_ethtool_ops = {
 	.get_strings = stmmac_get_strings,
 	.get_wol = stmmac_get_wol,
 	.set_wol = stmmac_set_wol,
+	.get_eee = stmmac_ethtool_op_get_eee,
+	.set_eee = stmmac_ethtool_op_set_eee,
 	.get_sset_count	= stmmac_get_sset_count,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)

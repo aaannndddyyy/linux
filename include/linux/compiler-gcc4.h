@@ -29,6 +29,7 @@
    the kernel context */
 #define __cold			__attribute__((__cold__))
 
+#define __linktime_error(message) __attribute__((__error__(message)))
 
 #if __GNUC_MINOR__ >= 5
 /*
@@ -46,6 +47,13 @@
 #define __noclone	__attribute__((__noclone__))
 
 #endif
+#endif
+
+#if __GNUC_MINOR__ >= 6
+/*
+ * Tell the optimizer that something else uses this function or variable.
+ */
+#define __visible __attribute__((externally_visible))
 #endif
 
 #if __GNUC_MINOR__ > 0

@@ -28,7 +28,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/i2c.h>
-#include <linux/version.h>
+#include <linux/hardirq.h>
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
@@ -89,10 +89,6 @@ bool IsA1WithRomCode(struct drxk_state *state)
 
 #ifndef DRXK_MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH
 #define DRXK_MPEG_PARALLEL_OUTPUT_PIN_DRIVE_STRENGTH (0x03)
-#endif
-
-#ifndef DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH
-#define DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH (0x06)
 #endif
 
 #define DEFAULT_DRXK_MPEG_LOCK_TIMEOUT 700
@@ -313,16 +309,42 @@ static u32 Log10Times100(u32 x)
 /* I2C **********************************************************************/
 /****************************************************************************/
 
-static int i2c_read1(struct i2c_adapter *adapter, u8 adr, u8 *val)
+static int drxk_i2c_lock(struct drxk_state *state)
+{
+	i2c_lock_adapter(state->i2c);
+	state->drxk_i2c_exclusive_lock = true;
+
+	return 0;
+}
+
+static void drxk_i2c_unlock(struct drxk_state *state)
+{
+	if (!state->drxk_i2c_exclusive_lock)
+		return;
+
+	i2c_unlock_adapter(state->i2c);
+	state->drxk_i2c_exclusive_lock = false;
+}
+
+static int drxk_i2c_transfer(struct drxk_state *state, struct i2c_msg *msgs,
+			     unsigned len)
+{
+	if (state->drxk_i2c_exclusive_lock)
+		return __i2c_transfer(state->i2c, msgs, len);
+	else
+		return i2c_transfer(state->i2c, msgs, len);
+}
+
+static int i2c_read1(struct drxk_state *state, u8 adr, u8 *val)
 {
 	struct i2c_msg msgs[1] = { {.addr = adr, .flags = I2C_M_RD,
 				    .buf = val, .len = 1}
 	};
 
-	return i2c_transfer(adapter, msgs, 1);
+	return drxk_i2c_transfer(state, msgs, 1);
 }
 
-static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
+static int i2c_write(struct drxk_state *state, u8 adr, u8 *data, int len)
 {
 	int status;
 	struct i2c_msg msg = {
@@ -335,7 +357,7 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 			printk(KERN_CONT " %02x", data[i]);
 		printk(KERN_CONT "\n");
 	}
-	status = i2c_transfer(adap, &msg, 1);
+	status = drxk_i2c_transfer(state, &msg, 1);
 	if (status >= 0 && status != 1)
 		status = -EIO;
 
@@ -345,7 +367,7 @@ static int i2c_write(struct i2c_adapter *adap, u8 adr, u8 *data, int len)
 	return status;
 }
 
-static int i2c_read(struct i2c_adapter *adap,
+static int i2c_read(struct drxk_state *state,
 		    u8 adr, u8 *msg, int len, u8 *answ, int alen)
 {
 	int status;
@@ -356,7 +378,7 @@ static int i2c_read(struct i2c_adapter *adap,
 		 .buf = answ, .len = alen}
 	};
 
-	status = i2c_transfer(adap, msgs, 2);
+	status = drxk_i2c_transfer(state, msgs, 2);
 	if (status != 2) {
 		if (debug > 2)
 			printk(KERN_CONT ": ERROR!\n");
@@ -368,10 +390,10 @@ static int i2c_read(struct i2c_adapter *adap,
 	}
 	if (debug > 2) {
 		int i;
-		dprintk(2, ": read from ");
+		dprintk(2, ": read from");
 		for (i = 0; i < len; i++)
 			printk(KERN_CONT " %02x", msg[i]);
-		printk(KERN_CONT "Value = ");
+		printk(KERN_CONT ", value = ");
 		for (i = 0; i < alen; i++)
 			printk(KERN_CONT " %02x", answ[i]);
 		printk(KERN_CONT "\n");
@@ -399,7 +421,7 @@ static int read16_flags(struct drxk_state *state, u32 reg, u16 *data, u8 flags)
 		len = 2;
 	}
 	dprintk(2, "(0x%08x, 0x%02x)\n", reg, flags);
-	status = i2c_read(state->i2c, adr, mm1, len, mm2, 2);
+	status = i2c_read(state, adr, mm1, len, mm2, 2);
 	if (status < 0)
 		return status;
 	if (data)
@@ -433,7 +455,7 @@ static int read32_flags(struct drxk_state *state, u32 reg, u32 *data, u8 flags)
 		len = 2;
 	}
 	dprintk(2, "(0x%08x, 0x%02x)\n", reg, flags);
-	status = i2c_read(state->i2c, adr, mm1, len, mm2, 4);
+	status = i2c_read(state, adr, mm1, len, mm2, 4);
 	if (status < 0)
 		return status;
 	if (data)
@@ -469,7 +491,7 @@ static int write16_flags(struct drxk_state *state, u32 reg, u16 data, u8 flags)
 	mm[len + 1] = (data >> 8) & 0xff;
 
 	dprintk(2, "(0x%08x, 0x%04x, 0x%02x)\n", reg, data, flags);
-	return i2c_write(state->i2c, adr, mm, len + 2);
+	return i2c_write(state, adr, mm, len + 2);
 }
 
 static int write16(struct drxk_state *state, u32 reg, u16 data)
@@ -500,7 +522,7 @@ static int write32_flags(struct drxk_state *state, u32 reg, u32 data, u8 flags)
 	mm[len + 3] = (data >> 24) & 0xff;
 	dprintk(2, "(0x%08x, 0x%08x, 0x%02x)\n", reg, data, flags);
 
-	return i2c_write(state->i2c, adr, mm, len + 4);
+	return i2c_write(state, adr, mm, len + 4);
 }
 
 static int write32(struct drxk_state *state, u32 reg, u32 data)
@@ -547,7 +569,7 @@ static int write_block(struct drxk_state *state, u32 Address,
 					printk(KERN_CONT " %02x", pBlock[i]);
 			printk(KERN_CONT "\n");
 		}
-		status = i2c_write(state->i2c, state->demod_address,
+		status = i2c_write(state, state->demod_address,
 				   &state->Chunk[0], Chunk + AdrLength);
 		if (status < 0) {
 			printk(KERN_ERR "drxk: %s: i2c write error at addr 0x%02x\n",
@@ -573,17 +595,17 @@ int PowerUpDevice(struct drxk_state *state)
 
 	dprintk(1, "\n");
 
-	status = i2c_read1(state->i2c, state->demod_address, &data);
+	status = i2c_read1(state, state->demod_address, &data);
 	if (status < 0) {
 		do {
 			data = 0;
-			status = i2c_write(state->i2c, state->demod_address,
+			status = i2c_write(state, state->demod_address,
 					   &data, 1);
 			msleep(10);
 			retryCount++;
 			if (status < 0)
 				continue;
-			status = i2c_read1(state->i2c, state->demod_address,
+			status = i2c_read1(state, state->demod_address,
 					   &data);
 		} while (status < 0 &&
 			 (retryCount < DRXK_MAX_RETRIES_POWERUP));
@@ -650,9 +672,6 @@ static int init_state(struct drxk_state *state)
 	u32 ulQual83 = DEFAULT_MER_83;
 	u32 ulQual93 = DEFAULT_MER_93;
 
-	u32 ulDVBTStaticTSClock = 1;
-	u32 ulDVBCStaticTSClock = 1;
-
 	u32 ulMpegLockTimeOut = DEFAULT_DRXK_MPEG_LOCK_TIMEOUT;
 	u32 ulDemodLockTimeOut = DEFAULT_DRXK_DEMOD_LOCK_TIMEOUT;
 
@@ -660,10 +679,8 @@ static int init_state(struct drxk_state *state)
 	/* io_pad_cfg_mode output mode is drive always */
 	/* io_pad_cfg_drive is set to power 2 (23 mA) */
 	u32 ulGPIOCfg = 0x0113;
-	u32 ulSerialMode = 1;
 	u32 ulInvertTSClock = 0;
 	u32 ulTSDataStrength = DRXK_MPEG_SERIAL_OUTPUT_PIN_DRIVE_STRENGTH;
-	u32 ulTSClockkStrength = DRXK_MPEG_OUTPUT_CLK_DRIVE_STRENGTH;
 	u32 ulDVBTBitrate = 50000000;
 	u32 ulDVBCBitrate = DRXK_QAM_SYMBOLRATE_MAX * 8;
 
@@ -681,7 +698,8 @@ static int init_state(struct drxk_state *state)
 	state->m_hasOOB = false;
 	state->m_hasAudio = false;
 
-	state->m_ChunkSize = 124;
+	if (!state->m_ChunkSize)
+		state->m_ChunkSize = 124;
 
 	state->m_oscClockFreq = 0;
 	state->m_smartAntInverted = false;
@@ -810,15 +828,12 @@ static int init_state(struct drxk_state *state)
 	/* MPEG output configuration */
 	state->m_enableMPEGOutput = true;	/* If TRUE; enable MPEG ouput */
 	state->m_insertRSByte = false;	/* If TRUE; insert RS byte */
-	state->m_enableParallel = true;	/* If TRUE;
-					   parallel out otherwise serial */
 	state->m_invertDATA = false;	/* If TRUE; invert DATA signals */
 	state->m_invertERR = false;	/* If TRUE; invert ERR signal */
 	state->m_invertSTR = false;	/* If TRUE; invert STR signals */
 	state->m_invertVAL = false;	/* If TRUE; invert VAL signals */
 	state->m_invertCLK = (ulInvertTSClock != 0);	/* If TRUE; invert CLK signals */
-	state->m_DVBTStaticCLK = (ulDVBTStaticTSClock != 0);
-	state->m_DVBCStaticCLK = (ulDVBCStaticTSClock != 0);
+
 	/* If TRUE; static MPEG clockrate will be used;
 	   otherwise clockrate will adapt to the bitrate of the TS */
 
@@ -826,7 +841,6 @@ static int init_state(struct drxk_state *state)
 	state->m_DVBCBitrate = ulDVBCBitrate;
 
 	state->m_TSDataStrength = (ulTSDataStrength & 0x07);
-	state->m_TSClockkStrength = (ulTSClockkStrength & 0x07);
 
 	/* Maximum bitrate in b/s in case static clockrate is selected */
 	state->m_mpegTsStaticBitrate = 19392658;
@@ -855,8 +869,6 @@ static int init_state(struct drxk_state *state)
 
 	state->m_bPowerDown = false;
 	state->m_currentPowerMode = DRX_POWER_DOWN;
-
-	state->m_enableParallel = (ulSerialMode == 0);
 
 	state->m_rfmirror = (ulRfMirror == 0);
 	state->m_IfAgcPol = false;
@@ -946,6 +958,9 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	status = read32(state, SIO_TOP_JTAGID_LO__A, &sioTopJtagidLo);
 	if (status < 0)
 		goto error;
+
+	printk(KERN_INFO "drxk: status = 0x%08x\n", sioTopJtagidLo);
+
 	/* driver 0.9.0 */
 	switch ((sioTopJtagidLo >> 29) & 0xF) {
 	case 0:
@@ -963,7 +978,8 @@ static int GetDeviceCapabilities(struct drxk_state *state)
 	default:
 		state->m_deviceSpin = DRXK_SPIN_UNKNOWN;
 		status = -EINVAL;
-		printk(KERN_ERR "drxk: Spin unknown\n");
+		printk(KERN_ERR "drxk: Spin %d unknown\n",
+		       (sioTopJtagidLo >> 29) & 0xF);
 		goto error2;
 	}
 	switch ((sioTopJtagidLo >> 12) & 0xFF) {
@@ -1189,8 +1205,11 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 	int status = -1;
 	u16 sioPdrMclkCfg = 0;
 	u16 sioPdrMdxCfg = 0;
+	u16 err_cfg = 0;
 
-	dprintk(1, "\n");
+	dprintk(1, ": mpeg %s, %s mode\n",
+		mpegEnable ? "enable" : "disable",
+		state->m_enableParallel ? "parallel" : "serial");
 
 	/* stop lock indicator process */
 	status = write16(state, SCU_RAM_GPIO__A, SCU_RAM_GPIO_HW_LOCK_IND_DISABLE);
@@ -1252,12 +1271,17 @@ static int MPEGTSConfigurePins(struct drxk_state *state, bool mpegEnable)
 		status = write16(state, SIO_PDR_MSTRT_CFG__A, sioPdrMdxCfg);
 		if (status < 0)
 			goto error;
-		status = write16(state, SIO_PDR_MERR_CFG__A, 0x0000);	/* Disable */
+
+		if (state->enable_merr_cfg)
+			err_cfg = sioPdrMdxCfg;
+
+		status = write16(state, SIO_PDR_MERR_CFG__A, err_cfg);
 		if (status < 0)
 			goto error;
-		status = write16(state, SIO_PDR_MVAL_CFG__A, 0x0000);	/* Disable */
+		status = write16(state, SIO_PDR_MVAL_CFG__A, err_cfg);
 		if (status < 0)
 			goto error;
+
 		if (state->m_enableParallel == true) {
 			/* paralel -> enable MD1 to MD7 */
 			status = write16(state, SIO_PDR_MD1_CFG__A, sioPdrMdxCfg);
@@ -1383,20 +1407,20 @@ static int DownloadMicrocode(struct drxk_state *state,
 			     const u8 pMCImage[], u32 Length)
 {
 	const u8 *pSrc = pMCImage;
-	u16 Flags;
-	u16 Drain;
 	u32 Address;
 	u16 nBlocks;
 	u16 BlockSize;
-	u16 BlockCRC;
 	u32 offset = 0;
 	u32 i;
 	int status = 0;
 
 	dprintk(1, "\n");
 
-	/* down the drain (we don care about MAGIC_WORD) */
+	/* down the drain (we don't care about MAGIC_WORD) */
+#if 0
+	/* For future reference */
 	Drain = (pSrc[0] << 8) | pSrc[1];
+#endif
 	pSrc += sizeof(u16);
 	offset += sizeof(u16);
 	nBlocks = (pSrc[0] << 8) | pSrc[1];
@@ -1413,11 +1437,17 @@ static int DownloadMicrocode(struct drxk_state *state,
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
+#if 0
+		/* For future reference */
 		Flags = (pSrc[0] << 8) | pSrc[1];
+#endif
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
+#if 0
+		/* For future reference */
 		BlockCRC = (pSrc[0] << 8) | pSrc[1];
+#endif
 		pSrc += sizeof(u16);
 		offset += sizeof(u16);
 
@@ -1523,8 +1553,10 @@ static int scu_command(struct drxk_state *state,
 	dprintk(1, "\n");
 
 	if ((cmd == 0) || ((parameterLen > 0) && (parameter == NULL)) ||
-	    ((resultLen > 0) && (result == NULL)))
-		goto error;
+	    ((resultLen > 0) && (result == NULL))) {
+		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
+		return status;
+	}
 
 	mutex_lock(&state->mutex);
 
@@ -1846,6 +1878,7 @@ static int SetOperationMode(struct drxk_state *state,
 		*/
 	switch (oMode) {
 	case OM_DVBT:
+		dprintk(1, ": DVB-T\n");
 		state->m_OperationMode = oMode;
 		status = SetDVBTStandard(state, oMode);
 		if (status < 0)
@@ -1853,6 +1886,8 @@ static int SetOperationMode(struct drxk_state *state,
 		break;
 	case OM_QAM_ITU_A:	/* fallthrough */
 	case OM_QAM_ITU_C:
+		dprintk(1, ": DVB-C Annex %c\n",
+			(state->m_OperationMode == OM_QAM_ITU_A) ? 'A' : 'C');
 		state->m_OperationMode = oMode;
 		status = SetQAMStandard(state, oMode);
 		if (status < 0)
@@ -1881,7 +1916,7 @@ static int Start(struct drxk_state *state, s32 offsetFreq,
 		state->m_DrxkState != DRXK_DTV_STARTED)
 		goto error;
 
-	state->m_bMirrorFreqSpect = (state->param.inversion == INVERSION_ON);
+	state->m_bMirrorFreqSpect = (state->props.inversion == INVERSION_ON);
 
 	if (IntermediateFrequency < 0) {
 		state->m_bMirrorFreqSpect = !state->m_bMirrorFreqSpect;
@@ -2503,7 +2538,7 @@ static int GetQAMSignalToNoise(struct drxk_state *state,
 	u16 qamSlErrPower = 0;	/* accum. error between
 					raw and sliced symbols */
 	u32 qamSlSigPower = 0;	/* used for MER, depends of
-					QAM constellation */
+					QAM modulation */
 	u32 qamSlMer = 0;	/* QAM MER */
 
 	dprintk(1, "\n");
@@ -2517,7 +2552,7 @@ static int GetQAMSignalToNoise(struct drxk_state *state,
 		return -EINVAL;
 	}
 
-	switch (state->param.u.qam.modulation) {
+	switch (state->props.modulation) {
 	case QAM_16:
 		qamSlSigPower = DRXK_QAM_SL_SIG_POWER_QAM16 << 2;
 		break;
@@ -2748,7 +2783,7 @@ static int GetDVBCQuality(struct drxk_state *state, s32 *pQuality)
 		if (status < 0)
 			break;
 
-		switch (state->param.u.qam.modulation) {
+		switch (state->props.modulation) {
 		case QAM_16:
 			SignalToNoiseRel = SignalToNoise - 200;
 			break;
@@ -2816,7 +2851,7 @@ static int ConfigureI2CBridge(struct drxk_state *state, bool bEnableBridge)
 	dprintk(1, "\n");
 
 	if (state->m_DrxkState == DRXK_UNINITIALIZED)
-		goto error;
+		return 0;
 	if (state->m_DrxkState == DRXK_POWERED_DOWN)
 		goto error;
 
@@ -2969,7 +3004,7 @@ static int ADCSynchronization(struct drxk_state *state)
 		status = read16(state, IQM_AF_CLKNEG__A, &clkNeg);
 		if (status < 0)
 			goto error;
-		if ((clkNeg | IQM_AF_CLKNEG_CLKNEGDATA__M) ==
+		if ((clkNeg & IQM_AF_CLKNEG_CLKNEGDATA__M) ==
 			IQM_AF_CLKNEG_CLKNEGDATA_CLK_ADC_DATA_POS) {
 			clkNeg &= (~(IQM_AF_CLKNEG_CLKNEGDATA__M));
 			clkNeg |=
@@ -3813,7 +3848,7 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 	/*== Write channel settings to device =====================================*/
 
 	/* mode */
-	switch (state->param.u.ofdm.transmission_mode) {
+	switch (state->props.transmission_mode) {
 	case TRANSMISSION_MODE_AUTO:
 	default:
 		operationMode |= OFDM_SC_RA_RAM_OP_AUTO_MODE__M;
@@ -3827,7 +3862,7 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 	}
 
 	/* guard */
-	switch (state->param.u.ofdm.guard_interval) {
+	switch (state->props.guard_interval) {
 	default:
 	case GUARD_INTERVAL_AUTO:
 		operationMode |= OFDM_SC_RA_RAM_OP_AUTO_GUARD__M;
@@ -3847,7 +3882,7 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 	}
 
 	/* hierarchy */
-	switch (state->param.u.ofdm.hierarchy_information) {
+	switch (state->props.hierarchy) {
 	case HIERARCHY_AUTO:
 	case HIERARCHY_NONE:
 	default:
@@ -3867,8 +3902,8 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 	}
 
 
-	/* constellation */
-	switch (state->param.u.ofdm.constellation) {
+	/* modulation */
+	switch (state->props.modulation) {
 	case QAM_AUTO:
 	default:
 		operationMode |= OFDM_SC_RA_RAM_OP_AUTO_CONST__M;
@@ -3911,7 +3946,7 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 #endif
 
 	/* coderate */
-	switch (state->param.u.ofdm.code_rate_HP) {
+	switch (state->props.code_rate_HP) {
 	case FEC_AUTO:
 	default:
 		operationMode |= OFDM_SC_RA_RAM_OP_AUTO_RATE__M;
@@ -3940,9 +3975,11 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 	/* Also set parameters for EC_OC fix, note EC_OC_REG_TMD_HIL_MAR is changed
 		by SC for fix for some 8K,1/8 guard but is restored by InitEC and ResetEC
 		functions */
-	switch (state->param.u.ofdm.bandwidth) {
-	case BANDWIDTH_AUTO:
-	case BANDWIDTH_8_MHZ:
+	switch (state->props.bandwidth_hz) {
+	case 0:
+		state->props.bandwidth_hz = 8000000;
+		/* fall though */
+	case 8000000:
 		bandwidth = DRXK_BANDWIDTH_8MHZ_IN_HZ;
 		status = write16(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A, 3052);
 		if (status < 0)
@@ -3961,7 +3998,7 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		if (status < 0)
 			goto error;
 		break;
-	case BANDWIDTH_7_MHZ:
+	case 7000000:
 		bandwidth = DRXK_BANDWIDTH_7MHZ_IN_HZ;
 		status = write16(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A, 3491);
 		if (status < 0)
@@ -3980,7 +4017,7 @@ static int SetDVBT(struct drxk_state *state, u16 IntermediateFreqkHz,
 		if (status < 0)
 			goto error;
 		break;
-	case BANDWIDTH_6_MHZ:
+	case 6000000:
 		bandwidth = DRXK_BANDWIDTH_6MHZ_IN_HZ;
 		status = write16(state, OFDM_SC_RA_RAM_SRMM_FIX_FACT_8K__A, 4073);
 		if (status < 0)
@@ -4187,7 +4224,7 @@ error:
 /**
 * \brief Setup of the QAM Measurement intervals for signal quality
 * \param demod instance of demod.
-* \param constellation current constellation.
+* \param modulation current modulation.
 * \return DRXStatus_t.
 *
 *  NOTE:
@@ -4196,7 +4233,7 @@ error:
 *
 */
 static int SetQAMMeasurement(struct drxk_state *state,
-			     enum EDrxkConstellation constellation,
+			     enum EDrxkConstellation modulation,
 			     u32 symbolRate)
 {
 	u32 fecBitsDesired = 0;	/* BER accounting period */
@@ -4210,11 +4247,11 @@ static int SetQAMMeasurement(struct drxk_state *state,
 	fecRsPrescale = 1;
 	/* fecBitsDesired = symbolRate [kHz] *
 		FrameLenght [ms] *
-		(constellation + 1) *
+		(modulation + 1) *
 		SyncLoss (== 1) *
 		ViterbiLoss (==1)
 		*/
-	switch (constellation) {
+	switch (modulation) {
 	case DRX_CONSTELLATION_QAM16:
 		fecBitsDesired = 4 * symbolRate;
 		break;
@@ -5281,12 +5318,12 @@ static int QAMSetSymbolrate(struct drxk_state *state)
 	/* Select & calculate correct IQM rate */
 	adcFrequency = (state->m_sysClockFreq * 1000) / 3;
 	ratesel = 0;
-	/* printk(KERN_DEBUG "drxk: SR %d\n", state->param.u.qam.symbol_rate); */
-	if (state->param.u.qam.symbol_rate <= 1188750)
+	/* printk(KERN_DEBUG "drxk: SR %d\n", state->props.symbol_rate); */
+	if (state->props.symbol_rate <= 1188750)
 		ratesel = 3;
-	else if (state->param.u.qam.symbol_rate <= 2377500)
+	else if (state->props.symbol_rate <= 2377500)
 		ratesel = 2;
-	else if (state->param.u.qam.symbol_rate <= 4755000)
+	else if (state->props.symbol_rate <= 4755000)
 		ratesel = 1;
 	status = write16(state, IQM_FD_RATESEL__A, ratesel);
 	if (status < 0)
@@ -5295,7 +5332,7 @@ static int QAMSetSymbolrate(struct drxk_state *state)
 	/*
 		IqmRcRate = ((Fadc / (symbolrate * (4<<ratesel))) - 1) * (1<<23)
 		*/
-	symbFreq = state->param.u.qam.symbol_rate * (1 << ratesel);
+	symbFreq = state->props.symbol_rate * (1 << ratesel);
 	if (symbFreq == 0) {
 		/* Divide by zero */
 		status = -EINVAL;
@@ -5311,7 +5348,7 @@ static int QAMSetSymbolrate(struct drxk_state *state)
 	/*
 		LcSymbFreq = round (.125 *  symbolrate / adcFreq * (1<<15))
 		*/
-	symbFreq = state->param.u.qam.symbol_rate;
+	symbFreq = state->props.symbol_rate;
 	if (adcFrequency == 0) {
 		/* Divide by zero */
 		status = -EINVAL;
@@ -5351,7 +5388,7 @@ static int GetQAMLockStatus(struct drxk_state *state, u32 *pLockStatus)
 			SCU_RAM_COMMAND_CMD_DEMOD_GET_LOCK, 0, NULL, 2,
 			Result);
 	if (status < 0)
-		printk(KERN_ERR "drxk: %s status = %08x\n", __func__, status);
+		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
 
 	if (Result[1] < SCU_RAM_QAM_LOCKED_LOCKED_DEMOD_LOCKED) {
 		/* 0x0000 NOT LOCKED */
@@ -5378,12 +5415,67 @@ static int GetQAMLockStatus(struct drxk_state *state, u32 *pLockStatus)
 #define QAM_LOCKRANGE__M      0x10
 #define QAM_LOCKRANGE_NORMAL  0x10
 
+static int QAMDemodulatorCommand(struct drxk_state *state,
+				 int numberOfParameters)
+{
+	int status;
+	u16 cmdResult;
+	u16 setParamParameters[4] = { 0, 0, 0, 0 };
+
+	setParamParameters[0] = state->m_Constellation;	/* modulation     */
+	setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
+
+	if (numberOfParameters == 2) {
+		u16 setEnvParameters[1] = { 0 };
+
+		if (state->m_OperationMode == OM_QAM_ITU_C)
+			setEnvParameters[0] = QAM_TOP_ANNEX_C;
+		else
+			setEnvParameters[0] = QAM_TOP_ANNEX_A;
+
+		status = scu_command(state,
+				     SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV,
+				     1, setEnvParameters, 1, &cmdResult);
+		if (status < 0)
+			goto error;
+
+		status = scu_command(state,
+				     SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM,
+				     numberOfParameters, setParamParameters,
+				     1, &cmdResult);
+	} else if (numberOfParameters == 4) {
+		if (state->m_OperationMode == OM_QAM_ITU_C)
+			setParamParameters[2] = QAM_TOP_ANNEX_C;
+		else
+			setParamParameters[2] = QAM_TOP_ANNEX_A;
+
+		setParamParameters[3] |= (QAM_MIRROR_AUTO_ON);
+		/* Env parameters */
+		/* check for LOCKRANGE Extented */
+		/* setParamParameters[3] |= QAM_LOCKRANGE_NORMAL; */
+
+		status = scu_command(state,
+				     SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM,
+				     numberOfParameters, setParamParameters,
+				     1, &cmdResult);
+	} else {
+		printk(KERN_WARNING "drxk: Unknown QAM demodulator parameter "
+			"count %d\n", numberOfParameters);
+	}
+
+error:
+	if (status < 0)
+		printk(KERN_WARNING "drxk: Warning %d on %s\n",
+		       status, __func__);
+	return status;
+}
+
 static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		  s32 tunerFreqOffset)
 {
 	int status;
-	u16 setParamParameters[4] = { 0, 0, 0, 0 };
 	u16 cmdResult;
+	int qamDemodParamCount = state->qam_demod_parameter_count;
 
 	dprintk(1, "\n");
 	/*
@@ -5412,7 +5504,7 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		goto error;
 
 	/* Set params */
-	switch (state->param.u.qam.modulation) {
+	switch (state->props.modulation) {
 	case QAM_256:
 		state->m_Constellation = DRX_CONSTELLATION_QAM256;
 		break;
@@ -5435,38 +5527,46 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 	}
 	if (status < 0)
 		goto error;
-	setParamParameters[0] = state->m_Constellation;	/* constellation     */
-	setParamParameters[1] = DRXK_QAM_I12_J17;	/* interleave mode   */
-	if (state->m_OperationMode == OM_QAM_ITU_C)
-		setParamParameters[2] = QAM_TOP_ANNEX_C;
-	else
-		setParamParameters[2] = QAM_TOP_ANNEX_A;
-	setParamParameters[3] |= (QAM_MIRROR_AUTO_ON);
-	/* Env parameters */
-	/* check for LOCKRANGE Extented */
-	/* setParamParameters[3] |= QAM_LOCKRANGE_NORMAL; */
 
-	status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 4, setParamParameters, 1, &cmdResult);
-	if (status < 0) {
-		/* Fall-back to the simpler call */
-		if (state->m_OperationMode == OM_QAM_ITU_C)
-			setParamParameters[0] = QAM_TOP_ANNEX_C;
-		else
-			setParamParameters[0] = QAM_TOP_ANNEX_A;
-		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_ENV, 1, setParamParameters, 1, &cmdResult);
-		if (status < 0)
-			goto error;
-
-		setParamParameters[0] = state->m_Constellation; /* constellation     */
-		setParamParameters[1] = DRXK_QAM_I12_J17;       /* interleave mode   */
-		status = scu_command(state, SCU_RAM_COMMAND_STANDARD_QAM | SCU_RAM_COMMAND_CMD_DEMOD_SET_PARAM, 2, setParamParameters, 1, &cmdResult);
+	/* Use the 4-parameter if it's requested or we're probing for
+	 * the correct command. */
+	if (state->qam_demod_parameter_count == 4
+		|| !state->qam_demod_parameter_count) {
+		qamDemodParamCount = 4;
+		status = QAMDemodulatorCommand(state, qamDemodParamCount);
 	}
-	if (status < 0)
+
+	/* Use the 2-parameter command if it was requested or if we're
+	 * probing for the correct command and the 4-parameter command
+	 * failed. */
+	if (state->qam_demod_parameter_count == 2
+		|| (!state->qam_demod_parameter_count && status < 0)) {
+		qamDemodParamCount = 2;
+		status = QAMDemodulatorCommand(state, qamDemodParamCount);
+	}
+
+	if (status < 0) {
+		dprintk(1, "Could not set demodulator parameters. Make "
+			"sure qam_demod_parameter_count (%d) is correct for "
+			"your firmware (%s).\n",
+			state->qam_demod_parameter_count,
+			state->microcode_name);
 		goto error;
+	} else if (!state->qam_demod_parameter_count) {
+		dprintk(1, "Auto-probing the correct QAM demodulator command "
+			"parameters was successful - using %d parameters.\n",
+			qamDemodParamCount);
+
+		/*
+		 * One of our commands was successful. We don't need to
+		 * auto-probe anymore, now that we got the correct command.
+		 */
+		state->qam_demod_parameter_count = qamDemodParamCount;
+	}
 
 	/*
 	 * STEP 3: enable the system in a mode where the ADC provides valid
-	 * signal setup constellation independent registers
+	 * signal setup modulation independent registers
 	 */
 #if 0
 	status = SetFrequency(channel, tunerFreqOffset));
@@ -5478,7 +5578,7 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		goto error;
 
 	/* Setup BER measurement */
-	status = SetQAMMeasurement(state, state->m_Constellation, state->param.u. qam.symbol_rate);
+	status = SetQAMMeasurement(state, state->m_Constellation, state->props.symbol_rate);
 	if (status < 0)
 		goto error;
 
@@ -5560,8 +5660,8 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 	if (status < 0)
 		goto error;
 
-	/* STEP 4: constellation specific setup */
-	switch (state->param.u.qam.modulation) {
+	/* STEP 4: modulation specific setup */
+	switch (state->props.modulation) {
 	case QAM_16:
 		status = SetQAM16(state);
 		break;
@@ -5591,7 +5691,7 @@ static int SetQAM(struct drxk_state *state, u16 IntermediateFreqkHz,
 		goto error;
 
 	/* Re-configure MPEG output, requires knowledge of channel bitrate */
-	/* extAttr->currentChannel.constellation = channel->constellation; */
+	/* extAttr->currentChannel.modulation = channel->modulation; */
 	/* extAttr->currentChannel.symbolrate    = channel->symbolrate; */
 	status = MPEGTSDtoSetup(state, state->m_OperationMode);
 	if (status < 0)
@@ -5825,7 +5925,7 @@ static int WriteGPIO(struct drxk_state *state)
 		}
 		if (state->UIO_mask & 0x0002) { /* UIO-2 */
 			/* write to io pad configuration register - output mode */
-			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			status = write16(state, SIO_PDR_SMA_RX_CFG__A, state->m_GPIOCfg);
 			if (status < 0)
 				goto error;
 
@@ -5844,7 +5944,7 @@ static int WriteGPIO(struct drxk_state *state)
 		}
 		if (state->UIO_mask & 0x0004) { /* UIO-3 */
 			/* write to io pad configuration register - output mode */
-			status = write16(state, SIO_PDR_SMA_TX_CFG__A, state->m_GPIOCfg);
+			status = write16(state, SIO_PDR_GPIO_CFG__A, state->m_GPIOCfg);
 			if (status < 0)
 				goto error;
 
@@ -5958,34 +6058,15 @@ error:
 	return status;
 }
 
-static int load_microcode(struct drxk_state *state, const char *mc_name)
-{
-	const struct firmware *fw = NULL;
-	int err = 0;
-
-	dprintk(1, "\n");
-
-	err = request_firmware(&fw, mc_name, state->i2c->dev.parent);
-	if (err < 0) {
-		printk(KERN_ERR
-		       "drxk: Could not load firmware file %s.\n", mc_name);
-		printk(KERN_INFO
-		       "drxk: Copy %s to your hotplug directory!\n", mc_name);
-		return err;
-	}
-	err = DownloadMicrocode(state, fw->data, fw->size);
-	release_firmware(fw);
-	return err;
-}
-
 static int init_drxk(struct drxk_state *state)
 {
-	int status = 0;
+	int status = 0, n = 0;
 	enum DRXPowerMode powerMode = DRXK_POWER_DOWN_OFDM;
 	u16 driverVersion;
 
 	dprintk(1, "\n");
 	if ((state->m_DrxkState == DRXK_UNINITIALIZED)) {
+		drxk_i2c_lock(state);
 		status = PowerUpDevice(state);
 		if (status < 0)
 			goto error;
@@ -6063,10 +6144,12 @@ static int init_drxk(struct drxk_state *state)
 		if (status < 0)
 			goto error;
 
-		if (!state->microcode_name)
-			load_microcode(state, "drxk_a3.mc");
-		else
-			load_microcode(state, state->microcode_name);
+		if (state->fw) {
+			status = DownloadMicrocode(state, state->fw->data,
+						   state->fw->size);
+			if (status < 0)
+				goto error;
+		}
 
 		/* disable token-ring bus through OFDM block for possible ucode upload */
 		status = write16(state, SIO_OFDM_SH_OFDM_RING_ENABLE__A, SIO_OFDM_SH_OFDM_RING_ENABLE_OFF);
@@ -6159,40 +6242,86 @@ static int init_drxk(struct drxk_state *state)
 			state->m_DrxkState = DRXK_POWERED_DOWN;
 		} else
 			state->m_DrxkState = DRXK_STOPPED;
+
+		/* Initialize the supported delivery systems */
+		n = 0;
+		if (state->m_hasDVBC) {
+			state->frontend.ops.delsys[n++] = SYS_DVBC_ANNEX_A;
+			state->frontend.ops.delsys[n++] = SYS_DVBC_ANNEX_C;
+			strlcat(state->frontend.ops.info.name, " DVB-C",
+				sizeof(state->frontend.ops.info.name));
+		}
+		if (state->m_hasDVBT) {
+			state->frontend.ops.delsys[n++] = SYS_DVBT;
+			strlcat(state->frontend.ops.info.name, " DVB-T",
+				sizeof(state->frontend.ops.info.name));
+		}
+		drxk_i2c_unlock(state);
 	}
 error:
-	if (status < 0)
+	if (status < 0) {
+		state->m_DrxkState = DRXK_NO_DEV;
+		drxk_i2c_unlock(state);
 		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
+	}
 
 	return status;
 }
 
-static void drxk_c_release(struct dvb_frontend *fe)
+static void load_firmware_cb(const struct firmware *fw,
+			     void *context)
+{
+	struct drxk_state *state = context;
+
+	dprintk(1, ": %s\n", fw ? "firmware loaded" : "firmware not loaded");
+	if (!fw) {
+		printk(KERN_ERR
+		       "drxk: Could not load firmware file %s.\n",
+			state->microcode_name);
+		printk(KERN_INFO
+		       "drxk: Copy %s to your hotplug directory!\n",
+			state->microcode_name);
+		state->microcode_name = NULL;
+
+		/*
+		 * As firmware is now load asynchronous, it is not possible
+		 * anymore to fail at frontend attach. We might silently
+		 * return here, and hope that the driver won't crash.
+		 * We might also change all DVB callbacks to return -ENODEV
+		 * if the device is not initialized.
+		 * As the DRX-K devices have their own internal firmware,
+		 * let's just hope that it will match a firmware revision
+		 * compatible with this driver and proceed.
+		 */
+	}
+	state->fw = fw;
+
+	init_drxk(state);
+}
+
+static void drxk_release(struct dvb_frontend *fe)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "\n");
+	if (state->fw)
+		release_firmware(state->fw);
+
 	kfree(state);
 }
 
-static int drxk_c_init(struct dvb_frontend *fe)
+static int drxk_sleep(struct dvb_frontend *fe)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 
 	dprintk(1, "\n");
-	if (mutex_trylock(&state->ctlock) == 0)
-		return -EBUSY;
-	SetOperationMode(state, OM_QAM_ITU_A);
-	return 0;
-}
 
-static int drxk_c_sleep(struct dvb_frontend *fe)
-{
-	struct drxk_state *state = fe->demodulator_priv;
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return 0;
 
-	dprintk(1, "\n");
 	ShutDown(state);
-	mutex_unlock(&state->ctlock);
 	return 0;
 }
 
@@ -6200,17 +6329,28 @@ static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct drxk_state *state = fe->demodulator_priv;
 
-	dprintk(1, "%s\n", enable ? "enable" : "disable");
+	dprintk(1, ": %s\n", enable ? "enable" : "disable");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+
 	return ConfigureI2CBridge(state, enable ? true : false);
 }
 
-static int drxk_set_parameters(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *p)
+static int drxk_set_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
+	u32 delsys  = p->delivery_system, old_delsys;
 	struct drxk_state *state = fe->demodulator_priv;
 	u32 IF;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
 
 	if (!fe->ops.tuner_ops.get_if_frequency) {
 		printk(KERN_ERR
@@ -6218,26 +6358,44 @@ static int drxk_set_parameters(struct dvb_frontend *fe,
 		return -EINVAL;
 	}
 
-
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);
-	state->param = *p;
+
+	old_delsys = state->props.delivery_system;
+	state->props = *p;
+
+	if (old_delsys != delsys) {
+		ShutDown(state);
+		switch (delsys) {
+		case SYS_DVBC_ANNEX_A:
+		case SYS_DVBC_ANNEX_C:
+			if (!state->m_hasDVBC)
+				return -EINVAL;
+			state->m_itut_annex_c = (delsys == SYS_DVBC_ANNEX_C) ? true : false;
+			if (state->m_itut_annex_c)
+				SetOperationMode(state, OM_QAM_ITU_C);
+			else
+				SetOperationMode(state, OM_QAM_ITU_A);
+			break;
+		case SYS_DVBT:
+			if (!state->m_hasDVBT)
+				return -EINVAL;
+			SetOperationMode(state, OM_DVBT);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	Start(state, 0, IF);
 
 	/* printk(KERN_DEBUG "drxk: %s IF=%d done\n", __func__, IF); */
 
-	return 0;
-}
-
-static int drxk_c_get_frontend(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *p)
-{
-	dprintk(1, "\n");
 	return 0;
 }
 
@@ -6247,6 +6405,12 @@ static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	u32 stat;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	*status = 0;
 	GetLockStatus(state, &stat, 0);
 	if (stat == MPEG_LOCK)
@@ -6260,7 +6424,14 @@ static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
 
 static int drxk_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
+	struct drxk_state *state = fe->demodulator_priv;
+
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
 
 	*ber = 0;
 	return 0;
@@ -6273,6 +6444,12 @@ static int drxk_read_signal_strength(struct dvb_frontend *fe,
 	u32 val = 0;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	ReadIFAgc(state, &val);
 	*strength = val & 0xffff;
 	return 0;
@@ -6284,6 +6461,12 @@ static int drxk_read_snr(struct dvb_frontend *fe, u16 *snr)
 	s32 snr2;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	GetSignalToNoise(state, &snr2);
 	*snr = snr2 & 0xffff;
 	return 0;
@@ -6295,107 +6478,69 @@ static int drxk_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	u16 err;
 
 	dprintk(1, "\n");
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
 	DVBTQAMGetAccPktErr(state, &err);
 	*ucblocks = (u32) err;
 	return 0;
 }
 
-static int drxk_c_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_tune_settings
+static int drxk_get_tune_settings(struct dvb_frontend *fe, struct dvb_frontend_tune_settings
 				    *sets)
 {
-	dprintk(1, "\n");
-	sets->min_delay_ms = 3000;
-	sets->max_drift = 0;
-	sets->step_size = 0;
-	return 0;
-}
-
-static void drxk_t_release(struct dvb_frontend *fe)
-{
-	/*
-	 * There's nothing to release here, as the state struct
-	 * is already freed by drxk_c_release.
-	 */
-}
-
-static int drxk_t_init(struct dvb_frontend *fe)
-{
 	struct drxk_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 
 	dprintk(1, "\n");
-	if (mutex_trylock(&state->ctlock) == 0)
-		return -EBUSY;
-	SetOperationMode(state, OM_DVBT);
-	return 0;
+
+	if (state->m_DrxkState == DRXK_NO_DEV)
+		return -ENODEV;
+	if (state->m_DrxkState == DRXK_UNINITIALIZED)
+		return -EAGAIN;
+
+	switch (p->delivery_system) {
+	case SYS_DVBC_ANNEX_A:
+	case SYS_DVBC_ANNEX_C:
+	case SYS_DVBT:
+		sets->min_delay_ms = 3000;
+		sets->max_drift = 0;
+		sets->step_size = 0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
-static int drxk_t_sleep(struct dvb_frontend *fe)
-{
-	struct drxk_state *state = fe->demodulator_priv;
-
-	dprintk(1, "\n");
-	mutex_unlock(&state->ctlock);
-	return 0;
-}
-
-static int drxk_t_get_frontend(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *p)
-{
-	dprintk(1, "\n");
-
-	return 0;
-}
-
-static struct dvb_frontend_ops drxk_c_ops = {
+static struct dvb_frontend_ops drxk_ops = {
+	/* .delsys will be filled dynamically */
 	.info = {
-		 .name = "DRXK DVB-C",
-		 .type = FE_QAM,
-		 .frequency_stepsize = 62500,
-		 .frequency_min = 47000000,
-		 .frequency_max = 862000000,
-		 .symbol_rate_min = 870000,
-		 .symbol_rate_max = 11700000,
-		 .caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
-		 FE_CAN_QAM_128 | FE_CAN_QAM_256 | FE_CAN_FEC_AUTO},
-	.release = drxk_c_release,
-	.init = drxk_c_init,
-	.sleep = drxk_c_sleep,
+		.name = "DRXK",
+		.frequency_min = 47000000,
+		.frequency_max = 865000000,
+		 /* For DVB-C */
+		.symbol_rate_min = 870000,
+		.symbol_rate_max = 11700000,
+		/* For DVB-T */
+		.frequency_stepsize = 166667,
+
+		.caps = FE_CAN_QAM_16 | FE_CAN_QAM_32 | FE_CAN_QAM_64 |
+			FE_CAN_QAM_128 | FE_CAN_QAM_256 | FE_CAN_FEC_AUTO |
+			FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
+			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_MUTE_TS |
+			FE_CAN_TRANSMISSION_MODE_AUTO | FE_CAN_RECOVER |
+			FE_CAN_GUARD_INTERVAL_AUTO | FE_CAN_HIERARCHY_AUTO
+	},
+
+	.release = drxk_release,
+	.sleep = drxk_sleep,
 	.i2c_gate_ctrl = drxk_gate_ctrl,
 
 	.set_frontend = drxk_set_parameters,
-	.get_frontend = drxk_c_get_frontend,
-	.get_tune_settings = drxk_c_get_tune_settings,
-
-	.read_status = drxk_read_status,
-	.read_ber = drxk_read_ber,
-	.read_signal_strength = drxk_read_signal_strength,
-	.read_snr = drxk_read_snr,
-	.read_ucblocks = drxk_read_ucblocks,
-};
-
-static struct dvb_frontend_ops drxk_t_ops = {
-	.info = {
-		 .name = "DRXK DVB-T",
-		 .type = FE_OFDM,
-		 .frequency_min = 47125000,
-		 .frequency_max = 865000000,
-		 .frequency_stepsize = 166667,
-		 .frequency_tolerance = 0,
-		 .caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 |
-		 FE_CAN_FEC_3_4 | FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 |
-		 FE_CAN_FEC_AUTO |
-		 FE_CAN_QAM_16 | FE_CAN_QAM_64 |
-		 FE_CAN_QAM_AUTO |
-		 FE_CAN_TRANSMISSION_MODE_AUTO |
-		 FE_CAN_GUARD_INTERVAL_AUTO |
-		 FE_CAN_HIERARCHY_AUTO | FE_CAN_RECOVER | FE_CAN_MUTE_TS},
-	.release = drxk_t_release,
-	.init = drxk_t_init,
-	.sleep = drxk_t_sleep,
-	.i2c_gate_ctrl = drxk_gate_ctrl,
-
-	.set_frontend = drxk_set_parameters,
-	.get_frontend = drxk_t_get_frontend,
+	.get_tune_settings = drxk_get_tune_settings,
 
 	.read_status = drxk_read_status,
 	.read_ber = drxk_read_ber,
@@ -6405,11 +6550,11 @@ static struct dvb_frontend_ops drxk_t_ops = {
 };
 
 struct dvb_frontend *drxk_attach(const struct drxk_config *config,
-				 struct i2c_adapter *i2c,
-				 struct dvb_frontend **fe_t)
+				 struct i2c_adapter *i2c)
 {
 	struct drxk_state *state = NULL;
 	u8 adr = config->adr;
+	int status;
 
 	dprintk(1, "\n");
 	state = kzalloc(sizeof(struct drxk_state), GFP_KERNEL);
@@ -6420,9 +6565,31 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 	state->demod_address = adr;
 	state->single_master = config->single_master;
 	state->microcode_name = config->microcode_name;
+	state->qam_demod_parameter_count = config->qam_demod_parameter_count;
 	state->no_i2c_bridge = config->no_i2c_bridge;
 	state->antenna_gpio = config->antenna_gpio;
 	state->antenna_dvbt = config->antenna_dvbt;
+	state->m_ChunkSize = config->chunk_size;
+	state->enable_merr_cfg = config->enable_merr_cfg;
+
+	if (config->dynamic_clk) {
+		state->m_DVBTStaticCLK = 0;
+		state->m_DVBCStaticCLK = 0;
+	} else {
+		state->m_DVBTStaticCLK = 1;
+		state->m_DVBCStaticCLK = 1;
+	}
+
+
+	if (config->mpeg_out_clk_strength)
+		state->m_TSClockkStrength = config->mpeg_out_clk_strength & 0x07;
+	else
+		state->m_TSClockkStrength = 0x06;
+
+	if (config->parallel_ts)
+		state->m_enableParallel = true;
+	else
+		state->m_enableParallel = false;
 
 	/* NOTE: as more UIO bits will be used, add them to the mask */
 	state->UIO_mask = config->antenna_gpio;
@@ -6434,21 +6601,29 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		state->m_GPIO &= ~state->antenna_gpio;
 
 	mutex_init(&state->mutex);
-	mutex_init(&state->ctlock);
 
-	memcpy(&state->c_frontend.ops, &drxk_c_ops,
-	       sizeof(struct dvb_frontend_ops));
-	memcpy(&state->t_frontend.ops, &drxk_t_ops,
-	       sizeof(struct dvb_frontend_ops));
-	state->c_frontend.demodulator_priv = state;
-	state->t_frontend.demodulator_priv = state;
+	memcpy(&state->frontend.ops, &drxk_ops, sizeof(drxk_ops));
+	state->frontend.demodulator_priv = state;
 
 	init_state(state);
-	if (init_drxk(state) < 0)
-		goto error;
-	*fe_t = &state->t_frontend;
 
-	return &state->c_frontend;
+	/* Load firmware and initialize DRX-K */
+	if (state->microcode_name) {
+		status = request_firmware_nowait(THIS_MODULE, 1,
+					      state->microcode_name,
+					      state->i2c->dev.parent,
+					      GFP_KERNEL,
+					      state, load_firmware_cb);
+		if (status < 0) {
+			printk(KERN_ERR
+			"drxk: failed to request a firmware\n");
+			return NULL;
+		}
+	} else if (init_drxk(state) < 0)
+		goto error;
+
+	printk(KERN_INFO "drxk: frontend initialized.\n");
+	return &state->frontend;
 
 error:
 	printk(KERN_ERR "drxk: not found\n");

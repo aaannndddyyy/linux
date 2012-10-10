@@ -53,7 +53,8 @@ int debug_mode;
 module_param(debug_mode, int, 0644);
 MODULE_PARM_DESC(debug_mode, "0 = disable, 1 = enable, 2 = verbose");
 
-static const char *firmware_name = "tlg2300_firmware.bin";
+#define TLG2300_FIRMWARE "tlg2300_firmware.bin"
+static const char *firmware_name = TLG2300_FIRMWARE;
 static struct usb_driver poseidon_driver;
 static LIST_HEAD(pd_device_list);
 
@@ -374,7 +375,7 @@ static inline void set_map_flags(struct poseidon *pd, struct usb_device *udev)
 }
 #endif
 
-static bool check_firmware(struct usb_device *udev, int *down_firmware)
+static int check_firmware(struct usb_device *udev, int *down_firmware)
 {
 	void *buf;
 	int ret;
@@ -398,7 +399,7 @@ static bool check_firmware(struct usb_device *udev, int *down_firmware)
 		*down_firmware = 1;
 		return firmware_download(udev);
 	}
-	return ret;
+	return 0;
 }
 
 static int poseidon_probe(struct usb_interface *interface,
@@ -532,3 +533,4 @@ MODULE_AUTHOR("Telegent Systems");
 MODULE_DESCRIPTION("For tlg2300-based USB device ");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.2");
+MODULE_FIRMWARE(TLG2300_FIRMWARE);

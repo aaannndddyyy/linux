@@ -65,10 +65,10 @@ static void InterfaceAdapterFree(PS_INTERFACE_ADAPTER psIntfAdapter)
 	AdapterFree(psIntfAdapter->psAdapter);
 }
 
-static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
+static void ConfigureEndPointTypesThroughEEPROM(struct bcm_mini_adapter *Adapter)
 {
 	unsigned long ulReg = 0;
-	int ret;
+	int bytes;
 
 	/* Program EP2 MAX_PKT_SIZE */
 	ulReg = ntohl(EP2_MPS_REG);
@@ -94,8 +94,8 @@ static void ConfigureEndPointTypesThroughEEPROM(PMINI_ADAPTER Adapter)
 	BeceemEEPROMBulkWrite(Adapter, (PUCHAR)&ulReg, 0x140, 4, TRUE);
 
 	/* Program TX EP as interrupt(Alternate Setting) */
-	ret = rdmalt(Adapter, 0x0F0110F8, (u32 *)&ulReg, sizeof(u32));
-	if (ret) {
+	bytes = rdmalt(Adapter, 0x0F0110F8, (u32 *)&ulReg, sizeof(u32));
+	if (bytes < 0) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_INITEXIT, DRV_ENTRY, DBG_LVL_ALL,
 			"reading of Tx EP failed\n");
 		return;
@@ -143,12 +143,12 @@ static int usbbcm_device_probe(struct usb_interface *intf, const struct usb_devi
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	int retval;
-	PMINI_ADAPTER psAdapter;
+	struct bcm_mini_adapter *psAdapter;
 	PS_INTERFACE_ADAPTER psIntfAdapter;
 	struct net_device *ndev;
 
 	/* Reserve one extra queue for the bit-bucket */
-	ndev = alloc_etherdev_mq(sizeof(MINI_ADAPTER), NO_OF_QUEUES+1);
+	ndev = alloc_etherdev_mq(sizeof(struct bcm_mini_adapter), NO_OF_QUEUES+1);
 	if (ndev == NULL) {
 		dev_err(&udev->dev, DRV_NAME ": no memory for device\n");
 		return -ENOMEM;
@@ -257,7 +257,7 @@ static int usbbcm_device_probe(struct usb_interface *intf, const struct usb_devi
 static void usbbcm_disconnect(struct usb_interface *intf)
 {
 	PS_INTERFACE_ADAPTER psIntfAdapter = usb_get_intfdata(intf);
-	PMINI_ADAPTER psAdapter;
+	struct bcm_mini_adapter *psAdapter;
 	struct usb_device  *udev = interface_to_usbdev(intf);
 
 	if (psIntfAdapter == NULL)
@@ -430,6 +430,7 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	int usedIntOutForBulkTransfer = 0 ;
 	BOOLEAN bBcm16 = FALSE;
 	UINT uiData = 0;
+	int bytes;
 
 	/* Store the usb dev into interface adapter */
 	psIntfAdapter->udev = usb_get_dev(interface_to_usbdev(psIntfAdapter->interface));
@@ -438,9 +439,10 @@ static int InterfaceAdapterInit(PS_INTERFACE_ADAPTER psIntfAdapter)
 	psIntfAdapter->psAdapter->interface_rdm = BcmRDM;
 	psIntfAdapter->psAdapter->interface_wrm = BcmWRM;
 
-	retval = rdmalt(psIntfAdapter->psAdapter, CHIP_ID_REG,
+	bytes = rdmalt(psIntfAdapter->psAdapter, CHIP_ID_REG,
 			(u32 *)&(psIntfAdapter->psAdapter->chip_id), sizeof(u32));
-	if (retval) {
+	if (bytes < 0) {
+		retval = bytes;
 		BCM_DEBUG_PRINT(psIntfAdapter->psAdapter, DBG_TYPE_PRINTK, 0, 0, "CHIP ID Read Failed\n");
 		return retval;
 	}

@@ -1093,7 +1093,7 @@ static void __devexit intel_mid_i2c_remove(struct pci_dev *dev)
 	pci_release_region(dev, 0);
 }
 
-static struct pci_device_id intel_mid_i2c_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(intel_mid_i2c_ids) = {
 	/* Moorestown */
 	{ PCI_VDEVICE(INTEL, 0x0802), 0 },
 	{ PCI_VDEVICE(INTEL, 0x0803), 1 },
@@ -1116,18 +1116,7 @@ static struct pci_driver intel_mid_i2c_driver = {
 	.remove		= __devexit_p(intel_mid_i2c_remove),
 };
 
-static int __init intel_mid_i2c_init(void)
-{
-	return pci_register_driver(&intel_mid_i2c_driver);
-}
-
-static void __exit intel_mid_i2c_exit(void)
-{
-	pci_unregister_driver(&intel_mid_i2c_driver);
-}
-
-module_init(intel_mid_i2c_init);
-module_exit(intel_mid_i2c_exit);
+module_pci_driver(intel_mid_i2c_driver);
 
 MODULE_AUTHOR("Ba Zheng <zheng.ba@intel.com>");
 MODULE_DESCRIPTION("I2C driver for Moorestown Platform");

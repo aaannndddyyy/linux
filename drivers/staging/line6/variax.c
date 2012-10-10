@@ -319,10 +319,10 @@ static ssize_t variax_set_volume(struct device *dev,
 {
 	struct usb_line6_variax *variax =
 	    usb_get_intfdata(to_usb_interface(dev));
-	unsigned long value;
+	u8 value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -418,10 +418,10 @@ static ssize_t variax_set_tone(struct device *dev,
 {
 	struct usb_line6_variax *variax =
 	    usb_get_intfdata(to_usb_interface(dev));
-	unsigned long value;
+	u8 value;
 	int ret;
 
-	ret = strict_strtoul(buf, 10, &value);
+	ret = kstrtou8(buf, 10, &value);
 	if (ret)
 		return ret;
 
@@ -572,14 +572,10 @@ static DEVICE_ATTR(raw2, S_IWUSR, line6_nop_read, variax_set_raw2);
 static void variax_destruct(struct usb_interface *interface)
 {
 	struct usb_line6_variax *variax = usb_get_intfdata(interface);
-	struct usb_line6 *line6;
 
 	if (variax == NULL)
 		return;
-	line6 = &variax->line6;
-	if (line6 == NULL)
-		return;
-	line6_cleanup_audio(line6);
+	line6_cleanup_audio(&variax->line6);
 
 	del_timer(&variax->startup_timer1);
 	del_timer(&variax->startup_timer2);

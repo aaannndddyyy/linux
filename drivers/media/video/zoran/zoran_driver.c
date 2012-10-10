@@ -1131,8 +1131,14 @@ static int setup_fbuffer(struct zoran_fh *fh,
 }
 
 
-static int setup_window(struct zoran_fh *fh, int x, int y, int width, int height,
-	struct v4l2_clip __user *clips, int clipcount, void __user *bitmap)
+static int setup_window(struct zoran_fh *fh,
+			int x,
+			int y,
+			int width,
+			int height,
+			struct v4l2_clip __user *clips,
+			unsigned int clipcount,
+			void __user *bitmap)
 {
 	struct zoran *zr = fh->zr;
 	struct v4l2_clip *vcp = NULL;
@@ -1152,6 +1158,14 @@ static int setup_window(struct zoran_fh *fh, int x, int y, int width, int height
 			KERN_ERR
 			"%s: %s - no overlay format set\n",
 			ZR_DEVNAME(zr), __func__);
+		return -EINVAL;
+	}
+
+	if (clipcount > 2048) {
+		dprintk(1,
+			KERN_ERR
+			"%s: %s - invalid clipcount\n",
+			 ZR_DEVNAME(zr), __func__);
 		return -EINVAL;
 	}
 
@@ -1218,7 +1232,7 @@ static int setup_window(struct zoran_fh *fh, int x, int y, int width, int height
 				   (width * height + 7) / 8)) {
 			return -EFAULT;
 		}
-	} else if (clipcount > 0) {
+	} else if (clipcount) {
 		/* write our own bitmap from the clips */
 		vcp = vmalloc(sizeof(struct v4l2_clip) * (clipcount + 4));
 		if (vcp == NULL) {
@@ -1550,7 +1564,7 @@ static int zoran_enum_fmt(struct zoran *zr, struct v4l2_fmtdesc *fmt, int flag)
 		if (zoran_formats[i].flags & flag && num++ == fmt->index) {
 			strncpy(fmt->description, zoran_formats[i].name,
 				sizeof(fmt->description) - 1);
-			/* fmt struct pre-zeroed, so adding '\0' not neeed */
+			/* fmt struct pre-zeroed, so adding '\0' not needed */
 			fmt->pixelformat = zoran_formats[i].fourcc;
 			if (zoran_formats[i].flags & ZORAN_FORMAT_COMPRESSED)
 				fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -1958,7 +1972,6 @@ static int zoran_g_fbuf(struct file *file, void *__fh,
 	mutex_unlock(&zr->resource_lock);
 	fb->fmt.colorspace = V4L2_COLORSPACE_SRGB;
 	fb->fmt.field = V4L2_FIELD_INTERLACED;
-	fb->flags = V4L2_FBUF_FLAG_OVERLAY;
 	fb->capability = V4L2_FBUF_CAP_LIST_CLIPPING;
 
 	return 0;
@@ -2798,7 +2811,7 @@ static void
 zoran_vm_close (struct vm_area_struct *vma)
 {
 	struct zoran_mapping *map = vma->vm_private_data;
-	struct zoran_fh *fh = map->file->private_data;
+	struct zoran_fh *fh = map->fh;
 	struct zoran *zr = fh->zr;
 	int i;
 
@@ -2925,7 +2938,7 @@ zoran_mmap (struct file           *file,
 		res = -ENOMEM;
 		goto mmap_unlock_and_return;
 	}
-	map->file = file;
+	map->fh = fh;
 	map->count = 1;
 
 	vma->vm_ops = &zoran_vm_ops;

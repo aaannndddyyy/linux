@@ -192,7 +192,7 @@ static int __devinit tc6387xb_probe(struct platform_device *dev)
 	printk(KERN_INFO "Toshiba tc6387xb initialised\n");
 
 	ret = mfd_add_devices(&dev->dev, dev->id, tc6387xb_cells,
-			      ARRAY_SIZE(tc6387xb_cells), iomem, irq);
+			      ARRAY_SIZE(tc6387xb_cells), iomem, irq, NULL);
 
 	if (!ret)
 		return 0;
@@ -234,19 +234,7 @@ static struct platform_driver tc6387xb_platform_driver = {
 	.resume         = tc6387xb_resume,
 };
 
-
-static int __init tc6387xb_init(void)
-{
-	return platform_driver_register(&tc6387xb_platform_driver);
-}
-
-static void __exit tc6387xb_exit(void)
-{
-	platform_driver_unregister(&tc6387xb_platform_driver);
-}
-
-module_init(tc6387xb_init);
-module_exit(tc6387xb_exit);
+module_platform_driver(tc6387xb_platform_driver);
 
 MODULE_DESCRIPTION("Toshiba TC6387XB core driver");
 MODULE_LICENSE("GPL v2");

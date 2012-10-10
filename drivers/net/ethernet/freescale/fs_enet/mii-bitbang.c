@@ -174,8 +174,10 @@ static int __devinit fs_enet_mdio_probe(struct platform_device *ofdev)
 
 	new_bus->phy_mask = ~0;
 	new_bus->irq = kmalloc(sizeof(int) * PHY_MAX_ADDR, GFP_KERNEL);
-	if (!new_bus->irq)
+	if (!new_bus->irq) {
+		ret = -ENOMEM;
 		goto out_unmap_regs;
+	}
 
 	new_bus->parent = &ofdev->dev;
 	dev_set_drvdata(&ofdev->dev, new_bus);
@@ -232,15 +234,4 @@ static struct platform_driver fs_enet_bb_mdio_driver = {
 	.remove = fs_enet_mdio_remove,
 };
 
-static int fs_enet_mdio_bb_init(void)
-{
-	return platform_driver_register(&fs_enet_bb_mdio_driver);
-}
-
-static void fs_enet_mdio_bb_exit(void)
-{
-	platform_driver_unregister(&fs_enet_bb_mdio_driver);
-}
-
-module_init(fs_enet_mdio_bb_init);
-module_exit(fs_enet_mdio_bb_exit);
+module_platform_driver(fs_enet_bb_mdio_driver);

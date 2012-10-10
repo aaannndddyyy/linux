@@ -48,6 +48,8 @@
         "scripts/config -e 8139CP",
         "scripts/config -e IKCONFIG",
         "scripts/config -e IKCONFIG_PROC",
+        "scripts/config -e SECCOMP",
+        "scripts/config -d DEBUG_STACK_TRACE",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

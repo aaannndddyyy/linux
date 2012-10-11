@@ -275,12 +275,13 @@ static int __devinit mc13783_led_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (pdata->num_leds < 1 || pdata->num_leds > MC13783_LED_MAX) {
+	if (pdata->num_leds < 1 || pdata->num_leds > (MC13783_LED_MAX + 1)) {
 		dev_err(&pdev->dev, "Invalid led count %d\n", pdata->num_leds);
 		return -EINVAL;
 	}
 
-	led = kzalloc(sizeof(*led) * pdata->num_leds, GFP_KERNEL);
+	led = devm_kzalloc(&pdev->dev, pdata->num_leds * sizeof(*led),
+				GFP_KERNEL);
 	if (led == NULL) {
 		dev_err(&pdev->dev, "failed to alloc memory\n");
 		return -ENOMEM;
@@ -289,7 +290,7 @@ static int __devinit mc13783_led_probe(struct platform_device *pdev)
 	ret = mc13783_leds_prepare(pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to init led driver\n");
-		goto err_free;
+		return ret;
 	}
 
 	for (i = 0; i < pdata->num_leds; i++) {
@@ -344,8 +345,6 @@ err_register:
 		cancel_work_sync(&led[i].work);
 	}
 
-err_free:
-	kfree(led);
 	return ret;
 }
 
@@ -372,7 +371,7 @@ static int __devexit mc13783_led_remove(struct platform_device *pdev)
 
 	mc13xxx_unlock(dev);
 
-	kfree(led);
+	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
@@ -385,17 +384,7 @@ static struct platform_driver mc13783_led_driver = {
 	.remove		= __devexit_p(mc13783_led_remove),
 };
 
-static int __init mc13783_led_init(void)
-{
-	return platform_driver_register(&mc13783_led_driver);
-}
-module_init(mc13783_led_init);
-
-static void __exit mc13783_led_exit(void)
-{
-	platform_driver_unregister(&mc13783_led_driver);
-}
-module_exit(mc13783_led_exit);
+module_platform_driver(mc13783_led_driver);
 
 MODULE_DESCRIPTION("LEDs driver for Freescale MC13783 PMIC");
 MODULE_AUTHOR("Philippe Retornaz <philippe.retornaz@epfl.ch>");

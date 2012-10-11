@@ -230,7 +230,11 @@ struct mem_dqinfo {
 struct super_block;
 
 #define DQF_MASK 0xffff		/* Mask for format specific flags */
-#define DQF_INFO_DIRTY_B 16
+#define DQF_GETINFO_MASK 0x1ffff	/* Mask for flags passed to userspace */
+#define DQF_SETINFO_MASK 0xffff		/* Mask for flags modifiable from userspace */
+#define DQF_SYS_FILE_B		16
+#define DQF_SYS_FILE (1 << DQF_SYS_FILE_B)	/* Quota file stored as system file */
+#define DQF_INFO_DIRTY_B	31
 #define DQF_INFO_DIRTY (1 << DQF_INFO_DIRTY_B)	/* Is info dirty? */
 
 extern void mark_info_dirty(struct super_block *sb, int type);
@@ -329,7 +333,7 @@ struct quotactl_ops {
 	int (*quota_on)(struct super_block *, int, int, struct path *);
 	int (*quota_on_meta)(struct super_block *, int, int);
 	int (*quota_off)(struct super_block *, int);
-	int (*quota_sync)(struct super_block *, int, int);
+	int (*quota_sync)(struct super_block *, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*get_dqblk)(struct super_block *, int, qid_t, struct fs_disk_quota *);

@@ -237,9 +237,9 @@ static void __init mx25pdk_init(void)
 	imx25_add_fsl_usb2_udc(&otg_device_pdata);
 	imx25_add_mxc_ehci_hs(&usbh2_pdata);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
-	imx25_add_imxdi_rtc(NULL);
+	imx25_add_imxdi_rtc();
 	imx25_add_imx_fb(&mx25pdk_fb_pdata);
-	imx25_add_imx2_wdt(NULL);
+	imx25_add_imx2_wdt();
 
 	mx25pdk_fec_reset();
 	imx25_add_fec(&mx25_fec_pdata);
@@ -270,4 +270,5 @@ MACHINE_START(MX25_3DS, "Freescale MX25PDK (3DS)")
 	.handle_irq = imx25_handle_irq,
 	.timer = &mx25pdk_timer,
 	.init_machine = mx25pdk_init,
+	.restart	= mxc_restart,
 MACHINE_END

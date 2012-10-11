@@ -170,6 +170,7 @@ static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
 	rdc321x_gpio_dev->reg2_data_base = r->start + 0x4;
 
 	rdc321x_gpio_dev->chip.label = "rdc321x-gpio";
+	rdc321x_gpio_dev->chip.owner = THIS_MODULE;
 	rdc321x_gpio_dev->chip.direction_input = rdc_gpio_direction_input;
 	rdc321x_gpio_dev->chip.direction_output = rdc_gpio_config;
 	rdc321x_gpio_dev->chip.get = rdc_gpio_get_value;
@@ -227,18 +228,7 @@ static struct platform_driver rdc321x_gpio_driver = {
 	.remove		= __devexit_p(rdc321x_gpio_remove),
 };
 
-static int __init rdc321x_gpio_init(void)
-{
-	return platform_driver_register(&rdc321x_gpio_driver);
-}
-
-static void __exit rdc321x_gpio_exit(void)
-{
-	platform_driver_unregister(&rdc321x_gpio_driver);
-}
-
-module_init(rdc321x_gpio_init);
-module_exit(rdc321x_gpio_exit);
+module_platform_driver(rdc321x_gpio_driver);
 
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
 MODULE_DESCRIPTION("RDC321x GPIO driver");

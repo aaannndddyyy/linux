@@ -415,8 +415,17 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer * me)
 	if (x->lft.hard_add_expires_seconds) {
 		long tmo = x->lft.hard_add_expires_seconds +
 			x->curlft.add_time - now;
-		if (tmo <= 0)
-			goto expired;
+		if (tmo <= 0) {
+			if (x->xflags & XFRM_SOFT_EXPIRE) {
+				/* enter hard expire without soft expire first?!
+				 * setting a new date could trigger this.
+				 * workarbound: fix x->curflt.add_time by below:
+				 */
+				x->curlft.add_time = now - x->saved_tmo - 1;
+				tmo = x->lft.hard_add_expires_seconds - x->saved_tmo;
+			} else
+				goto expired;
+		}
 		if (tmo < next)
 			next = tmo;
 	}
@@ -433,10 +442,14 @@ static enum hrtimer_restart xfrm_timer_handler(struct hrtimer * me)
 	if (x->lft.soft_add_expires_seconds) {
 		long tmo = x->lft.soft_add_expires_seconds +
 			x->curlft.add_time - now;
-		if (tmo <= 0)
+		if (tmo <= 0) {
 			warn = 1;
-		else if (tmo < next)
+			x->xflags &= ~XFRM_SOFT_EXPIRE;
+		} else if (tmo < next) {
 			next = tmo;
+			x->xflags |= XFRM_SOFT_EXPIRE;
+			x->saved_tmo = tmo;
+		}
 	}
 	if (x->lft.soft_use_expires_seconds) {
 		long tmo = x->lft.soft_use_expires_seconds +
@@ -1035,16 +1048,12 @@ static struct xfrm_state *__find_acq_core(struct net *net, struct xfrm_mark *m,
 			break;
 
 		case AF_INET6:
-			ipv6_addr_copy((struct in6_addr *)x->sel.daddr.a6,
-				       (const struct in6_addr *)daddr);
-			ipv6_addr_copy((struct in6_addr *)x->sel.saddr.a6,
-				       (const struct in6_addr *)saddr);
+			*(struct in6_addr *)x->sel.daddr.a6 = *(struct in6_addr *)daddr;
+			*(struct in6_addr *)x->sel.saddr.a6 = *(struct in6_addr *)saddr;
 			x->sel.prefixlen_d = 128;
 			x->sel.prefixlen_s = 128;
-			ipv6_addr_copy((struct in6_addr *)x->props.saddr.a6,
-				       (const struct in6_addr *)saddr);
-			ipv6_addr_copy((struct in6_addr *)x->id.daddr.a6,
-				       (const struct in6_addr *)daddr);
+			*(struct in6_addr *)x->props.saddr.a6 = *(struct in6_addr *)saddr;
+			*(struct in6_addr *)x->id.daddr.a6 = *(struct in6_addr *)daddr;
 			break;
 		}
 
@@ -1985,8 +1994,10 @@ int __xfrm_init_state(struct xfrm_state *x, bool init_replay)
 		goto error;
 
 	x->outer_mode = xfrm_get_mode(x->props.mode, family);
-	if (x->outer_mode == NULL)
+	if (x->outer_mode == NULL) {
+		err = -EPROTONOSUPPORT;
 		goto error;
+	}
 
 	if (init_replay) {
 		err = xfrm_init_replay(x);

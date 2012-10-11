@@ -33,10 +33,6 @@ struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 };
 
-/* V4L2 controls supported by the driver */
-static const struct ctrl sd_ctrls[] = {
-};
-
 static const struct v4l2_pix_format vga_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 320,
@@ -76,7 +72,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	gspca_dev->cam.no_urb_create = 1;
-	gspca_dev->cam.reverse_alts = 1;
 	return 0;
 }
 
@@ -135,13 +130,17 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	struct usb_interface *intf;
+
 	reg_w(gspca_dev, 0x003c, 0x0003);
 	reg_w(gspca_dev, 0x003c, 0x0004);
 	reg_w(gspca_dev, 0x003c, 0x0005);
 	reg_w(gspca_dev, 0x003c, 0x0006);
 	reg_w(gspca_dev, 0x003c, 0x0007);
+
+	intf = usb_ifnum_to_if(gspca_dev->dev, gspca_dev->iface);
 	usb_set_interface(gspca_dev->dev, gspca_dev->iface,
-					gspca_dev->nbalt - 1);
+					intf->num_altsetting - 1);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -253,8 +252,6 @@ static void sd_isoc_irq(struct urb *urb)
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
 	.init = sd_init,
 	.start = sd_start,
@@ -285,18 +282,8 @@ static struct usb_driver sd_driver = {
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,
+	.reset_resume = gspca_resume,
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);

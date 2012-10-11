@@ -601,7 +601,7 @@ static void ft1000_reset_asic(struct net_device *dev)
 
 	mdelay(1);
 
-	/* set watermark to -1 in order to not generate an interrrupt */
+	/* set watermark to -1 in order to not generate an interrupt */
 	ft1000_write_register(ft1000dev, 0xffff, FT1000_REG_MAG_WATERMARK);
 
 	/* clear interrupts */
@@ -1178,7 +1178,6 @@ static int ft1000_open(struct net_device *dev)
 {
 	struct ft1000_info *pInfo = netdev_priv(dev);
 	struct timeval tv;
-	int ret;
 
 	DEBUG("ft1000_open is called for card %d\n", pInfo->CardNumber);
 
@@ -1194,9 +1193,7 @@ static int ft1000_open(struct net_device *dev)
 
 	netif_carrier_on(dev);
 
-	ret = ft1000_submit_rx_urb(pInfo);
-
-	return ret;
+	return ft1000_submit_rx_urb(pInfo);
 }
 
 //---------------------------------------------------------------------------
@@ -1754,8 +1751,8 @@ out:
 	return status;
 }
 
-int ft1000_poll(void* dev_id) {
-
+int ft1000_poll(void* dev_id)
+{
     struct ft1000_device *dev = (struct ft1000_device *)dev_id;
 	struct ft1000_info *info = netdev_priv(dev->net);
 

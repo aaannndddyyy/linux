@@ -53,7 +53,6 @@
 #include <net/iw_handler.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
 
@@ -1850,7 +1849,7 @@ static irqreturn_t ray_interrupt(int irq, void *dev_id)
 	pr_debug("ray_cs: interrupt for *dev=%p\n", dev);
 
 	local = netdev_priv(dev);
-	link = (struct pcmcia_device *)local->finder;
+	link = local->finder;
 	if (!pcmcia_dev_present(link)) {
 		pr_debug(
 			"ray_cs interrupt from device not present or suspended.\n");
@@ -2426,7 +2425,7 @@ static void rx_authenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 			    unsigned int pkt_addr, int rx_len)
 {
 	UCHAR buff[256];
-	struct rx_msg *msg = (struct rx_msg *)buff;
+	struct ray_rx_msg *msg = (struct ray_rx_msg *) buff;
 
 	del_timer(&local->timer);
 
@@ -2513,7 +2512,7 @@ static void rx_deauthenticate(ray_dev_t *local, struct rcs __iomem *prcs,
 			      unsigned int pkt_addr, int rx_len)
 {
 /*  UCHAR buff[256];
-    struct rx_msg *msg = (struct rx_msg *)buff;
+    struct ray_rx_msg *msg = (struct ray_rx_msg *) buff;
 */
 	pr_debug("Deauthentication frame received\n");
 	local->authentication_state = UNAUTHENTICATED;

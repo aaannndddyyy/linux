@@ -1,7 +1,7 @@
 /*
  * MPC83xx/85xx/86xx PCI/PCIE support routing.
  *
- * Copyright 2007-2011 Freescale Semiconductor, Inc.
+ * Copyright 2007-2012 Freescale Semiconductor, Inc.
  * Copyright 2008-2009 MontaVista Software, Inc.
  *
  * Initial author: Xianghua Xiao <x.xiao@freescale.com>
@@ -36,7 +36,7 @@
 
 static int fsl_pcie_bus_fixup, is_mpc83xx_pci;
 
-static void __init quirk_fsl_pcie_header(struct pci_dev *dev)
+static void __devinit quirk_fsl_pcie_header(struct pci_dev *dev)
 {
 	u8 progif;
 
@@ -65,6 +65,30 @@ static int __init fsl_pcie_check_link(struct pci_controller *hose)
 }
 
 #if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+
+#define MAX_PHYS_ADDR_BITS	40
+static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
+
+static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
+{
+	if (!dev->dma_mask || !dma_supported(dev, dma_mask))
+		return -EIO;
+
+	/*
+	 * Fixup PCI devices that are able to DMA to above the physical
+	 * address width of the SoC such that we can address any internal
+	 * SoC address from across PCI if needed
+	 */
+	if ((dev->bus == &pci_bus_type) &&
+	    dma_mask >= DMA_BIT_MASK(MAX_PHYS_ADDR_BITS)) {
+		set_dma_ops(dev, &dma_direct_ops);
+		set_dma_offset(dev, pci64_dma_offset);
+	}
+
+	*dev->dma_mask = dma_mask;
+	return 0;
+}
+
 static int __init setup_one_atmu(struct ccsr_pci __iomem *pci,
 	unsigned int index, const struct resource *res,
 	resource_size_t offset)
@@ -113,6 +137,8 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	u32 piwar = PIWAR_EN | PIWAR_PF | PIWAR_TGI_LOCAL |
 			PIWAR_READ_SNOOP | PIWAR_WRITE_SNOOP;
 	char *name = hose->dn->full_name;
+	const u64 *reg;
+	int len;
 
 	pr_debug("PCI memory map start 0x%016llx, size 0x%016llx\n",
 		 (u64)rsrc->start, (u64)resource_size(rsrc));
@@ -179,12 +205,12 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	if (paddr_hi == paddr_lo) {
 		pr_err("%s: No outbound window space\n", name);
-		return ;
+		goto out;
 	}
 
 	if (paddr_lo == 0) {
 		pr_err("%s: No space for inbound window\n", name);
-		return ;
+		goto out;
 	}
 
 	/* setup PCSRBAR/PEXCSRBAR */
@@ -205,6 +231,33 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 	/* Setup inbound mem window */
 	mem = memblock_end_of_DRAM();
+
+	/*
+	 * The msi-address-64 property, if it exists, indicates the physical
+	 * address of the MSIIR register.  Normally, this register is located
+	 * inside CCSR, so the ATMU that covers all of CCSR is used. But if
+	 * this property exists, then we normally need to create a new ATMU
+	 * for it.  For now, however, we cheat.  The only entity that creates
+	 * this property is the Freescale hypervisor, and the address is
+	 * specified in the partition configuration.  Typically, the address
+	 * is located in the page immediately after the end of DDR.  If so, we
+	 * can avoid allocating a new ATMU by extending the DDR ATMU by one
+	 * page.
+	 */
+	reg = of_get_property(hose->dn, "msi-address-64", &len);
+	if (reg && (len == sizeof(u64))) {
+		u64 address = be64_to_cpup(reg);
+
+		if ((address >= mem) && (address < (mem + PAGE_SIZE))) {
+			pr_info("%s: extending DDR ATMU to cover MSIIR", name);
+			mem += PAGE_SIZE;
+		} else {
+			/* TODO: Create a new ATMU for MSIIR */
+			pr_warn("%s: msi-address-64 address of %llx is "
+				"unsupported\n", name, address);
+		}
+	}
+
 	sz = min(mem, paddr_lo);
 	mem_log = __ilog2_u64(sz);
 
@@ -228,6 +281,37 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 
 		hose->dma_window_base_cur = 0x00000000;
 		hose->dma_window_size = (resource_size_t)sz;
+
+		/*
+		 * if we have >4G of memory setup second PCI inbound window to
+		 * let devices that are 64-bit address capable to work w/o
+		 * SWIOTLB and access the full range of memory
+		 */
+		if (sz != mem) {
+			mem_log = __ilog2_u64(mem);
+
+			/* Size window up if we dont fit in exact power-of-2 */
+			if ((1ull << mem_log) != mem)
+				mem_log++;
+
+			piwar = (piwar & ~PIWAR_SZ_MASK) | (mem_log - 1);
+
+			/* Setup inbound memory window */
+			out_be32(&pci->piw[win_idx].pitar,  0x00000000);
+			out_be32(&pci->piw[win_idx].piwbear,
+					pci64_dma_offset >> 44);
+			out_be32(&pci->piw[win_idx].piwbar,
+					pci64_dma_offset >> 12);
+			out_be32(&pci->piw[win_idx].piwar,  piwar);
+
+			/*
+			 * install our own dma_set_mask handler to fixup dma_ops
+			 * and dma_offset
+			 */
+			ppc_md.dma_set_mask = fsl_pci_dma_set_mask;
+
+			pr_info("%s: Setup 64-bit PCI DMA window\n", name);
+		}
 	} else {
 		u64 paddr = 0;
 
@@ -273,6 +357,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 			(u64)hose->dma_window_size);
 	}
 
+out:
 	iounmap(pci);
 }
 
@@ -300,26 +385,36 @@ static void __init setup_pci_cmd(struct pci_controller *hose)
 void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_controller *hose = pci_bus_to_host(bus);
-	int i;
+	int i, is_pcie = 0, no_link;
 
-	if ((bus->parent == hose->bus) &&
-	    ((fsl_pcie_bus_fixup &&
-	      early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) ||
-	     (hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK)))
-	{
-		for (i = 0; i < 4; ++i) {
+	/* The root complex bridge comes up with bogus resources,
+	 * we copy the PHB ones in.
+	 *
+	 * With the current generic PCI code, the PHB bus no longer
+	 * has bus->resource[0..4] set, so things are a bit more
+	 * tricky.
+	 */
+
+	if (fsl_pcie_bus_fixup)
+		is_pcie = early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP);
+	no_link = !!(hose->indirect_type & PPC_INDIRECT_TYPE_NO_PCIE_LINK);
+
+	if (bus->parent == hose->bus && (is_pcie || no_link)) {
+		for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; ++i) {
 			struct resource *res = bus->resource[i];
-			struct resource *par = bus->parent->resource[i];
-			if (res) {
-				res->start = 0;
-				res->end   = 0;
-				res->flags = 0;
-			}
-			if (res && par) {
-				res->start = par->start;
-				res->end   = par->end;
-				res->flags = par->flags;
-			}
+			struct resource *par;
+
+			if (!res)
+				continue;
+			if (i == 0)
+				par = &hose->io_resource;
+			else if (i < 4)
+				par = &hose->mem_resources[i-1];
+			else par = NULL;
+
+			res->start = par ? par->start : 0;
+			res->end   = par ? par->end   : 0;
+			res->flags = par ? par->flags : 0;
 		}
 	}
 }
@@ -370,7 +465,7 @@ int __init fsl_add_bridge(struct device_node *dev, int is_primary)
 			iounmap(hose->cfg_data);
 		iounmap(hose->cfg_addr);
 		pcibios_free_controller(hose);
-		return 0;
+		return -ENODEV;
 	}
 
 	setup_pci_cmd(hose);
@@ -712,3 +807,75 @@ u64 fsl_pci_immrbar_base(struct pci_controller *hose)
 
 	return 0;
 }
+
+#if defined(CONFIG_FSL_SOC_BOOKE) || defined(CONFIG_PPC_86xx)
+static const struct of_device_id pci_ids[] = {
+	{ .compatible = "fsl,mpc8540-pci", },
+	{ .compatible = "fsl,mpc8548-pcie", },
+	{ .compatible = "fsl,mpc8610-pci", },
+	{ .compatible = "fsl,mpc8641-pcie", },
+	{ .compatible = "fsl,p1022-pcie", },
+	{ .compatible = "fsl,p1010-pcie", },
+	{ .compatible = "fsl,p1023-pcie", },
+	{ .compatible = "fsl,p4080-pcie", },
+	{ .compatible = "fsl,qoriq-pcie-v2.3", },
+	{ .compatible = "fsl,qoriq-pcie-v2.2", },
+	{},
+};
+
+struct device_node *fsl_pci_primary;
+
+void __devinit fsl_pci_init(void)
+{
+	int ret;
+	struct device_node *node;
+	struct pci_controller *hose;
+	dma_addr_t max = 0xffffffff;
+
+	/* Callers can specify the primary bus using other means. */
+	if (!fsl_pci_primary) {
+		/* If a PCI host bridge contains an ISA node, it's primary. */
+		node = of_find_node_by_type(NULL, "isa");
+		while ((fsl_pci_primary = of_get_parent(node))) {
+			of_node_put(node);
+			node = fsl_pci_primary;
+
+			if (of_match_node(pci_ids, node))
+				break;
+		}
+	}
+
+	node = NULL;
+	for_each_node_by_type(node, "pci") {
+		if (of_match_node(pci_ids, node)) {
+			/*
+			 * If there's no PCI host bridge with ISA, arbitrarily
+			 * designate one as primary.  This can go away once
+			 * various bugs with primary-less systems are fixed.
+			 */
+			if (!fsl_pci_primary)
+				fsl_pci_primary = node;
+
+			ret = fsl_add_bridge(node, fsl_pci_primary == node);
+			if (ret == 0) {
+				hose = pci_find_hose_for_OF_device(node);
+				max = min(max, hose->dma_window_base_cur +
+						hose->dma_window_size);
+			}
+		}
+	}
+
+#ifdef CONFIG_SWIOTLB
+	/*
+	 * if we couldn't map all of DRAM via the dma windows
+	 * we need SWIOTLB to handle buffers located outside of
+	 * dma capable memory region
+	 */
+	if (memblock_end_of_DRAM() - 1 > max) {
+		ppc_swiotlb_enable = 1;
+		set_pci_dma_ops(&swiotlb_dma_ops);
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
+	}
+#endif
+}
+#endif

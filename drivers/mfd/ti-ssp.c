@@ -412,7 +412,7 @@ static int __devinit ti_ssp_probe(struct platform_device *pdev)
 		cells[id].data_size	= data->pdata_size;
 	}
 
-	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0);
+	error = mfd_add_devices(dev, 0, cells, 2, NULL, 0, NULL);
 	if (error < 0) {
 		dev_err(dev, "cannot add mfd cells\n");
 		goto error_enable;
@@ -458,17 +458,7 @@ static struct platform_driver ti_ssp_driver = {
 	}
 };
 
-static int __init ti_ssp_init(void)
-{
-	return platform_driver_register(&ti_ssp_driver);
-}
-module_init(ti_ssp_init);
-
-static void __exit ti_ssp_exit(void)
-{
-	platform_driver_unregister(&ti_ssp_driver);
-}
-module_exit(ti_ssp_exit);
+module_platform_driver(ti_ssp_driver);
 
 MODULE_DESCRIPTION("Sequencer Serial Port (SSP) Driver");
 MODULE_AUTHOR("Cyril Chemparathy");

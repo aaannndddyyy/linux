@@ -433,23 +433,13 @@ probe_error:
 /*
  * "driver" definition
  */
-static struct platform_driver driver = {
+static struct platform_driver sh_dac_driver = {
 	.probe	= snd_sh_dac_probe,
 	.remove = snd_sh_dac_remove,
 	.driver = {
 		.name = "dac_audio",
+		.owner	= THIS_MODULE,
 	},
 };
 
-static int __init sh_dac_init(void)
-{
-	return platform_driver_register(&driver);
-}
-
-static void __exit sh_dac_exit(void)
-{
-	platform_driver_unregister(&driver);
-}
-
-module_init(sh_dac_init);
-module_exit(sh_dac_exit);
+module_platform_driver(sh_dac_driver);

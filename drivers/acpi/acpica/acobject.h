@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -113,8 +113,8 @@ struct acpi_object_integer {
 };
 
 /*
- * Note: The String and Buffer object must be identical through the Pointer
- * and length elements.  There is code that depends on this.
+ * Note: The String and Buffer object must be identical through the
+ * pointer and length elements. There is code that depends on this.
  *
  * Fields common to both Strings and Buffers
  */
@@ -206,8 +206,7 @@ struct acpi_object_method {
  * Common fields for objects that support ASL notifications
  */
 #define ACPI_COMMON_NOTIFY_INFO \
-	union acpi_operand_object       *system_notify;     /* Handler for system notifies */\
-	union acpi_operand_object       *device_notify;     /* Handler for driver notifies */\
+	union acpi_operand_object       *notify_list[2];    /* Handlers for system/device notifies */\
 	union acpi_operand_object       *handler;	/* Handler for Address space */
 
 struct acpi_object_notify_common {	/* COMMON NOTIFY for POWER, PROCESSOR, DEVICE, and THERMAL */
@@ -254,6 +253,7 @@ ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
 	u32                             base_byte_offset;   /* Byte offset within containing object */\
 	u32                             value;              /* Value to store into the Bank or Index register */\
 	u8                              start_field_bit_offset;/* Bit offset within first field datum (0-63) */\
+	u8                              access_length;	/* For serial regions/fields */
 
 
 struct acpi_object_field_common {	/* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
@@ -261,7 +261,9 @@ struct acpi_object_field_common {	/* COMMON FIELD (for BUFFER, REGION, BANK, and
 };
 
 struct acpi_object_region_field {
-	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO union acpi_operand_object *region_obj;	/* Containing op_region object */
+	ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_FIELD_INFO u16 resource_length;
+	union acpi_operand_object *region_obj;	/* Containing op_region object */
+	u8 *resource_buffer;	/* resource_template for serial regions/fields */
 };
 
 struct acpi_object_bank_field {
@@ -293,10 +295,10 @@ struct acpi_object_buffer_field {
 
 struct acpi_object_notify_handler {
 	ACPI_OBJECT_COMMON_HEADER struct acpi_namespace_node *node;	/* Parent device */
-	u32 handler_type;
-	acpi_notify_handler handler;
+	u32 handler_type;	/* Type: Device/System/Both */
+	acpi_notify_handler handler;	/* Handler address */
 	void *context;
-	struct acpi_object_notify_handler *next;
+	union acpi_operand_object *next[2];	/* Device and System handler lists */
 };
 
 struct acpi_object_addr_handler {
@@ -358,6 +360,7 @@ typedef enum {
  */
 struct acpi_object_extra {
 	ACPI_OBJECT_COMMON_HEADER struct acpi_namespace_node *method_REG;	/* _REG method for this region (if any) */
+	struct acpi_namespace_node *scope_node;
 	void *region_context;	/* Region-specific data */
 	u8 *aml_start;
 	u32 aml_length;
@@ -378,7 +381,7 @@ struct acpi_object_cache_list {
 
 /******************************************************************************
  *
- * union acpi_operand_object Descriptor - a giant union of all of the above
+ * union acpi_operand_object descriptor - a giant union of all of the above
  *
  *****************************************************************************/
 

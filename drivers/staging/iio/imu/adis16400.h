@@ -42,7 +42,8 @@
 #define ADIS16350_ZTEMP_OUT 0x14 /* Z-axis gyroscope temperature measurement */
 
 #define ADIS16300_PITCH_OUT 0x12 /* X axis inclinometer output measurement */
-#define ADIS16300_ROLL_OUT  0x12 /* Y axis inclinometer output measurement */
+#define ADIS16300_ROLL_OUT  0x14 /* Y axis inclinometer output measurement */
+#define ADIS16300_AUX_ADC   0x16 /* Auxiliary ADC measurement */
 
 /* Calibration parameters */
 #define ADIS16400_XGYRO_OFF 0x1A /* X-axis gyroscope bias offset factor */
@@ -148,12 +149,14 @@ struct adis16400_chip_info {
  * @tx:			transmit buffer
  * @rx:			receive buffer
  * @buf_lock:		mutex to protect tx and rx
+ * @filt_int:		integer part of requested filter frequency
  **/
 struct adis16400_state {
 	struct spi_device		*us;
 	struct iio_trigger		*trig;
 	struct mutex			buf_lock;
 	struct adis16400_chip_info	*variant;
+	int				filt_int;
 
 	u8	tx[ADIS16400_MAX_TX] ____cacheline_aligned;
 	u8	rx[ADIS16400_MAX_RX] ____cacheline_aligned;

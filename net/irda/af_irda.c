@@ -955,7 +955,7 @@ out:
  * The main difference with a "standard" connect is that with IrDA we need
  * to resolve the service name into a TSAP selector (in TCP, port number
  * doesn't have to be resolved).
- * Because of this service name resoltion, we can offer "auto-connect",
+ * Because of this service name resolution, we can offer "auto-connect",
  * where we connect to a service without specifying a destination address.
  *
  * Note : by consulting "errno", the user space caller may learn the cause
@@ -2558,8 +2558,8 @@ bed:
 			self->errno = 0;
 			setup_timer(&self->watchdog, irda_discovery_timeout,
 					(unsigned long)self);
-			self->watchdog.expires = jiffies + (val * HZ/1000);
-			add_timer(&(self->watchdog));
+			mod_timer(&self->watchdog,
+				  jiffies + msecs_to_jiffies(val));
 
 			/* Wait for IR-LMP to call us back */
 			__wait_event_interruptible(self->query_wait,

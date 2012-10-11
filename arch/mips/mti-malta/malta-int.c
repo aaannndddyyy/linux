@@ -44,6 +44,7 @@
 #include <asm/msc01_ic.h>
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
+#include <asm/setup.h>
 
 int gcmp_present = -1;
 int gic_present;
@@ -272,16 +273,19 @@ asmlinkage void plat_irq_dispatch(void)
 	unsigned int pending = read_c0_cause() & read_c0_status() & ST0_IM;
 	int irq;
 
+	if (unlikely(!pending)) {
+		spurious_interrupt();
+		return;
+	}
+
 	irq = irq_ffs(pending);
 
 	if (irq == MIPSCPU_INT_I8259A)
 		malta_hw0_irqdispatch();
 	else if (gic_present && ((1 << irq) & ipi_map[smp_processor_id()]))
 		malta_ipi_irqdispatch();
-	else if (irq >= 0)
-		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 	else
-		spurious_interrupt();
+		do_IRQ(MIPS_CPU_IRQ_BASE + irq);
 }
 
 #ifdef CONFIG_MIPS_MT_SMP
@@ -322,13 +326,13 @@ static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 
 static struct irqaction irq_resched = {
 	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_DISABLED|IRQF_PERCPU,
+	.flags		= IRQF_PERCPU,
 	.name		= "IPI_resched"
 };
 
 static struct irqaction irq_call = {
 	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_DISABLED|IRQF_PERCPU,
+	.flags		= IRQF_PERCPU,
 	.name		= "IPI_call"
 };
 #endif /* CONFIG_MIPS_MT_SMP */

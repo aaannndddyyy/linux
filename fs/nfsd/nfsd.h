@@ -72,6 +72,19 @@ int		nfsd_nrthreads(void);
 int		nfsd_nrpools(void);
 int		nfsd_get_nrthreads(int n, int *);
 int		nfsd_set_nrthreads(int n, int *);
+int		nfsd_pool_stats_open(struct inode *, struct file *);
+int		nfsd_pool_stats_release(struct inode *, struct file *);
+
+static inline void nfsd_destroy(struct net *net)
+{
+	int destroy = (nfsd_serv->sv_nrthreads == 1);
+
+	if (destroy)
+		svc_shutdown_net(nfsd_serv, net);
+	svc_destroy(nfsd_serv);
+	if (destroy)
+		nfsd_serv = NULL;
+}
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
 #ifdef CONFIG_NFSD_V2_ACL
@@ -104,14 +117,16 @@ static inline int nfsd_v4client(struct svc_rqst *rq)
  */
 #ifdef CONFIG_NFSD_V4
 extern unsigned int max_delegations;
-int nfs4_state_init(void);
+void nfs4_state_init(void);
+int nfsd4_init_slabs(void);
 void nfsd4_free_slabs(void);
 int nfs4_state_start(void);
 void nfs4_state_shutdown(void);
 void nfs4_reset_lease(time_t leasetime);
 int nfs4_reset_recoverydir(char *recdir);
 #else
-static inline int nfs4_state_init(void) { return 0; }
+static inline void nfs4_state_init(void) { }
+static inline int nfsd4_init_slabs(void) { return 0; }
 static inline void nfsd4_free_slabs(void) { }
 static inline int nfs4_state_start(void) { return 0; }
 static inline void nfs4_state_shutdown(void) { }
@@ -338,15 +353,15 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
-#define NFSD_WRITEONLY_ATTRS_WORD1							    \
-(FATTR4_WORD1_TIME_ACCESS_SET   | FATTR4_WORD1_TIME_MODIFY_SET)
+#define NFSD_WRITEONLY_ATTRS_WORD1 \
+	(FATTR4_WORD1_TIME_ACCESS_SET   | FATTR4_WORD1_TIME_MODIFY_SET)
 
 /* These are the only attrs allowed in CREATE/OPEN/SETATTR. */
-#define NFSD_WRITEABLE_ATTRS_WORD0                                                          \
-(FATTR4_WORD0_SIZE              | FATTR4_WORD0_ACL                                         )
-#define NFSD_WRITEABLE_ATTRS_WORD1                                                          \
-(FATTR4_WORD1_MODE              | FATTR4_WORD1_OWNER         | FATTR4_WORD1_OWNER_GROUP     \
- | FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
+#define NFSD_WRITEABLE_ATTRS_WORD0 \
+	(FATTR4_WORD0_SIZE | FATTR4_WORD0_ACL)
+#define NFSD_WRITEABLE_ATTRS_WORD1 \
+	(FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP \
+	| FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
 #define NFSD_WRITEABLE_ATTRS_WORD2 0
 
 #define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
@@ -362,11 +377,16 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 	NFSD_WRITEABLE_ATTRS_WORD2
 
 extern int nfsd4_is_junction(struct dentry *dentry);
-#else
+extern int register_cld_notifier(void);
+extern void unregister_cld_notifier(void);
+#else /* CONFIG_NFSD_V4 */
 static inline int nfsd4_is_junction(struct dentry *dentry)
 {
 	return 0;
 }
+
+#define register_cld_notifier() 0
+#define unregister_cld_notifier() do { } while(0)
 
 #endif /* CONFIG_NFSD_V4 */
 

@@ -18,6 +18,7 @@
 #include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
+#include <asm/debugreg.h>
 #include <asm/sections.h>
 #include <linux/topology.h>
 #include <linux/cpumask.h>
@@ -28,6 +29,7 @@
 #include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/mtrr.h>
 #include <linux/numa.h>
 #include <asm/asm.h>
@@ -142,6 +144,8 @@ static int __init x86_xsave_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_XSAVE);
 	setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
+	setup_clear_cpu_cap(X86_FEATURE_AVX);
+	setup_clear_cpu_cap(X86_FEATURE_AVX2);
 	return 1;
 }
 __setup("noxsave", x86_xsave_setup);
@@ -450,6 +454,35 @@ void __cpuinit cpu_detect_cache_sizes(struct cpuinfo_x86 *c)
 	c->x86_cache_size = l2size;
 }
 
+u16 __read_mostly tlb_lli_4k[NR_INFO];
+u16 __read_mostly tlb_lli_2m[NR_INFO];
+u16 __read_mostly tlb_lli_4m[NR_INFO];
+u16 __read_mostly tlb_lld_4k[NR_INFO];
+u16 __read_mostly tlb_lld_2m[NR_INFO];
+u16 __read_mostly tlb_lld_4m[NR_INFO];
+
+/*
+ * tlb_flushall_shift shows the balance point in replacing cr3 write
+ * with multiple 'invlpg'. It will do this replacement when
+ *   flush_tlb_lines <= active_lines/2^tlb_flushall_shift.
+ * If tlb_flushall_shift is -1, means the replacement will be disabled.
+ */
+s8  __read_mostly tlb_flushall_shift = -1;
+
+void __cpuinit cpu_detect_tlb(struct cpuinfo_x86 *c)
+{
+	if (this_cpu->c_detect_tlb)
+		this_cpu->c_detect_tlb(c);
+
+	printk(KERN_INFO "Last level iTLB entries: 4KB %d, 2MB %d, 4MB %d\n" \
+		"Last level dTLB entries: 4KB %d, 2MB %d, 4MB %d\n"	     \
+		"tlb_flushall_shift is 0x%x\n",
+		tlb_lli_4k[ENTRIES], tlb_lli_2m[ENTRIES],
+		tlb_lli_4m[ENTRIES], tlb_lld_4k[ENTRIES],
+		tlb_lld_2m[ENTRIES], tlb_lld_4m[ENTRIES],
+		tlb_flushall_shift);
+}
+
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_HT
@@ -676,9 +709,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 	if (this_cpu->c_early_init)
 		this_cpu->c_early_init(c);
 
-#ifdef CONFIG_SMP
 	c->cpu_index = 0;
-#endif
 	filter_cpuid_features(c, false);
 
 	setup_smep(c);
@@ -764,10 +795,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		c->apicid = c->initial_apicid;
 # endif
 #endif
-
-#ifdef CONFIG_X86_HT
 		c->phys_proc_id = c->initial_apicid;
-#endif
 	}
 
 	setup_smep(c);
@@ -914,6 +942,8 @@ void __init identify_boot_cpu(void)
 #else
 	vgetcpu_set_mode();
 #endif
+	if (boot_cpu_data.cpuid_level >= 2)
+		cpu_detect_tlb(&boot_cpu_data);
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
@@ -938,7 +968,7 @@ static const struct msr_range msr_range_array[] __cpuinitconst = {
 	{ 0xc0011000, 0xc001103b},
 };
 
-static void __cpuinit print_cpu_msr(void)
+static void __cpuinit __print_cpu_msr(void)
 {
 	unsigned index_min, index_max;
 	unsigned index;
@@ -950,7 +980,7 @@ static void __cpuinit print_cpu_msr(void)
 		index_max = msr_range_array[i].max;
 
 		for (index = index_min; index < index_max; index++) {
-			if (rdmsrl_amd_safe(index, &val))
+			if (rdmsrl_safe(index, &val))
 				continue;
 			printk(KERN_INFO " MSR%08x: %016llx\n", index, val);
 		}
@@ -1002,13 +1032,13 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "\n");
 
-#ifdef CONFIG_SMP
+	print_cpu_msr(c);
+}
+
+void __cpuinit print_cpu_msr(struct cpuinfo_x86 *c)
+{
 	if (c->cpu_index < show_msr)
-		print_cpu_msr();
-#else
-	if (show_msr)
-		print_cpu_msr();
-#endif
+		__print_cpu_msr();
 }
 
 static __init int setup_disablecpuid(char *arg)
@@ -1026,6 +1056,8 @@ __setup("clearcpuid=", setup_disablecpuid);
 
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
+struct desc_ptr nmi_idt_descr = { NR_VECTORS * 16 - 1,
+				    (unsigned long) nmi_idt_table };
 
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE);
@@ -1046,6 +1078,8 @@ DEFINE_PER_CPU(char *, irq_stack_ptr) =
 	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 
 DEFINE_PER_CPU(unsigned int, irq_count) = -1;
+
+DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 /*
  * Special IST stacks which the CPU switches to when it calls
@@ -1090,10 +1124,37 @@ unsigned long kernel_eflags;
  */
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
 
+static DEFINE_PER_CPU(unsigned long, debug_stack_addr);
+DEFINE_PER_CPU(int, debug_stack_usage);
+
+int is_debug_stack(unsigned long addr)
+{
+	return __get_cpu_var(debug_stack_usage) ||
+		(addr <= __get_cpu_var(debug_stack_addr) &&
+		 addr > (__get_cpu_var(debug_stack_addr) - DEBUG_STKSZ));
+}
+
+static DEFINE_PER_CPU(u32, debug_stack_use_ctr);
+
+void debug_stack_set_zero(void)
+{
+	this_cpu_inc(debug_stack_use_ctr);
+	load_idt((const struct desc_ptr *)&nmi_idt_descr);
+}
+
+void debug_stack_reset(void)
+{
+	if (WARN_ON(!this_cpu_read(debug_stack_use_ctr)))
+		return;
+	if (this_cpu_dec_return(debug_stack_use_ctr) == 0)
+		load_idt((const struct desc_ptr *)&idt_descr);
+}
+
 #else	/* CONFIG_X86_64 */
 
 DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
+DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
@@ -1163,7 +1224,7 @@ void __cpuinit cpu_init(void)
 	oist = &per_cpu(orig_ist, cpu);
 
 #ifdef CONFIG_NUMA
-	if (cpu != 0 && percpu_read(numa_node) == 0 &&
+	if (cpu != 0 && this_cpu_read(numa_node) == 0 &&
 	    early_cpu_to_node(cpu) != NUMA_NO_NODE)
 		set_numa_node(early_cpu_to_node(cpu));
 #endif
@@ -1208,6 +1269,8 @@ void __cpuinit cpu_init(void)
 			estacks += exception_stack_sizes[v];
 			oist->ist[v] = t->x86_tss.ist[v] =
 					(unsigned long)estacks;
+			if (v == DEBUG_STACK-1)
+				per_cpu(debug_stack_addr, cpu) = (unsigned long)estacks;
 		}
 	}
 

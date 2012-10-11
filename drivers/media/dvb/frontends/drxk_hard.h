@@ -94,7 +94,15 @@ enum DRXPowerMode {
 
 
 enum AGC_CTRL_MODE { DRXK_AGC_CTRL_AUTO = 0, DRXK_AGC_CTRL_USER, DRXK_AGC_CTRL_OFF };
-enum EDrxkState { DRXK_UNINITIALIZED = 0, DRXK_STOPPED, DRXK_DTV_STARTED, DRXK_ATV_STARTED, DRXK_POWERED_DOWN };
+enum EDrxkState {
+	DRXK_UNINITIALIZED = 0,
+	DRXK_STOPPED,
+	DRXK_DTV_STARTED,
+	DRXK_ATV_STARTED,
+	DRXK_POWERED_DOWN,
+	DRXK_NO_DEV			/* If drxk init failed */
+};
+
 enum EDrxkCoefArrayIndex {
 	DRXK_COEF_IDX_MN = 0,
 	DRXK_COEF_IDX_FM    ,
@@ -195,9 +203,8 @@ struct DRXKOfdmScCmd_t {
 };
 
 struct drxk_state {
-	struct dvb_frontend c_frontend;
-	struct dvb_frontend t_frontend;
-	struct dvb_frontend_parameters param;
+	struct dvb_frontend frontend;
+	struct dtv_frontend_properties props;
 	struct device *dev;
 
 	struct i2c_adapter *i2c;
@@ -205,7 +212,6 @@ struct drxk_state {
 	void  *priv;
 
 	struct mutex mutex;
-	struct mutex ctlock;
 
 	u32    m_Instance;           /**< Channel 1,2,3 or 4 */
 
@@ -262,6 +268,8 @@ struct drxk_state {
 
 	u8     m_TSDataStrength;
 	u8     m_TSClockkStrength;
+
+	bool   m_itut_annex_c;      /* If true, uses ITU-T DVB-C Annex C, instead of Annex A */
 
 	enum DRXMPEGStrWidth_t  m_widthSTR;    /**< MPEG start width */
 	u32    m_mpegTsStaticBitrate;          /**< Maximum bitrate in b/s in case
@@ -325,6 +333,9 @@ struct drxk_state {
 
 	enum DRXPowerMode m_currentPowerMode;
 
+	/* when true, avoids other devices to use the I2C bus */
+	bool		  drxk_i2c_exclusive_lock;
+
 	/*
 	 * Configurable parameters at the driver. They stores the values found
 	 * at struct drxk_config.
@@ -332,12 +343,17 @@ struct drxk_state {
 
 	u16	UIO_mask;	/* Bits used by UIO */
 
+	bool	enable_merr_cfg;
 	bool	single_master;
 	bool	no_i2c_bridge;
 	bool	antenna_dvbt;
 	u16	antenna_gpio;
 
+	/* Firmware */
 	const char *microcode_name;
+	struct completion fw_wait_load;
+	const struct firmware *fw;
+	int qam_demod_parameter_count;
 };
 
 #define NEVER_LOCK 0

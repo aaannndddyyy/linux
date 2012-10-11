@@ -141,7 +141,7 @@ static int __devinit tile_init_irqs(int controller_id,
  *
  * Returns the number of controllers discovered.
  */
-int __devinit tile_pci_init(void)
+int __init tile_pci_init(void)
 {
 	int i;
 
@@ -287,7 +287,7 @@ static void __devinit fixup_read_and_payload_sizes(void)
  * The controllers have been set up by the time we get here, by a call to
  * tile_pci_init.
  */
-int __devinit pcibios_init(void)
+int __init pcibios_init(void)
 {
 	int i;
 
@@ -310,6 +310,7 @@ int __devinit pcibios_init(void)
 		if (pci_scan_flags[i] == 0 && controllers[i].ops != NULL) {
 			struct pci_controller *controller = &controllers[i];
 			struct pci_bus *bus;
+			LIST_HEAD(resources);
 
 			if (tile_init_irqs(i, controller)) {
 				pr_err("PCI: Could not initialize IRQs\n");
@@ -327,9 +328,11 @@ int __devinit pcibios_init(void)
 			 * This is inlined in linux/pci.h and calls into
 			 * pci_scan_bus_parented() in probe.c.
 			 */
-			bus = pci_scan_bus(0, controller->ops, controller);
+			pci_add_resource(&resources, &ioport_resource);
+			pci_add_resource(&resources, &iomem_resource);
+			bus = pci_scan_root_bus(NULL, 0, controller->ops, controller, &resources);
 			controller->root_bus = bus;
-			controller->last_busno = bus->subordinate;
+			controller->last_busno = bus->busn_res.end;
 		}
 	}
 
@@ -395,14 +398,9 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 	/* Nothing needs to be done. */
 }
 
-/*
- * This can be called from the generic PCI layer, but doesn't need to
- * do anything.
- */
-char __devinit *pcibios_setup(char *str)
+void pcibios_set_master(struct pci_dev *dev)
 {
-	/* Nothing needs to be done. */
-	return str;
+	/* No special bus mastering setup handling. */
 }
 
 /*
@@ -465,27 +463,6 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 		pci_write_config_word(dev, PCI_COMMAND, cmd);
 	return 0;
 }
-
-void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max)
-{
-	unsigned long start = pci_resource_start(dev, bar);
-	unsigned long len = pci_resource_len(dev, bar);
-	unsigned long flags = pci_resource_flags(dev, bar);
-
-	if (!len)
-		return NULL;
-	if (max && len > max)
-		len = max;
-
-	if (!(flags & IORESOURCE_MEM)) {
-		pr_info("PCI: Trying to map invalid resource %#lx\n", flags);
-		start = 0;
-	}
-
-	return (void __iomem *)start;
-}
-EXPORT_SYMBOL(pci_iomap);
-
 
 /****************************************************************
  *

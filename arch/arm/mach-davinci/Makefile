@@ -4,7 +4,7 @@
 #
 
 # Common objects
-obj-y 			:= time.o clock.o serial.o io.o psc.o \
+obj-y 			:= time.o clock.o serial.o psc.o \
 			   dma.o usb.o common.o sram.o aemif.o
 
 obj-$(CONFIG_DAVINCI_MUX)		+= mux.o
@@ -39,3 +39,4 @@ obj-$(CONFIG_MACH_OMAPL138_HAWKBOARD)	+= board-omapl138-hawk.o
 obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
 obj-$(CONFIG_SUSPEND)			+= pm.o sleep.o
+obj-$(CONFIG_HAVE_CLK)			+= pm_domain.o

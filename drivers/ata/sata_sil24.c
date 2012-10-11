@@ -417,7 +417,7 @@ static struct ata_port_operations sil24_ops = {
 #endif
 };
 
-static int sata_sil24_msi;    /* Disable MSI */
+static bool sata_sil24_msi;    /* Disable MSI */
 module_param_named(msi, sata_sil24_msi, bool, S_IRUGO);
 MODULE_PARM_DESC(msi, "Enable MSI (Default: false)");
 
@@ -1382,20 +1382,9 @@ static int sil24_port_resume(struct ata_port *ap)
 }
 #endif
 
-static int __init sil24_init(void)
-{
-	return pci_register_driver(&sil24_pci_driver);
-}
-
-static void __exit sil24_exit(void)
-{
-	pci_unregister_driver(&sil24_pci_driver);
-}
+module_pci_driver(sil24_pci_driver);
 
 MODULE_AUTHOR("Tejun Heo");
 MODULE_DESCRIPTION("Silicon Image 3124/3132 SATA low-level driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, sil24_pci_tbl);
-
-module_init(sil24_init);
-module_exit(sil24_exit);

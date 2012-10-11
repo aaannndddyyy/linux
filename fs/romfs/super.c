@@ -210,7 +210,7 @@ out:
  * look up an entry in a directory
  */
 static struct dentry *romfs_lookup(struct inode *dir, struct dentry *dentry,
-				   struct nameidata *nd)
+				   unsigned int flags)
 {
 	unsigned long offset, maxoff;
 	struct inode *inode;
@@ -403,7 +403,6 @@ static struct inode *romfs_alloc_inode(struct super_block *sb)
 static void romfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(romfs_inode_cachep, ROMFS_I(inode));
 }
 
@@ -539,14 +538,12 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (IS_ERR(root))
 		goto error;
 
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		goto error_i;
+		goto error;
 
 	return 0;
 
-error_i:
-	iput(root);
 error:
 	return -EINVAL;
 error_rsb_inval:

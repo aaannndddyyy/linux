@@ -24,19 +24,7 @@
 .global _ramstart
 .global _ramend
 
-.global penguin_bits
-
-#ifdef CONFIG_PILOT
-
-#define IMR 0xFFFFF304
-
-	.data
-	.align 16
-
-penguin_bits:	
-#include "bootlogo.rh"
-
-#endif
+.global bootlogo_bits
 
 /*****************************************************************************/
 
@@ -122,7 +110,7 @@ L0:
 	movel	#CONFIG_VECTORBASE, %d7
 	addl	#16, %d7
 	moveal	%d7, %a0
-	moveal	#_ebss, %a1
+	moveal	#__bss_stop, %a1
 	lea	%a1@(512), %a2
 
 	DBG_PUTC('C')
@@ -150,8 +138,8 @@ LD1:
 
 	DBG_PUTC('E')
 
-	moveal	#_sbss, %a0
-	moveal	#_ebss, %a1
+	moveal	#__bss_start, %a0
+	moveal	#__bss_stop, %a1
 
 	/* Copy 0 to %a0 until %a0 == %a1 */
 L1:
@@ -162,7 +150,7 @@ L1:
 	DBG_PUTC('F')
 
 	/* Copy command line from end of bss to command line */
-	moveal	#_ebss, %a0
+	moveal	#__bss_stop, %a0
 	moveal	#command_line, %a1
 	lea	%a1@(512), %a2
 
@@ -177,16 +165,13 @@ L3:
 
 	movel	#_sdata, %d0	
 	movel	%d0, _rambase	
-	movel	#_ebss,	%d0
+	movel	#__bss_stop, %d0
 	movel	%d0, _ramstart
 
 	movel	%a4, %d0
 	subl	#4096, %d0	/* Reserve 4K of stack */
 	moveq	#79, %d7
 	movel	%d0, _ramend
-
-	movel	%a3, %d0
-	movel	%d0, rom_length
 
 	pea	0
 	pea	env
@@ -196,7 +181,7 @@ L3:
 	DBG_PUTC('H')
 
 #ifdef CONFIG_PILOT
-	movel	#penguin_bits, 0xFFFFFA00
+	movel	#bootlogo_bits, 0xFFFFFA00
 	moveb	#10, 0xFFFFFA05
 	movew	#160, 0xFFFFFA08
 	movew	#160, 0xFFFFFA0A

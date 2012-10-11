@@ -161,6 +161,12 @@ extern struct sctp_globals {
 	int max_retrans_path;
 	int max_retrans_init;
 
+	/* Potentially-Failed.Max.Retrans sysctl value
+	 * taken from:
+	 * http://tools.ietf.org/html/draft-nishida-tsvwg-sctp-failover-05
+	 */
+	int pf_retrans;
+
 	/*
 	 * Policy for preforming sctp/socket accounting
 	 * 0   - do socket level accounting, all assocs share sk_sndbuf
@@ -235,7 +241,7 @@ extern struct sctp_globals {
 
 	/* Flag to indicate whether computing and verifying checksum
 	 * is disabled. */
-        int checksum_disable;
+        bool checksum_disable;
 
 	/* Threshold for rwnd update SACKS.  Receive buffer shifted this many
 	 * bits is an indicator of when to send and window update SACK.
@@ -258,6 +264,7 @@ extern struct sctp_globals {
 #define sctp_sndbuf_policy	 	(sctp_globals.sndbuf_policy)
 #define sctp_rcvbuf_policy	 	(sctp_globals.rcvbuf_policy)
 #define sctp_max_retrans_path		(sctp_globals.max_retrans_path)
+#define sctp_pf_retrans			(sctp_globals.pf_retrans)
 #define sctp_max_retrans_init		(sctp_globals.max_retrans_init)
 #define sctp_sack_timeout		(sctp_globals.sack_timeout)
 #define sctp_hb_interval		(sctp_globals.hb_interval)
@@ -369,7 +376,7 @@ static inline struct sock *sctp_opt2sk(const struct sctp_sock *sp)
        return (struct sock *)sp;
 }
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 struct sctp6_sock {
        struct sctp_sock  sctp;
        struct ipv6_pinfo inet6;
@@ -912,6 +919,9 @@ struct sctp_transport {
 		/* Is this structure kfree()able? */
 		malloced:1;
 
+	/* Has this transport moved the ctsn since we last sacked */
+	__u32 sack_generation;
+
 	struct flowi fl;
 
 	/* This is the peer's IP address and port. */
@@ -987,10 +997,15 @@ struct sctp_transport {
 
 	/* This is the max_retrans value for the transport and will
 	 * be initialized from the assocs value.  This can be changed
-	 * using SCTP_SET_PEER_ADDR_PARAMS socket option.
+	 * using the SCTP_SET_PEER_ADDR_PARAMS socket option.
 	 */
 	__u16 pathmaxrxt;
 
+	/* This is the partially failed retrans value for the transport
+	 * and will be initialized from the assocs value.  This can be changed
+	 * using the SCTP_PEER_ADDR_THLDS socket option
+	 */
+	int pf_retrans;
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
 
@@ -1088,7 +1103,8 @@ void sctp_transport_burst_limited(struct sctp_transport *);
 void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);
 void sctp_transport_reset(struct sctp_transport *);
-void sctp_transport_update_pmtu(struct sctp_transport *, u32);
+void sctp_transport_update_pmtu(struct sock *, struct sctp_transport *, u32);
+void sctp_transport_immediate_rtx(struct sctp_transport *);
 
 
 /* This is the structure we use to queue packets as they come into
@@ -1144,10 +1160,10 @@ struct sctp_outq {
 	/* Data pending that has never been transmitted.  */
 	struct list_head out_chunk_list;
 
-	unsigned out_qlen;	/* Total length of queued data chunks. */
+	unsigned int out_qlen;	/* Total length of queued data chunks. */
 
 	/* Error of send failed, may used in SCTP_SEND_FAILED event. */
-	unsigned error;
+	unsigned int error;
 
 	/* These are control chunks we want to send.  */
 	struct list_head control_chunk_list;
@@ -1583,6 +1599,7 @@ struct sctp_association {
 		 */
 		__u8    sack_needed;     /* Do we need to sack the peer? */
 		__u32	sack_cnt;
+		__u32	sack_generation;
 
 		/* These are capabilities which our peer advertised.  */
 		__u8	ecn_capable:1,	    /* Can peer do ECN? */
@@ -1658,6 +1675,12 @@ struct sctp_association {
 	 * modified by the SCTP_ASSOCINFO socket option.
 	 */
 	int max_retrans;
+
+	/* This is the partially failed retrans value for the transport
+	 * and will be initialized from the assocs value.  This can be
+	 * changed using the SCTP_PEER_ADDR_THLDS socket option
+	 */
+	int pf_retrans;
 
 	/* Maximum number of times the endpoint will retransmit INIT  */
 	__u16 max_init_attempts;
@@ -1998,9 +2021,9 @@ void sctp_assoc_update(struct sctp_association *old,
 
 __u32 sctp_association_get_next_tsn(struct sctp_association *);
 
-void sctp_assoc_sync_pmtu(struct sctp_association *);
-void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned);
-void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned);
+void sctp_assoc_sync_pmtu(struct sock *, struct sctp_association *);
+void sctp_assoc_rwnd_increase(struct sctp_association *, unsigned int);
+void sctp_assoc_rwnd_decrease(struct sctp_association *, unsigned int);
 void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,

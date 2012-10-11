@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/nl80211.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
@@ -35,6 +37,7 @@ static DEFINE_PCI_DEVICE_TABLE(ath_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0032) }, /* PCI-E  AR9485 */
 	{ PCI_VDEVICE(ATHEROS, 0x0033) }, /* PCI-E  AR9580 */
 	{ PCI_VDEVICE(ATHEROS, 0x0034) }, /* PCI-E  AR9462 */
+	{ PCI_VDEVICE(ATHEROS, 0x0037) }, /* PCI-E  AR1111/AR9485 */
 	{ 0 }
 };
 
@@ -113,6 +116,9 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	int pos;
 	u8 aspm;
 
+	if (!ah->is_pciexpress)
+		return;
+
 	pos = pci_pcie_cap(pdev);
 	if (!pos)
 		return;
@@ -121,7 +127,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 	if (!parent)
 		return;
 
-	if (ah->btcoex_hw.scheme != ATH_BTCOEX_CFG_NONE) {
+	if (ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
 		/* Bluetooth coexistance requires disabling ASPM. */
 		pci_read_config_byte(pdev, pos + PCI_EXP_LNKCTL, &aspm);
 		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
@@ -136,6 +142,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		aspm &= ~(PCIE_LINK_STATE_L0S | PCIE_LINK_STATE_L1);
 		pci_write_config_byte(parent, pos + PCI_EXP_LNKCTL, aspm);
 
+		ath_info(common, "Disabling ASPM since BTCOEX is enabled\n");
 		return;
 	}
 
@@ -145,6 +152,7 @@ static void ath_pci_aspm_init(struct ath_common *common)
 		ah->aspm_enabled = true;
 		/* Initialize PCIe PM and SERDES registers. */
 		ath9k_hw_configpcipowersave(ah, false);
+		ath_info(common, "ASPM enabled: 0x%x\n", aspm);
 	}
 }
 
@@ -171,14 +179,13 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret =  pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		printk(KERN_ERR "ath9k: 32-bit DMA not available\n");
+		pr_err("32-bit DMA not available\n");
 		goto err_dma;
 	}
 
 	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		printk(KERN_ERR "ath9k: 32-bit DMA consistent "
-			"DMA enable failed\n");
+		pr_err("32-bit DMA consistent DMA enable failed\n");
 		goto err_dma;
 	}
 
@@ -224,7 +231,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
-		printk(KERN_ERR "PCI memory map error\n") ;
+		pr_err("PCI memory map error\n") ;
 		ret = -EIO;
 		goto err_iomap;
 	}
@@ -245,7 +252,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	sc->mem = mem;
 
 	/* Will be cleared in ath9k_start() */
-	sc->sc_flags |= SC_OP_INVALID;
+	set_bit(SC_OP_INVALID, &sc->sc_flags);
 
 	ret = request_irq(pdev->irq, ath_isr, IRQF_SHARED, "ath9k", sc);
 	if (ret) {
@@ -307,12 +314,15 @@ static int ath_pci_suspend(struct device *device)
 	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
 	struct ath_softc *sc = hw->priv;
 
-	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
+	if (sc->wow_enabled)
+		return 0;
 
 	/* The device has to be moved to FULLSLEEP forcibly.
 	 * Otherwise the chip never moved to full sleep,
 	 * when no interface is up.
 	 */
+	ath9k_stop_btcoex(sc);
+	ath9k_hw_disable(sc->sc_ah);
 	ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_FULL_SLEEP);
 
 	return 0;
@@ -321,8 +331,6 @@ static int ath_pci_suspend(struct device *device)
 static int ath_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath_softc *sc = hw->priv;
 	u32 val;
 
 	/*
@@ -333,22 +341,6 @@ static int ath_pci_resume(struct device *device)
 	pci_read_config_dword(pdev, 0x40, &val);
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
-
-	ath9k_ps_wakeup(sc);
-	/* Enable LED */
-	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,
-			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 0);
-
-	  /*
-	   * Reset key cache to sane defaults (all entries cleared) instead of
-	   * semi-random values after suspend/resume.
-	   */
-	ath9k_cmn_init_crypto(sc->sc_ah);
-	ath9k_ps_restore(sc);
-
-	sc->ps_idle = true;
-	ath_radio_disable(sc, hw);
 
 	return 0;
 }

@@ -181,7 +181,7 @@ static struct resource jz4740_battery_resources[] = {
 	},
 };
 
-const struct mfd_cell jz4740_adc_cells[] = {
+static struct mfd_cell jz4740_adc_cells[] = {
 	{
 		.id = 0,
 		.name = "jz4740-hwmon",
@@ -287,7 +287,8 @@ static int __devinit jz4740_adc_probe(struct platform_device *pdev)
 	writeb(0xff, adc->base + JZ_REG_ADC_CTRL);
 
 	ret = mfd_add_devices(&pdev->dev, 0, jz4740_adc_cells,
-		ARRAY_SIZE(jz4740_adc_cells), mem_base, irq_base);
+			      ARRAY_SIZE(jz4740_adc_cells), mem_base,
+			      irq_base, NULL);
 	if (ret < 0)
 		goto err_clk_put;
 
@@ -338,17 +339,7 @@ static struct platform_driver jz4740_adc_driver = {
 	},
 };
 
-static int __init jz4740_adc_init(void)
-{
-	return platform_driver_register(&jz4740_adc_driver);
-}
-module_init(jz4740_adc_init);
-
-static void __exit jz4740_adc_exit(void)
-{
-	platform_driver_unregister(&jz4740_adc_driver);
-}
-module_exit(jz4740_adc_exit);
+module_platform_driver(jz4740_adc_driver);
 
 MODULE_DESCRIPTION("JZ4740 SoC ADC driver");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

@@ -826,12 +826,12 @@ static __devinit int softing_pdev_probe(struct platform_device *pdev)
 		goto sysfs_failed;
 	}
 
-	ret = -ENOMEM;
 	for (j = 0; j < ARRAY_SIZE(card->net); ++j) {
 		card->net[j] = netdev =
 			softing_netdev_create(card, card->id.chip[j]);
 		if (!netdev) {
 			dev_alert(&pdev->dev, "failed to make can[%i]", j);
+			ret = -ENOMEM;
 			goto netdev_failed;
 		}
 		priv = netdev_priv(card->net[j]);
@@ -874,21 +874,9 @@ static struct platform_driver softing_driver = {
 	.remove = __devexit_p(softing_pdev_remove),
 };
 
+module_platform_driver(softing_driver);
+
 MODULE_ALIAS("platform:softing");
-
-static int __init softing_start(void)
-{
-	return platform_driver_register(&softing_driver);
-}
-
-static void __exit softing_stop(void)
-{
-	platform_driver_unregister(&softing_driver);
-}
-
-module_init(softing_start);
-module_exit(softing_stop);
-
 MODULE_DESCRIPTION("Softing DPRAM CAN driver");
 MODULE_AUTHOR("Kurt Van Dijck <kurt.van.dijck@eia.be>");
 MODULE_LICENSE("GPL v2");

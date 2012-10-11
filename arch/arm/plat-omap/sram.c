@@ -6,8 +6,8 @@
  * Copyright (C) 2005 Nokia Corporation
  * Written by Tony Lindgren <tony@atomide.com>
  *
- * Copyright (C) 2009 Texas Instruments
- * Added OMAP4 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
+ * Copyright (C) 2009-2012 Texas Instruments
+ * Added OMAP4/5 support - Santosh Shilimkar <santosh.shilimkar@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -31,16 +31,20 @@
 
 #include "sram.h"
 
-/* XXX These "sideways" includes are a sign that something is wrong */
-#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
-# include "../mach-omap2/prm2xxx_3xxx.h"
-# include "../mach-omap2/sdrc.h"
-#endif
+/* XXX These "sideways" includes will disappear when sram.c becomes a driver */
+#include "../mach-omap2/iomap.h"
+#include "../mach-omap2/prm2xxx_3xxx.h"
+#include "../mach-omap2/sdrc.h"
 
 #define OMAP1_SRAM_PA		0x20000000
 #define OMAP2_SRAM_PUB_PA	(OMAP2_SRAM_PA + 0xf800)
 #define OMAP3_SRAM_PUB_PA       (OMAP3_SRAM_PA + 0x8000)
+#ifdef CONFIG_OMAP4_ERRATA_I688
+#define OMAP4_SRAM_PUB_PA	OMAP4_SRAM_PA
+#else
 #define OMAP4_SRAM_PUB_PA	(OMAP4_SRAM_PA + 0x4000)
+#endif
+#define OMAP5_SRAM_PA		0x40300000
 
 #if defined(CONFIG_ARCH_OMAP2PLUS)
 #define SRAM_BOOTLOADER_SZ	0x00
@@ -64,6 +68,7 @@
 
 static unsigned long omap_sram_start;
 static void __iomem *omap_sram_base;
+static unsigned long omap_sram_skip;
 static unsigned long omap_sram_size;
 static void __iomem *omap_sram_ceil;
 
@@ -102,6 +107,7 @@ static int is_sram_locked(void)
  */
 static void __init omap_detect_sram(void)
 {
+	omap_sram_skip = SRAM_BOOTLOADER_SZ;
 	if (cpu_class_is_omap2()) {
 		if (is_sram_locked()) {
 			if (cpu_is_omap34xx()) {
@@ -109,23 +115,33 @@ static void __init omap_detect_sram(void)
 				if ((omap_type() == OMAP2_DEVICE_TYPE_EMU) ||
 				    (omap_type() == OMAP2_DEVICE_TYPE_SEC)) {
 					omap_sram_size = 0x7000; /* 28K */
+					omap_sram_skip += SZ_16K;
 				} else {
 					omap_sram_size = 0x8000; /* 32K */
 				}
 			} else if (cpu_is_omap44xx()) {
 				omap_sram_start = OMAP4_SRAM_PUB_PA;
 				omap_sram_size = 0xa000; /* 40K */
+			} else if (soc_is_omap54xx()) {
+				omap_sram_start = OMAP5_SRAM_PA;
+				omap_sram_size = SZ_128K; /* 128KB */
 			} else {
 				omap_sram_start = OMAP2_SRAM_PUB_PA;
 				omap_sram_size = 0x800; /* 2K */
 			}
 		} else {
-			if (cpu_is_omap34xx()) {
+			if (soc_is_am33xx()) {
+				omap_sram_start = AM33XX_SRAM_PA;
+				omap_sram_size = 0x10000; /* 64K */
+			} else if (cpu_is_omap34xx()) {
 				omap_sram_start = OMAP3_SRAM_PA;
 				omap_sram_size = 0x10000; /* 64K */
 			} else if (cpu_is_omap44xx()) {
 				omap_sram_start = OMAP4_SRAM_PA;
 				omap_sram_size = 0xe000; /* 56K */
+			} else if (soc_is_omap54xx()) {
+				omap_sram_start = OMAP5_SRAM_PA;
+				omap_sram_size = SZ_128K; /* 128KB */
 			} else {
 				omap_sram_start = OMAP2_SRAM_PA;
 				if (cpu_is_omap242x())
@@ -141,11 +157,9 @@ static void __init omap_detect_sram(void)
 			omap_sram_size = 0x32000;	/* 200K */
 		else if (cpu_is_omap15xx())
 			omap_sram_size = 0x30000;	/* 192K */
-		else if (cpu_is_omap1610() || cpu_is_omap1621() ||
-		     cpu_is_omap1710())
+		else if (cpu_is_omap1610() || cpu_is_omap1611() ||
+				cpu_is_omap1621() || cpu_is_omap1710())
 			omap_sram_size = 0x4000;	/* 16K */
-		else if (cpu_is_omap1611())
-			omap_sram_size = SZ_256K;
 		else {
 			pr_err("Could not detect SRAM size\n");
 			omap_sram_size = 0x4000;
@@ -163,6 +177,12 @@ static void __init omap_map_sram(void)
 	if (omap_sram_size == 0)
 		return;
 
+#ifdef CONFIG_OMAP4_ERRATA_I688
+	if (cpu_is_omap44xx()) {
+		omap_sram_start += PAGE_SIZE;
+		omap_sram_size -= SZ_16K;
+	}
+#endif
 	if (cpu_is_omap34xx()) {
 		/*
 		 * SRAM must be marked as non-cached on OMAP3 since the
@@ -188,8 +208,8 @@ static void __init omap_map_sram(void)
 	 * Looks like we need to preserve some bootloader code at the
 	 * beginning of SRAM for jumping to flash for reboot to work...
 	 */
-	memset((void *)omap_sram_base + SRAM_BOOTLOADER_SZ, 0,
-	       omap_sram_size - SRAM_BOOTLOADER_SZ);
+	memset_io(omap_sram_base + omap_sram_skip, 0,
+		  omap_sram_size - omap_sram_skip);
 }
 
 /*
@@ -203,7 +223,7 @@ void *omap_sram_push_address(unsigned long size)
 {
 	unsigned long available, new_ceil = (unsigned long)omap_sram_ceil;
 
-	available = omap_sram_ceil - (omap_sram_base + SRAM_BOOTLOADER_SZ);
+	available = omap_sram_ceil - (omap_sram_base + omap_sram_skip);
 
 	if (size > available) {
 		pr_err("Not enough space in SRAM\n");
@@ -224,6 +244,9 @@ static void (*_omap_sram_reprogram_clock)(u32 dpllctl, u32 ckctl);
 void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl)
 {
 	BUG_ON(!_omap_sram_reprogram_clock);
+	/* On 730, bit 13 must always be 1 */
+	if (cpu_is_omap7xx())
+		ckctl |= 0x2000;
 	_omap_sram_reprogram_clock(dpllctl, ckctl);
 }
 
@@ -337,7 +360,6 @@ u32 omap3_configure_core_dpll(u32 m2, u32 unlock_dll, u32 f, u32 inc,
 			sdrc_actim_ctrl_b_1, sdrc_mr_1);
 }
 
-#ifdef CONFIG_PM
 void omap3_sram_restore_context(void)
 {
 	omap_sram_ceil = omap_sram_base + omap_sram_size;
@@ -347,15 +369,21 @@ void omap3_sram_restore_context(void)
 			       omap3_sram_configure_core_dpll_sz);
 	omap_push_sram_idle();
 }
-#endif /* CONFIG_PM */
-
-#endif /* CONFIG_ARCH_OMAP3 */
 
 static inline int omap34xx_sram_init(void)
 {
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 	omap3_sram_restore_context();
-#endif
+	return 0;
+}
+#else
+static inline int omap34xx_sram_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_ARCH_OMAP3 */
+
+static inline int am33xx_sram_init(void)
+{
 	return 0;
 }
 
@@ -370,6 +398,8 @@ int __init omap_sram_init(void)
 		omap242x_sram_init();
 	else if (cpu_is_omap2430())
 		omap243x_sram_init();
+	else if (soc_is_am33xx())
+		am33xx_sram_init();
 	else if (cpu_is_omap34xx())
 		omap34xx_sram_init();
 

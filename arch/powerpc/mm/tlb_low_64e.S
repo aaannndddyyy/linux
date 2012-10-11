@@ -94,11 +94,11 @@
 
 	srdi	r15,r16,60		/* get region */
 	rldicl.	r10,r16,64-PGTABLE_EADDR_SIZE,PGTABLE_EADDR_SIZE+4
-	bne-	dtlb_miss_fault_bolted
+	bne-	dtlb_miss_fault_bolted	/* Bail if fault addr is invalid */
 
 	rlwinm	r10,r11,32-19,27,27
 	rlwimi	r10,r11,32-16,19,19
-	cmpwi	r15,0
+	cmpwi	r15,0			/* user vs kernel check */
 	ori	r10,r10,_PAGE_PRESENT
 	oris	r11,r10,_PAGE_ACCESSED@h
 
@@ -120,44 +120,38 @@ tlb_miss_common_bolted:
 	rldicl	r15,r16,64-PGDIR_SHIFT+3,64-PGD_INDEX_SIZE-3
 	cmpldi	cr0,r14,0
 	clrrdi	r15,r15,3
-	beq	tlb_miss_fault_bolted
+	beq	tlb_miss_fault_bolted	/* No PGDIR, bail */
 
 BEGIN_MMU_FTR_SECTION
 	/* Set the TLB reservation and search for existing entry. Then load
 	 * the entry.
 	 */
-	PPC_TLBSRX_DOT(0,r16)
-	ldx	r14,r14,r15
-	beq	normal_tlb_miss_done
+	PPC_TLBSRX_DOT(0,R16)
+	ldx	r14,r14,r15		/* grab pgd entry */
+	beq	normal_tlb_miss_done	/* tlb exists already, bail */
 MMU_FTR_SECTION_ELSE
-	ldx	r14,r14,r15
+	ldx	r14,r14,r15		/* grab pgd entry */
 ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
 #ifndef CONFIG_PPC_64K_PAGES
 	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
-
-	cmpldi	cr0,r14,0
-	beq	tlb_miss_fault_bolted
-
-	ldx	r14,r14,r15
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_bolted	/* Bad pgd entry or hugepage; bail */
+	ldx	r14,r14,r15		/* grab pud entry */
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	rldicl	r15,r16,64-PMD_SHIFT+3,64-PMD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
-
-	cmpldi	cr0,r14,0
-	beq	tlb_miss_fault_bolted
-
-	ldx	r14,r14,r15
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_bolted
+	ldx	r14,r14,r15		/* Grab pmd entry */
 
 	rldicl	r15,r16,64-PAGE_SHIFT+3,64-PTE_INDEX_SIZE-3
 	clrrdi	r15,r15,3
-
-	cmpldi	cr0,r14,0
-	beq	tlb_miss_fault_bolted
-
-	ldx	r14,r14,r15
+	cmpdi	cr0,r14,0
+	bge	tlb_miss_fault_bolted
+	ldx	r14,r14,r15		/* Grab PTE, normal (!huge) page */
 
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
@@ -401,7 +395,7 @@ BEGIN_MMU_FTR_SECTION
 	/* Set the TLB reservation and search for existing entry. Then load
 	 * the entry.
 	 */
-	PPC_TLBSRX_DOT(0,r16)
+	PPC_TLBSRX_DOT(0,R16)
 	ld	r14,0(r10)
 	beq	normal_tlb_miss_done
 MMU_FTR_SECTION_ELSE
@@ -534,7 +528,7 @@ BEGIN_MMU_FTR_SECTION
 	/* Search if we already have a TLB entry for that virtual address, and
 	 * if we do, bail out.
 	 */
-	PPC_TLBSRX_DOT(0,r16)
+	PPC_TLBSRX_DOT(0,R16)
 	beq	virt_page_table_tlb_miss_done
 END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 
@@ -785,7 +779,7 @@ htw_tlb_miss:
 	 *
 	 * MAS1:IND should be already set based on MAS4
 	 */
-	PPC_TLBSRX_DOT(0,r16)
+	PPC_TLBSRX_DOT(0,R16)
 	beq	htw_tlb_miss_done
 
 	/* Now, we need to walk the page tables. First check if we are in
@@ -925,7 +919,7 @@ tlb_load_linear:
 	mtspr	SPRN_MAS1,r15
 
 	/* Already somebody there ? */
-	PPC_TLBSRX_DOT(0,r16)
+	PPC_TLBSRX_DOT(0,R16)
 	beq	tlb_load_linear_done
 
 	/* Now we build the remaining MAS. MAS0 and 2 should be fine

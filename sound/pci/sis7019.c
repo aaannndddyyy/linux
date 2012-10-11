@@ -40,7 +40,7 @@ MODULE_SUPPORTED_DEVICE("{{SiS,SiS7019 Audio Accelerator}}");
 
 static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
-static int enable = 1;
+static bool enable = 1;
 static int codecs = 1;
 
 module_param(index, int, 0444);
@@ -983,7 +983,7 @@ timeout:
 	mutex_unlock(&sis->ac97_mutex);
 
 	if (!count) {
-		printk(KERN_ERR "sis7019: ac97 codec %d timeout cmd 0x%08x\n",
+		dev_err(&sis->pci->dev, "ac97 codec %d timeout cmd 0x%08x\n",
 					codec, cmd);
 	}
 
@@ -1142,13 +1142,13 @@ static int sis_chip_init(struct sis7019 *sis)
 	/* All done, check for errors.
 	 */
 	if (!sis->codecs_present) {
-		printk(KERN_ERR "sis7019: could not find any codecs\n");
+		dev_err(&sis->pci->dev, "could not find any codecs\n");
 		return -EIO;
 	}
 
 	if (sis->codecs_present != codecs) {
-		printk(KERN_WARNING "sis7019: missing codecs, found %0x, expected %0x\n",
-		       sis->codecs_present, codecs);
+		dev_warn(&sis->pci->dev, "missing codecs, found %0x, expected %0x\n",
+					 sis->codecs_present, codecs);
 	}
 
 	/* Let the hardware know that the audio driver is alive,
@@ -1209,9 +1209,10 @@ static int sis_chip_init(struct sis7019 *sis)
 }
 
 #ifdef CONFIG_PM
-static int sis_suspend(struct pci_dev *pci, pm_message_t state)
+static int sis_suspend(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct sis7019 *sis = card->private_data;
 	void __iomem *ioaddr = sis->ioaddr;
 	int i;
@@ -1241,13 +1242,14 @@ static int sis_suspend(struct pci_dev *pci, pm_message_t state)
 
 	pci_disable_device(pci);
 	pci_save_state(pci);
-	pci_set_power_state(pci, pci_choose_state(pci, state));
+	pci_set_power_state(pci, PCI_D3hot);
 	return 0;
 }
 
-static int sis_resume(struct pci_dev *pci)
+static int sis_resume(struct device *dev)
 {
-	struct snd_card *card = pci_get_drvdata(pci);
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct snd_card *card = dev_get_drvdata(dev);
 	struct sis7019 *sis = card->private_data;
 	void __iomem *ioaddr = sis->ioaddr;
 	int i;
@@ -1256,18 +1258,18 @@ static int sis_resume(struct pci_dev *pci)
 	pci_restore_state(pci);
 
 	if (pci_enable_device(pci) < 0) {
-		printk(KERN_ERR "sis7019: unable to re-enable device\n");
+		dev_err(&pci->dev, "unable to re-enable device\n");
 		goto error;
 	}
 
 	if (sis_chip_init(sis)) {
-		printk(KERN_ERR "sis7019: unable to re-init controller\n");
+		dev_err(&pci->dev, "unable to re-init controller\n");
 		goto error;
 	}
 
 	if (request_irq(pci->irq, sis_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, sis)) {
-		printk(KERN_ERR "sis7019: unable to regain IRQ %d\n", pci->irq);
+		dev_err(&pci->dev, "unable to regain IRQ %d\n", pci->irq);
 		goto error;
 	}
 
@@ -1298,6 +1300,11 @@ error:
 	snd_card_disconnect(card);
 	return -EIO;
 }
+
+static SIMPLE_DEV_PM_OPS(sis_pm, sis_suspend, sis_resume);
+#define SIS_PM_OPS	&sis_pm
+#else
+#define SIS_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
 static int sis_alloc_suspend(struct sis7019 *sis)
@@ -1335,8 +1342,7 @@ static int __devinit sis_chip_create(struct snd_card *card,
 		goto error_out;
 
 	if (pci_set_dma_mask(pci, DMA_BIT_MASK(30)) < 0) {
-		printk(KERN_ERR "sis7019: architecture does not support "
-					"30-bit PCI busmaster DMA");
+		dev_err(&pci->dev, "architecture does not support 30-bit PCI busmaster DMA");
 		goto error_out_enabled;
 	}
 
@@ -1350,20 +1356,20 @@ static int __devinit sis_chip_create(struct snd_card *card,
 
 	rc = pci_request_regions(pci, "SiS7019");
 	if (rc) {
-		printk(KERN_ERR "sis7019: unable request regions\n");
+		dev_err(&pci->dev, "unable request regions\n");
 		goto error_out_enabled;
 	}
 
 	rc = -EIO;
 	sis->ioaddr = ioremap_nocache(pci_resource_start(pci, 1), 0x4000);
 	if (!sis->ioaddr) {
-		printk(KERN_ERR "sis7019: unable to remap MMIO, aborting\n");
+		dev_err(&pci->dev, "unable to remap MMIO, aborting\n");
 		goto error_out_cleanup;
 	}
 
 	rc = sis_alloc_suspend(sis);
 	if (rc < 0) {
-		printk(KERN_ERR "sis7019: unable to allocate state storage\n");
+		dev_err(&pci->dev, "unable to allocate state storage\n");
 		goto error_out_cleanup;
 	}
 
@@ -1371,9 +1377,10 @@ static int __devinit sis_chip_create(struct snd_card *card,
 	if (rc)
 		goto error_out_cleanup;
 
-	if (request_irq(pci->irq, sis_interrupt, IRQF_SHARED,
-			KBUILD_MODNAME, sis)) {
-		printk(KERN_ERR "unable to allocate irq %d\n", sis->irq);
+	rc = request_irq(pci->irq, sis_interrupt, IRQF_SHARED, KBUILD_MODNAME,
+			 sis);
+	if (rc) {
+		dev_err(&pci->dev, "unable to allocate irq %d\n", sis->irq);
 		goto error_out_cleanup;
 	}
 
@@ -1482,22 +1489,9 @@ static struct pci_driver sis7019_driver = {
 	.id_table = snd_sis7019_ids,
 	.probe = snd_sis7019_probe,
 	.remove = __devexit_p(snd_sis7019_remove),
-
-#ifdef CONFIG_PM
-	.suspend = sis_suspend,
-	.resume = sis_resume,
-#endif
+	.driver = {
+		.pm = SIS_PM_OPS,
+	},
 };
 
-static int __init sis7019_init(void)
-{
-	return pci_register_driver(&sis7019_driver);
-}
-
-static void __exit sis7019_exit(void)
-{
-	pci_unregister_driver(&sis7019_driver);
-}
-
-module_init(sis7019_init);
-module_exit(sis7019_exit);
+module_pci_driver(sis7019_driver);

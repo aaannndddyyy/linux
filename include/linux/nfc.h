@@ -56,18 +56,27 @@
  *	%NFC_ATTR_PROTOCOLS)
  * @NFC_EVENT_DEVICE_REMOVED: event emitted when a device is removed
  *	(it sends %NFC_ATTR_DEVICE_INDEX)
+ * @NFC_EVENT_TM_ACTIVATED: event emitted when the adapter is activated in
+ *      target mode.
+ * @NFC_EVENT_DEVICE_DEACTIVATED: event emitted when the adapter is deactivated
+ *      from target mode.
  */
 enum nfc_commands {
 	NFC_CMD_UNSPEC,
 	NFC_CMD_GET_DEVICE,
 	NFC_CMD_DEV_UP,
 	NFC_CMD_DEV_DOWN,
+	NFC_CMD_DEP_LINK_UP,
+	NFC_CMD_DEP_LINK_DOWN,
 	NFC_CMD_START_POLL,
 	NFC_CMD_STOP_POLL,
 	NFC_CMD_GET_TARGET,
 	NFC_EVENT_TARGETS_FOUND,
 	NFC_EVENT_DEVICE_ADDED,
 	NFC_EVENT_DEVICE_REMOVED,
+	NFC_EVENT_TARGET_LOST,
+	NFC_EVENT_TM_ACTIVATED,
+	NFC_EVENT_TM_DEACTIVATED,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -86,6 +95,13 @@ enum nfc_commands {
  * @NFC_ATTR_TARGET_SENS_RES: NFC-A targets extra information such as NFCID
  * @NFC_ATTR_TARGET_SEL_RES: NFC-A targets extra information (useful if the
  *	target is not NFC-Forum compliant)
+ * @NFC_ATTR_TARGET_NFCID1: NFC-A targets identifier, max 10 bytes
+ * @NFC_ATTR_TARGET_SENSB_RES: NFC-B targets extra information, max 12 bytes
+ * @NFC_ATTR_TARGET_SENSF_RES: NFC-F targets extra information, max 18 bytes
+ * @NFC_ATTR_COMM_MODE: Passive or active mode
+ * @NFC_ATTR_RF_MODE: Initiator or target
+ * @NFC_ATTR_IM_PROTOCOLS: Initiator mode protocols to poll for
+ * @NFC_ATTR_TM_PROTOCOLS: Target mode protocols to listen for
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -95,12 +111,24 @@ enum nfc_attrs {
 	NFC_ATTR_TARGET_INDEX,
 	NFC_ATTR_TARGET_SENS_RES,
 	NFC_ATTR_TARGET_SEL_RES,
+	NFC_ATTR_TARGET_NFCID1,
+	NFC_ATTR_TARGET_SENSB_RES,
+	NFC_ATTR_TARGET_SENSF_RES,
+	NFC_ATTR_COMM_MODE,
+	NFC_ATTR_RF_MODE,
+	NFC_ATTR_DEVICE_POWERED,
+	NFC_ATTR_IM_PROTOCOLS,
+	NFC_ATTR_TM_PROTOCOLS,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };
 #define NFC_ATTR_MAX (__NFC_ATTR_AFTER_LAST - 1)
 
 #define NFC_DEVICE_NAME_MAXSIZE 8
+#define NFC_NFCID1_MAXSIZE 10
+#define NFC_SENSB_RES_MAXSIZE 12
+#define NFC_SENSF_RES_MAXSIZE 18
+#define NFC_GB_MAXSIZE        48
 
 /* NFC protocols */
 #define NFC_PROTO_JEWEL		1
@@ -108,15 +136,26 @@ enum nfc_attrs {
 #define NFC_PROTO_FELICA	3
 #define NFC_PROTO_ISO14443	4
 #define NFC_PROTO_NFC_DEP	5
+#define NFC_PROTO_ISO14443_B	6
 
-#define NFC_PROTO_MAX		6
+#define NFC_PROTO_MAX		7
+
+/* NFC communication modes */
+#define NFC_COMM_ACTIVE  0
+#define NFC_COMM_PASSIVE 1
+
+/* NFC RF modes */
+#define NFC_RF_INITIATOR 0
+#define NFC_RF_TARGET    1
+#define NFC_RF_NONE      2
 
 /* NFC protocols masks used in bitsets */
-#define NFC_PROTO_JEWEL_MASK	(1 << NFC_PROTO_JEWEL)
-#define NFC_PROTO_MIFARE_MASK	(1 << NFC_PROTO_MIFARE)
-#define NFC_PROTO_FELICA_MASK	(1 << NFC_PROTO_FELICA)
-#define NFC_PROTO_ISO14443_MASK	(1 << NFC_PROTO_ISO14443)
-#define NFC_PROTO_NFC_DEP_MASK	(1 << NFC_PROTO_NFC_DEP)
+#define NFC_PROTO_JEWEL_MASK      (1 << NFC_PROTO_JEWEL)
+#define NFC_PROTO_MIFARE_MASK     (1 << NFC_PROTO_MIFARE)
+#define NFC_PROTO_FELICA_MASK	  (1 << NFC_PROTO_FELICA)
+#define NFC_PROTO_ISO14443_MASK	  (1 << NFC_PROTO_ISO14443)
+#define NFC_PROTO_NFC_DEP_MASK	  (1 << NFC_PROTO_NFC_DEP)
+#define NFC_PROTO_ISO14443_B_MASK (1 << NFC_PROTO_ISO14443_B)
 
 struct sockaddr_nfc {
 	sa_family_t sa_family;
@@ -125,9 +164,22 @@ struct sockaddr_nfc {
 	__u32 nfc_protocol;
 };
 
+#define NFC_LLCP_MAX_SERVICE_NAME 63
+struct sockaddr_nfc_llcp {
+	sa_family_t sa_family;
+	__u32 dev_idx;
+	__u32 target_idx;
+	__u32 nfc_protocol;
+	__u8 dsap; /* Destination SAP, if known */
+	__u8 ssap; /* Source SAP to be bound to */
+	char service_name[NFC_LLCP_MAX_SERVICE_NAME]; /* Service name URI */;
+	size_t service_name_len;
+};
+
 /* NFC socket protocols */
 #define NFC_SOCKPROTO_RAW	0
-#define NFC_SOCKPROTO_MAX	1
+#define NFC_SOCKPROTO_LLCP	1
+#define NFC_SOCKPROTO_MAX	2
 
 #define NFC_HEADER_SIZE 1
 

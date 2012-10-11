@@ -246,8 +246,8 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 
 out_invalid:
 	ubifs_err("inode %lu validation failed, error %d", inode->i_ino, err);
-	dbg_dump_node(c, ino);
-	dbg_dump_inode(c, inode);
+	ubifs_dump_node(c, ino);
+	ubifs_dump_inode(c, inode);
 	err = -EINVAL;
 out_ino:
 	kfree(ino);
@@ -276,7 +276,6 @@ static void ubifs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
@@ -304,7 +303,7 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	mutex_lock(&ui->ui_mutex);
 	/*
 	 * Due to races between write-back forced by budgeting
-	 * (see 'sync_some_inodes()') and pdflush write-back, the inode may
+	 * (see 'sync_some_inodes()') and background write-back, the inode may
 	 * have already been synchronized, do not do this again. This might
 	 * also happen if it was synchronized in an VFS operation, e.g.
 	 * 'ubifs_link()'.
@@ -379,7 +378,7 @@ out:
 		smp_wmb();
 	}
 done:
-	end_writeback(inode);
+	clear_inode(inode);
 }
 
 static void ubifs_dirty_inode(struct inode *inode, int flags)
@@ -420,9 +419,9 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
+static int ubifs_show_options(struct seq_file *s, struct dentry *root)
 {
-	struct ubifs_info *c = mnt->mnt_sb->s_fs_info;
+	struct ubifs_info *c = root->d_sb->s_fs_info;
 
 	if (c->mount_opts.unmount_mode == 2)
 		seq_printf(s, ",fast_unmount");
@@ -669,8 +668,8 @@ static int init_constants_sb(struct ubifs_info *c)
 	tmp = UBIFS_CS_NODE_SZ + UBIFS_REF_NODE_SZ * c->jhead_cnt;
 	tmp = ALIGN(tmp, c->min_io_size);
 	if (tmp > c->leb_size) {
-		dbg_err("too small LEB size %d, at least %d needed",
-			c->leb_size, tmp);
+		ubifs_err("too small LEB size %d, at least %d needed",
+			  c->leb_size, tmp);
 		return -EINVAL;
 	}
 
@@ -684,8 +683,8 @@ static int init_constants_sb(struct ubifs_info *c)
 	tmp /= c->leb_size;
 	tmp += 1;
 	if (c->log_lebs < tmp) {
-		dbg_err("too small log %d LEBs, required min. %d LEBs",
-			c->log_lebs, tmp);
+		ubifs_err("too small log %d LEBs, required min. %d LEBs",
+			  c->log_lebs, tmp);
 		return -EINVAL;
 	}
 
@@ -814,13 +813,10 @@ static int alloc_wbufs(struct ubifs_info *c)
 		c->jheads[i].grouped = 1;
 	}
 
-	c->jheads[BASEHD].wbuf.dtype = UBI_SHORTTERM;
 	/*
-	 * Garbage Collector head likely contains long-term data and
-	 * does not need to be synchronized by timer. Also GC head nodes are
-	 * not grouped.
+	 * Garbage Collector head does not need to be synchronized by timer.
+	 * Also GC head nodes are not grouped.
 	 */
-	c->jheads[GCHD].wbuf.dtype = UBI_LONGTERM;
 	c->jheads[GCHD].wbuf.no_timer = 1;
 	c->jheads[GCHD].grouped = 0;
 
@@ -864,7 +860,7 @@ static void free_orphans(struct ubifs_info *c)
 		orph = list_entry(c->orph_list.next, struct ubifs_orphan, list);
 		list_del(&orph->list);
 		kfree(orph);
-		dbg_err("orphan list not empty at unmount");
+		ubifs_err("orphan list not empty at unmount");
 	}
 
 	vfree(c->orph_buf);
@@ -1148,8 +1144,8 @@ static int check_free_space(struct ubifs_info *c)
 	ubifs_assert(c->dark_wm > 0);
 	if (c->lst.total_free + c->lst.total_dirty < c->dark_wm) {
 		ubifs_err("insufficient free space to mount in R/W mode");
-		dbg_dump_budg(c, &c->bi);
-		dbg_dump_lprops(c);
+		ubifs_dump_budg(c, &c->bi);
+		ubifs_dump_lprops(c);
 		return -ENOSPC;
 	}
 	return 0;
@@ -1161,9 +1157,6 @@ static int check_free_space(struct ubifs_info *c)
  *
  * This function mounts UBIFS file system. Returns zero in case of success and
  * a negative error code in case of failure.
- *
- * Note, the function does not de-allocate resources it it fails half way
- * through, and the caller has to do this instead.
  */
 static int mount_ubifs(struct ubifs_info *c)
 {
@@ -1302,7 +1295,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (!c->ro_mount && c->space_fixup) {
 		err = ubifs_fixup_free_space(c);
 		if (err)
-			goto out_master;
+			goto out_lpt;
 	}
 
 	if (!c->ro_mount) {
@@ -2077,15 +2070,13 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_umount;
 	}
 
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root)
-		goto out_iput;
+		goto out_umount;
 
 	mutex_unlock(&c->umount_mutex);
 	return 0;
 
-out_iput:
-	iput(root);
 out_umount:
 	ubifs_umount(c);
 out_unlock:
@@ -2129,8 +2120,8 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 	 */
 	ubi = open_ubi(name, UBI_READONLY);
 	if (IS_ERR(ubi)) {
-		dbg_err("cannot open \"%s\", error %d",
-			name, (int)PTR_ERR(ubi));
+		ubifs_err("cannot open \"%s\", error %d",
+			  name, (int)PTR_ERR(ubi));
 		return ERR_CAST(ubi);
 	}
 
@@ -2142,7 +2133,7 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 
 	dbg_gen("opened ubi%d_%d", c->vi.ubi_num, c->vi.vol_id);
 
-	sb = sget(fs_type, sb_test, sb_set, c);
+	sb = sget(fs_type, sb_test, sb_set, flags, c);
 	if (IS_ERR(sb)) {
 		err = PTR_ERR(sb);
 		kfree(c);
@@ -2159,7 +2150,6 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 			goto out_deact;
 		}
 	} else {
-		sb->s_flags = flags;
 		err = ubifs_fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (err)
 			goto out_deact;

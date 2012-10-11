@@ -153,8 +153,11 @@ struct hfsplus_sb_info {
 	gid_t gid;
 
 	int part, session;
-
 	unsigned long flags;
+
+	int work_queued;               /* non-zero delayed work is queued */
+	struct delayed_work sync_work; /* FS sync delayed work */
+	spinlock_t work_lock;          /* protects sync_work and work_queued */
 };
 
 #define HFSPLUS_SB_WRITEBACKUP	0
@@ -317,6 +320,11 @@ static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 
 
 /*
+ * hfs+-specific ioctl for making the filesystem bootable
+ */
+#define HFSPLUS_IOC_BLESS _IO('h', 0x80)
+
+/*
  * Functions in any *.c used in other files
  */
 
@@ -402,7 +410,7 @@ void hfsplus_inode_read_fork(struct inode *, struct hfsplus_fork_raw *);
 void hfsplus_inode_write_fork(struct inode *, struct hfsplus_fork_raw *);
 int hfsplus_cat_read_inode(struct inode *, struct hfs_find_data *);
 int hfsplus_cat_write_inode(struct inode *);
-struct inode *hfsplus_new_inode(struct super_block *, int);
+struct inode *hfsplus_new_inode(struct super_block *, umode_t);
 void hfsplus_delete_inode(struct inode *);
 int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 		       int datasync);
@@ -419,11 +427,11 @@ ssize_t hfsplus_listxattr(struct dentry *dentry, char *buffer, size_t size);
 int hfsplus_parse_options(char *, struct hfsplus_sb_info *);
 int hfsplus_parse_options_remount(char *input, int *force);
 void hfsplus_fill_defaults(struct hfsplus_sb_info *);
-int hfsplus_show_options(struct seq_file *, struct vfsmount *);
+int hfsplus_show_options(struct seq_file *, struct dentry *);
 
 /* super.c */
 struct inode *hfsplus_iget(struct super_block *, unsigned long);
-int hfsplus_sync_fs(struct super_block *sb, int wait);
+void hfsplus_mark_mdb_dirty(struct super_block *sb);
 
 /* tables.c */
 extern u16 hfsplus_case_fold_table[];

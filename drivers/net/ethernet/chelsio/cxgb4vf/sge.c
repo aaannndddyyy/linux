@@ -653,8 +653,7 @@ static unsigned int refill_fl(struct adapter *adapter, struct sge_fl *fl,
 
 alloc_small_pages:
 	while (n--) {
-		page = __netdev_alloc_page(adapter->port[0],
-					   gfp | __GFP_NOWARN);
+		page = __skb_alloc_page(gfp | __GFP_NOWARN, NULL);
 		if (unlikely(!page)) {
 			fl->alloc_failed++;
 			break;
@@ -664,7 +663,7 @@ alloc_small_pages:
 		dma_addr = dma_map_page(adapter->pdev_dev, page, 0, PAGE_SIZE,
 				       PCI_DMA_FROMDEVICE);
 		if (unlikely(dma_mapping_error(adapter->pdev_dev, dma_addr))) {
-			netdev_free_page(adapter->port[0], page);
+			put_page(page);
 			break;
 		}
 		*d++ = cpu_to_be64(dma_addr);
@@ -684,7 +683,7 @@ out:
 	/*
 	 * Update our accounting state to incorporate the new Free List
 	 * buffers, tell the hardware about them and return the number of
-	 * bufers which we were able to allocate.
+	 * buffers which we were able to allocate.
 	 */
 	cred = fl->avail - cred;
 	fl->pend_cred += cred;
@@ -935,7 +934,7 @@ static void write_sgl(const struct sk_buff *skb, struct sge_txq *tq,
 		end = (void *)tq->desc + part1;
 	}
 	if ((uintptr_t)end & 8)           /* 0-pad to multiple of 16 */
-		*(u64 *)end = 0;
+		*end = 0;
 }
 
 /**
@@ -1324,8 +1323,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 */
 		if (unlikely((void *)sgl == (void *)tq->stat)) {
 			sgl = (void *)tq->desc;
-			end = (void *)((void *)tq->desc +
-				       ((void *)end - (void *)tq->stat));
+			end = ((void *)tq->desc + ((void *)end - (void *)tq->stat));
 		}
 
 		write_sgl(skb, tq, sgl, end, 0, addr);

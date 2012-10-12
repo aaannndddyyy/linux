@@ -81,7 +81,8 @@
         "scripts/config -e CONFIG_SND_OSSEMUL",
         "scripts/config -e CONFIG_SND_SEQUENCER",
         "scripts/config -e CONFIG_SND_INTEL8X0",
-        "scripts/config -d CONFIG_TOUCHSCREEN_WM97XX"
+        "scripts/config -d CONFIG_TOUCHSCREEN_WM97XX",
+        "scripts/config -d CONFIG_SND_AC97_POWER_SAVE"
     ],
     "build-commands": [
         "make"

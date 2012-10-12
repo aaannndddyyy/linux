@@ -75,8 +75,12 @@
         "scripts/config -d CONFIG_BT_MRVL",
         "scripts/config -d CONFIG_BT_ATH3K",
         "scripts/config -e CONFIG_SOUND",
+        "scripts/config -e CONFIG_SND",
+        "scripts/config -e CONFIG_SND_AC97_CODEC",
+        "scripts/config -e CONFIG_SND_AC97_BUS",
         "scripts/config -e CONFIG_SND_OSSEMUL",
-        "scripts/config -e CONFIG_SND_SEQUENCER"
+        "scripts/config -e CONFIG_SND_SEQUENCER",
+        "scripts/config -e CONFIG_SND_INTEL8X0"
     ],
     "build-commands": [
         "make"

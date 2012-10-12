@@ -73,7 +73,26 @@
         "scripts/config -e CONFIG_BT_HCIBTUART",
         "scripts/config -e CONFIG_BT_HCIVHCI",
         "scripts/config -d CONFIG_BT_MRVL",
-        "scripts/config -d CONFIG_BT_ATH3K"
+        "scripts/config -d CONFIG_BT_ATH3K",
+        "scripts/config -e CONFIG_SND",
+        "scripts/config -e CONFIG_SND_TIMER",
+        "scripts/config -e CONFIG_SND_PCM",
+        "scripts/config -e CONFIG_SND_HWDEP",
+        "scripts/config -e CONFIG_SND_RAWMIDI",
+        "scripts/config -e CONFIG_SND_SEQUENCER",
+        "scripts/config -e CONFIG_SND_MIXER_OSS",
+        "scripts/config -e CONFIG_SND_PCM_OSS",
+        "scripts/config -e CONFIG_SND_RTCTIMER",
+        "scripts/config -e CONFIG_SND_AC97_CODEC",
+        "scripts/config -e CONFIG_SND_EMU10K1",
+        "scripts/config -e CONFIG_SND_OSSEMUL",
+        "scripts/config -e CONFIG_SND_PCM_OSS_PLUGINS",
+        "scripts/config -e CONFIG_SND_SEQUENCER_OSS",
+        "scripts/config -e CONFIG_SND_SEQ_RTCTIMER_DEFAULT",
+        "scripts/config -e CONFIG_SND_DYNAMIC_MINORS",
+        "scripts/config -e CONFIG_SND_SUPPORT_OLD_API",
+        "scripts/config -e CONFIG_SND_VERBOSE_PROCFS",
+        "scripts/config -e CONFIG_SOUND"
     ],
     "build-commands": [
         "make"

@@ -11,6 +11,8 @@
         "scripts/config -e IKCONFIG_PROC",
         "scripts/config -e SECCOMP",
         "scripts/config -d DEBUG_STACK_TRACE",
+        "scripts/config -e NFSD",
+        "scripts/config -e NFSD_V3",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

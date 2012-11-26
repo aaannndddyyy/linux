@@ -84,7 +84,9 @@
         "scripts/config -d CONFIG_TOUCHSCREEN_WM97XX",
         "scripts/config -d CONFIG_SND_AC97_POWER_SAVE",
         "scripts/config -e CONFIG_FUSE_FS",
-        "scripts/config -e CONFIG_CUSE"
+        "scripts/config -e CONFIG_CUSE",
+        "scripts/config -e CONFIG_AF_BUS",
+        "scripts/config -e NETFILTER_DBUS"
     ],
     "build-commands": [
         "make"

@@ -1187,3 +1187,5 @@ endmenu
 source "net/netfilter/ipset/Kconfig"
 
 source "net/netfilter/ipvs/Kconfig"
+
+source "net/netfilter/nfdbus/Kconfig"

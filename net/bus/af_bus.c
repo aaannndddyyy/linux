@@ -1865,7 +1865,7 @@ static int bus_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (NULL == sendctx.siocb->scm)
 		sendctx.siocb->scm = &tmp_scm;
 	wait_for_bus_gc();
-	err = scm_send(sock, msg, sendctx.siocb->scm);
+	err = scm_send(sock, msg, sendctx.siocb->scm, false);
 	if (err < 0)
 		return err;
 

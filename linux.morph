@@ -89,7 +89,7 @@
         "scripts/config -e CONFIG_FUSE_FS",
         "scripts/config -e CONFIG_CUSE",
         "scripts/config -e CONFIG_AF_BUS",
-        "scripts/config -e NETFILTER_DBUS"
+        "scripts/config -e NETFILTER_DBUS",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

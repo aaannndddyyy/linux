@@ -109,25 +109,9 @@ void __scm_destroy(struct scm_cookie *scm)
 
 	if (fpl) {
 		scm->fp = NULL;
-		if (current->scm_work_list) {
-			list_add_tail(&fpl->list, current->scm_work_list);
-		} else {
-			LIST_HEAD(work_list);
-
-			current->scm_work_list = &work_list;
-
-			list_add(&fpl->list, &work_list);
-			while (!list_empty(&work_list)) {
-				fpl = list_first_entry(&work_list, struct scm_fp_list, list);
-
-				list_del(&fpl->list);
-				for (i=fpl->count-1; i>=0; i--)
-					fput(fpl->fp[i]);
-				kfree(fpl);
-			}
-
-			current->scm_work_list = NULL;
-		}
+		for (i=fpl->count-1; i>=0; i--)
+			fput(fpl->fp[i]);
+		kfree(fpl);
 	}
 }
 EXPORT_SYMBOL(__scm_destroy);
@@ -158,7 +142,8 @@ int __scm_send(struct socket *sock, struct msghdr *msg, struct scm_cookie *p)
 		switch (cmsg->cmsg_type)
 		{
 		case SCM_RIGHTS:
-			if (!sock->ops || sock->ops->family != PF_UNIX)
+			if (!sock->ops || (sock->ops->family != PF_UNIX &&
+					   sock->ops->family != PF_BUS))
 				goto error;
 			err=scm_fp_copy(cmsg, &p->fp);
 			if (err<0)
@@ -281,6 +266,7 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 	for (i=0, cmfptr=(__force int __user *)CMSG_DATA(cm); i<fdmax;
 	     i++, cmfptr++)
 	{
+		struct socket *sock;
 		int new_fd;
 		err = security_file_receive(fp[i]);
 		if (err)
@@ -297,6 +283,9 @@ void scm_detach_fds(struct msghdr *msg, struct scm_cookie *scm)
 		}
 		/* Bump the usage count and install the file. */
 		get_file(fp[i]);
+		sock = sock_from_file(fp[i], &err);
+		if (sock)
+			sock_update_netprioidx(sock->sk, current);
 		fd_install(new_fd, fp[i]);
 	}
 

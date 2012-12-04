@@ -656,7 +656,8 @@ MV_STATUS mvNetaSpeedDuplexSet(int portNo, MV_ETH_PORT_SPEED speed, MV_ETH_PORT_
 		return MV_BAD_PARAM;
 
 	/* Check validity */
-	if ((speed == MV_ETH_SPEED_1000) && (duplex == MV_ETH_DUPLEX_HALF))
+	if ((speed == MV_ETH_SPEED_1000 || speed == MV_ETH_SPEED_2500) &&
+	    duplex == MV_ETH_DUPLEX_HALF)
 		return MV_BAD_PARAM;
 
 	regVal = MV_REG_READ(NETA_GMAC_AN_CTRL_REG(portNo));
@@ -666,6 +667,7 @@ MV_STATUS mvNetaSpeedDuplexSet(int portNo, MV_ETH_PORT_SPEED speed, MV_ETH_PORT_
 		regVal |= NETA_ENABLE_SPEED_AUTO_NEG_MASK;
 		/* the other bits don't matter in this case */
 		break;
+	case MV_ETH_SPEED_2500:
 	case MV_ETH_SPEED_1000:
 		regVal &= ~NETA_ENABLE_SPEED_AUTO_NEG_MASK;
 		regVal |= NETA_SET_GMII_SPEED_1000_MASK;
@@ -913,6 +915,16 @@ MV_BOOL		mvNetaLinkIsUp(port)
 	return MV_FALSE;
 }
 
+static MV_ETH_PORT_SPEED get_sgmii_speed(int port)
+{
+	MV_U32 regval = MV_REG_READ(ETH_REG_BASE(port) + 0x24a0);
+
+	if ((regval & 0xff00) == 0x1100)
+		return MV_ETH_SPEED_2500;
+
+	return MV_ETH_SPEED_1000;
+}
+
 MV_STATUS	mvNetaLinkStatus(int port, MV_ETH_PORT_STATUS *pStatus)
 {
 	MV_U32 regVal;
@@ -930,7 +942,7 @@ MV_STATUS	mvNetaLinkStatus(int port, MV_ETH_PORT_STATUS *pStatus)
 	regVal = MV_REG_READ(NETA_GMAC_STATUS_REG(port));
 
 	if (regVal & NETA_GMAC_SPEED_1000_MASK)
-		pStatus->speed = MV_ETH_SPEED_1000;
+		pStatus->speed = get_sgmii_speed(port);
 	else if (regVal & NETA_GMAC_SPEED_100_MASK)
 		pStatus->speed = MV_ETH_SPEED_100;
 	else
@@ -1148,6 +1160,7 @@ MV_STATUS mvNetaSpeedDuplexSet(int portNo, MV_ETH_PORT_SPEED speed, MV_ETH_PORT_
 		portSerialCtrlReg &= ~ETH_DISABLE_SPEED_AUTO_NEG_MASK;
 		/* the other bits don't matter in this case */
 		break;
+	case MV_ETH_SPEED_2500:
 	case MV_ETH_SPEED_1000:
 		portSerialCtrlReg |= ETH_DISABLE_SPEED_AUTO_NEG_MASK;
 		portSerialCtrlReg |= ETH_SET_GMII_SPEED_1000_MASK;
@@ -1210,6 +1223,9 @@ MV_STATUS mvNetaSpeedDuplexSet(int portNo, MV_ETH_PORT_SPEED speed, MV_ETH_PORT_
 MV_STATUS mvNetaSpeedDuplexGet(int portNo, MV_ETH_PORT_SPEED *speed, MV_ETH_PORT_DUPLEX *duplex)
 {
 	MV_U32 regVal;
+
+	printk(KERN_INFO "%s:\n", __func__);
+
 	if ((portNo < 0) || (portNo >= mvNetaHalData.maxPort))
 		return MV_BAD_PARAM;
 
@@ -1221,7 +1237,7 @@ MV_STATUS mvNetaSpeedDuplexGet(int portNo, MV_ETH_PORT_SPEED *speed, MV_ETH_PORT
 	if (!(regVal & ETH_DISABLE_SPEED_AUTO_NEG_MASK))
 		*speed = MV_ETH_SPEED_AN;
 	else if (regVal & ETH_SET_GMII_SPEED_1000_MASK)
-		*speed = MV_ETH_SPEED_1000;
+		*speed = get_sgmii_speed(portNo);
 	else if (regVal & ETH_SET_MII_SPEED_100_MASK)
 		*speed = MV_ETH_SPEED_100;
 	else
@@ -1388,6 +1404,8 @@ MV_STATUS mvNetaLinkStatus(int port, MV_ETH_PORT_STATUS *pStatus)
 {
 	MV_U32 regVal;
 
+	printk(KERN_INFO "%s:\n", __func__);
+
 	if (MV_PON_PORT(port)) {
 		/* FIXME: --BK */
 		pStatus->linkup = MV_TRUE;
@@ -1401,7 +1419,7 @@ MV_STATUS mvNetaLinkStatus(int port, MV_ETH_PORT_STATUS *pStatus)
 	regVal = MV_REG_READ(ETH_PORT_STATUS_REG(port));
 
 	if (regVal & ETH_GMII_SPEED_1000_MASK)
-		pStatus->speed = MV_ETH_SPEED_1000;
+		pStatus->speed = get_sgmii_speed(port);
 	else if (regVal & ETH_MII_SPEED_100_MASK)
 		pStatus->speed = MV_ETH_SPEED_100;
 	else

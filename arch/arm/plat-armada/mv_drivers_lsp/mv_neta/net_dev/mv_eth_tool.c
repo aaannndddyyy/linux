@@ -185,6 +185,9 @@ int mv_eth_tool_get_settings(struct net_device *netdev, struct ethtool_cmd *cmd)
 	mvNetaLinkStatus(priv->port, &status);
 
 	switch (status.speed) {
+	case MV_ETH_SPEED_2500:
+		cmd->speed = SPEED_2500;
+		break;
 	case MV_ETH_SPEED_1000:
 		cmd->speed = SPEED_1000;
 		break;

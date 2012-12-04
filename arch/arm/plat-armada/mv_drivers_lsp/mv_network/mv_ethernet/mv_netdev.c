@@ -166,7 +166,7 @@ static void eth_print_link_status( struct net_device *dev )
         printk(", %s",(port_status & ETH_FULL_DUPLEX_MASK) ? "full duplex" : "half duplex" );
 
         if( port_status & ETH_GMII_SPEED_1000_MASK ) 
-	        printk(", speed 1 Gbps" );
+		printk(", speed 1/2.5 Gbps");
         else 
             printk(", %s", (port_status & ETH_MII_SPEED_100_MASK) ? "speed 100 Mbps" : "speed 10 Mbps" );
 	    printk("\n" );

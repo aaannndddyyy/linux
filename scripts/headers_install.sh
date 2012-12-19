@@ -30,7 +30,7 @@ unifdef="scripts/unifdef -U__KERNEL__ -D__EXPORTED_HEADERS__"
 
 for file in "$@"
 do
-    tmpfile=$(mktemp --tmpdir="$installdir")
+    tmpfile=$(mktemp "$installdir/tmpXXXXXX")
 
     sed -r \
         -e 's/([[:space:](])__user[[:space:]]/\1/g' \

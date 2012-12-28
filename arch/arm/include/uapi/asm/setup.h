@@ -185,7 +185,9 @@ struct tagtable {
 
 #ifdef CONFIG_CPU_BE8_BOOT_LE
 #define atag32_to_cpu(x)	le32_to_cpu(x)
+#define cpu_to_atag32(x)	cpu_to_le32(x)
 #else
+#define	cpu_to_atag32(x)	x
 #define atag32_to_cpu(x)	x
 #endif
 

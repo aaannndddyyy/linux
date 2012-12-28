@@ -43,11 +43,11 @@ static struct {
 	struct tag_mem32  mem;
 	struct tag_header hdr3;
 } default_tags __initdata = {
-	{ atag32_to_cpu(tag_size(tag_core)), atag32_to_cpu(ATAG_CORE) },
-	{ atag32_to_cpu(1), atag32_to_cpu(PAGE_SIZE), atag32_to_cpu(0xff) },
-	{ atag32_to_cpu(tag_size(tag_mem32)), atag32_to_cpu(ATAG_MEM) },
-	{ atag32_to_cpu(MEM_SIZE) },
-	{ atag32_to_cpu(0), atag32_to_cpu(ATAG_NONE) }
+	{ cpu_to_atag32(tag_size(tag_core)), cpu_to_atag32(ATAG_CORE) },
+	{ cpu_to_atag32(1), atag32_to_cpu(PAGE_SIZE), cpu_to_atag32(0xff) },
+	{ cpu_to_atag32(tag_size(tag_mem32)), cpu_to_atag32(ATAG_MEM) },
+	{ cpu_to_atag32(MEM_SIZE) },
+	{ cpu_to_atag32(0), cpu_to_atag32(ATAG_NONE) }
 };
 
 static int __init parse_tag_core(const struct tag *tag)
@@ -225,7 +225,7 @@ struct machine_desc * __init setup_machine_tags(phys_addr_t __atags_pointer,
 	if (mdesc->fixup)
 		mdesc->fixup(tags, &from, &meminfo);
 
-	if (tags->hdr.tag == atag32_to_cpu(ATAG_CORE)) {
+	if (tags->hdr.tag == cpu_to_atag32(ATAG_CORE)) {
 		if (meminfo.nr_banks != 0)
 			squash_mem_tags(tags);
 		save_atags(tags);

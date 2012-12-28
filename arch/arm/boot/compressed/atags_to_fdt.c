@@ -108,9 +108,9 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	       return 0;
 
 	/* validate the ATAG */
-	if (atag->hdr.tag != atag32_to_cpu(ATAG_CORE) ||
-	    (atag->hdr.size != atag32_to_cpu(tag_size(tag_core)) &&
-	     atag->hdr.size != atag32_to_cpu(2)))
+	if (atag->hdr.tag != cpu_to_atag32(ATAG_CORE) ||
+	    (atag->hdr.size != cpu_to_atag32(tag_size(tag_core)) &&
+	     atag->hdr.size != cpu_to_atag32(2)))
 		return 1;
 
 	/* let's give it all the room it could need */
@@ -119,7 +119,7 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 		return ret;
 
 	for_each_tag(atag, atag_list) {
-		if (atag->hdr.tag == ATAG_CMDLINE) {
+		if (atag->hdr.tag == cpu_to_atag32(ATAG_CMDLINE)) {
 			/* Append the ATAGS command line to the device tree
 			 * command line.
 			 * NB: This means that if the same parameter is set in
@@ -132,14 +132,14 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 			else
 				setprop_string(fdt, "/chosen", "bootargs",
 					       atag->u.cmdline.cmdline);
-		} else if (atag->hdr.tag == atag32_to_cpu(ATAG_MEM)) {
+		} else if (atag->hdr.tag == cpu_to_atag32(ATAG_MEM)) {
 			if (memcount >= sizeof(mem_reg_property)/4)
 				continue;
 			if (!atag32_to_cpu(atag->u.mem.size))
 				continue;
 			mem_reg_property[memcount++] = cpu_to_fdt32(atag32_to_cpu(atag->u.mem.start));
 			mem_reg_property[memcount++] = cpu_to_fdt32(atag32_to_cpu(atag->u.mem.size));
-		} else if (atag->hdr.tag == atag32_to_cpu(ATAG_INITRD2)) {
+		} else if (atag->hdr.tag == cpu_to_atag32(ATAG_INITRD2)) {
 			uint32_t initrd_start, initrd_size;
 			initrd_start = atag32_to_cpu(atag->u.initrd.start);
 			initrd_size = atag32_to_cpu(atag->u.initrd.size);

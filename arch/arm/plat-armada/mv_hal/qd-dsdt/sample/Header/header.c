@@ -3,8 +3,8 @@
 * header.c
 *
 * DESCRIPTION:
-*		This sample shows how to enable/disable CPU port's ingress and egress 
-*		Header mode. For more information about Header mode, please refer to 
+*		This sample shows how to enable/disable CPU port's ingress and egress
+*		Header mode. For more information about Header mode, please refer to
 *		88E6063 Data Book. Header mode sould be handled by Ethernet Device/Driver
 *		as well, since 88E6063, with header mode enabled, sends out a packet with
 *		header, which cannot be recognized by regular Ethernet device/driver,
@@ -17,7 +17,7 @@
 *
 * COMMENTS:
 *		WARNING!!
-*		When Header mode for the CPU port is enabled, Ethernet Device/Driver 
+*		When Header mode for the CPU port is enabled, Ethernet Device/Driver
 *		which connects to the CPU port should understand Header Format.
 *		If Ethernet Device does not know about Header mode, then user may set
 *		the device to Promiscuous mode in order to receive packets from QD's CPU
@@ -42,4 +42,3 @@ GT_STATUS sampleHeaderEnable(GT_QD_DEV *dev,GT_BOOL en)
 
 	return GT_OK;
 }
-

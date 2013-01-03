@@ -21,7 +21,9 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
-                                                                                                                             
+#include <linux/module.h>
+#include <linux/platform_device.h>
+
 #include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -62,6 +64,12 @@ extern u32 mv_pci_io_size_get(int ifNum);
 extern u32 mv_pci_mem_base_get(int ifNum);
 extern int mv_is_pci_io_mapped(int ifNum);
 extern MV_TARGET mv_pci_io_target_get(int ifNum);
+
+static struct platform_device mv_pex = {
+	.name		= "mv_pex",
+	.id		= 0,
+	.num_resources	= 0,
+};
 
 static void* mv_get_irqmap_func[] __initdata =
 {
@@ -132,6 +140,53 @@ void __init mv_pex_preinit(void)
 		}
 	}
 }
+
+void mv_pex_reinit(void)
+{
+	static MV_U32 pex0flg = 0;
+	unsigned int pciIf, temp;
+	MV_ADDR_WIN pciIoRemap;
+	MV_BOARD_PEX_INFO* boardPexInfo = mvBoardPexInfoGet();
+	MV_U32 pexHWInf = 0;
+
+	for (pciIf = 0; pciIf < boardPexInfo->boardPexIfNum; pciIf++)
+	{
+		/* Translate logical interface number to physical */
+		pexHWInf = boardPexInfo->pexMapping[pciIf];
+
+		if (MV_FALSE == mvUnitMapIsPexMine(pexHWInf))
+			continue;
+
+		if (MV_FALSE == mvCtrlPwrClckGet(PEX_UNIT_ID, pexHWInf))
+			continue;
+
+		/* init the PCI interface */
+		temp = mvSysPexInit(pexHWInf, MV_PEX_ROOT_COMPLEX);
+
+		if (MV_NO_SUCH == temp)
+		{
+			/* No Link - shutdown interface */
+			mvCtrlPwrClckSet(PEX_UNIT_ID, pexHWInf, MV_FALSE);;
+			continue;
+		}
+
+		/* Assign bus number 0 to first active/available bus */
+		if (pex0flg == 0) {
+			mvPexLocalBusNumSet(pexHWInf, 0x0);
+			pex0flg = 1;
+		}
+
+		MV_REG_BIT_SET(PEX_MASK_REG(pexHWInf), MV_PEX_MASK_ABCD);
+		if (mv_is_pci_io_mapped(pexHWInf))
+		{
+			pciIoRemap.baseLow = mv_pci_io_base_get(pexHWInf) - IO_SPACE_REMAP;
+			pciIoRemap.baseHigh = 0;
+			pciIoRemap.size = mv_pci_io_size_get(pexHWInf);
+			mvCpuIfPexRemap(mv_pci_io_target_get(pexHWInf), &pciIoRemap);
+		}
+	}
+}
+
 
 /* Currentlly the PCI config read/write are implemented as read modify write
    to 32 bit.
@@ -395,23 +450,91 @@ static struct hw_pci mv_pci __initdata = {
         .preinit                = mv_pex_preinit,
 };
 
-
-static int __init mv_pci_init(void)
+static int mv_pex_probe(struct platform_device *dev)
 {
-    /* WA - Disable PEX on RD-SERVER board */
-    if (mvBoardIdGet() == RD_78460_SERVER_ID)
 	return 0;
-
-    mv_pci.nr_controllers = (mvBoardPexInfoGet())->boardPexIfNum;
-    mv_pci.swizzle        = pci_std_swizzle;
-    mv_pci.map_irq         = mv_map_irq_0;
-    mv_pci.setup           = mv_pex_setup;
-    mv_pci.scan            = mv_pex_scan_bus;
-    mv_pci.preinit         = mv_pex_preinit;
-    pci_common_init(&mv_pci);
-    return 0;
 }
 
+static int pex_status[MV_PEX_MAX_IF];
+static int pex_ifnum;
 
-subsys_initcall(mv_pci_init);
+static int mv_pex_suspend(struct platform_device *dev, pm_message_t state)
+{
+	unsigned int pciIf;
+	MV_U32 pexHWInf = 0;
+	MV_BOARD_PEX_INFO* boardPexInfo = mvBoardPexInfoGet();
 
+	/* Save PCI Express status Register */
+	for (pciIf = 0; pciIf < pex_ifnum; pciIf++) {
+		pexHWInf = boardPexInfo->pexMapping[pciIf];
+
+		if (MV_FALSE == mvUnitMapIsPexMine(pexHWInf))
+			continue;
+		if (MV_FALSE == mvCtrlPwrClckGet(PEX_UNIT_ID, pexHWInf))
+			continue;
+
+		pex_status[pexHWInf] = MV_REG_READ(PEX_STATUS_REG(pexHWInf));
+	}
+
+	return 0;
+}
+
+static int mv_pex_resume(struct platform_device *dev)
+{
+	unsigned int pciIf;
+	MV_U32 pexHWInf = 0;
+	MV_BOARD_PEX_INFO* boardPexInfo = mvBoardPexInfoGet();
+
+	mv_pex_reinit();
+
+	/* Restore PCI Express status Register */
+	for (pciIf = 0; pciIf < pex_ifnum; pciIf++) {
+		pexHWInf = boardPexInfo->pexMapping[pciIf];
+
+		if (MV_FALSE == mvUnitMapIsPexMine(pexHWInf))
+			continue;
+		if (MV_FALSE == mvCtrlPwrClckGet(PEX_UNIT_ID, pexHWInf))
+			continue;
+
+		MV_REG_WRITE(PEX_STATUS_REG(pexHWInf), pex_status[pexHWInf]);
+	}
+
+	return 0;
+}
+
+static struct platform_driver mv_pex_driver = {
+	.probe    = mv_pex_probe,
+#ifdef CONFIG_PM
+	.suspend = mv_pex_suspend,
+	.resume  = mv_pex_resume,
+#endif /* CONFIG_PM */
+	.driver = {
+		.name = "mv_pex",
+	},
+};
+
+static int __init mv_pex_init_module(void)
+{
+	MV_BOARD_PEX_INFO* boardPexInfo = mvBoardPexInfoGet();
+
+	/* WA - Disable PEX on RD-SERVER board */
+	if (mvBoardIdGet() == RD_78460_SERVER_ID)
+		return 0;
+
+	mv_pci.nr_controllers = (mvBoardPexInfoGet())->boardPexIfNum;
+	mv_pci.swizzle        = pci_std_swizzle;
+	mv_pci.map_irq         = mv_map_irq_0;
+	mv_pci.setup           = mv_pex_setup;
+	mv_pci.scan            = mv_pex_scan_bus;
+	mv_pci.preinit         = mv_pex_preinit;
+	pci_common_init(&mv_pci);
+	platform_device_register(&mv_pex);
+
+	pex_ifnum = boardPexInfo->boardPexIfNum;
+
+	return platform_driver_register(&mv_pex_driver);
+}
+
+module_init(mv_pex_init_module);
+MODULE_DESCRIPTION("Marvell PEX Driver");
+MODULE_LICENSE("GPL");

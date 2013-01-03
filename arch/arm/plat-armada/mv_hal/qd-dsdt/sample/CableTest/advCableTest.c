@@ -17,7 +17,7 @@ GT_STATUS getAdvExtendedStatus(GT_QD_DEV *dev, GT_LPORT port);
 
 void displayAdvVCTResult
 (
-    GT_ADV_CABLE_STATUS *cableStatus, 
+    GT_ADV_CABLE_STATUS *cableStatus,
     int	channel
 )
 {
@@ -49,12 +49,12 @@ void displayAdvVCTResult
             break;
         case GT_ADV_VCT_CROSS_PAIR_SHORT:
             MSG_PRINT(("Cable Test Passed.\n"));
-    		for(i=0; i<GT_MDI_PAIR_NUM; i++)
+		for(i=0; i<GT_MDI_PAIR_NUM; i++)
 			{
 				if(cableStatus->u[channel].crossShort.channel[i] == GT_TRUE)
 				{
 		            MSG_PRINT(("\tCross pair short with channel %i.\n",i));
-	            	MSG_PRINT(("\tApproximatly %i meters from the tested port.\n",
+			MSG_PRINT(("\tApproximatly %i meters from the tested port.\n",
 									cableStatus->u[channel].crossShort.dist2fault[i]));
 				}
 			}
@@ -92,7 +92,7 @@ GT_STATUS advVctTest(GT_QD_DEV *dev, GT_LPORT port)
 	for (j=0; j<2; j++)
 	{
 		mode.mode=mod[j];
-		mode.transChanSel=GT_ADV_VCT_TCS_NO_CROSSPAIR;   
+		mode.transChanSel=GT_ADV_VCT_TCS_NO_CROSSPAIR;
 		mode.sampleAvg = 0;
 		mode.peakDetHyst =0;
 
@@ -112,7 +112,7 @@ GT_STATUS advVctTest(GT_QD_DEV *dev, GT_LPORT port)
 		for(i=0; i<GT_MDI_PAIR_NUM; i++)
 		{
 			MSG_PRINT(("MDI PAIR %i:\n",i));
-			displayAdvVCTResult(&advCableStatus, i); 
+			displayAdvVCTResult(&advCableStatus, i);
 		}
 	}
 

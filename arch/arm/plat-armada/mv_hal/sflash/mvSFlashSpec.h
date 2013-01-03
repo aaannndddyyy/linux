@@ -122,6 +122,11 @@ extern "C" {
 #define     MV_M25PX64_MAX_FAST_SPI_FREQ         50000000    /* 50MHz */
 #define     MV_M25PX64_FAST_READ_DUMMY_BYTES     1
 
+#define     MV_M25Q128_DEVICE_ID                 0xBA18
+#define     MV_M25Q128_MAX_SPI_FREQ              20000000    /* 20MHz */
+#define     MV_M25Q128_MAX_FAST_SPI_FREQ         50000000    /* 50MHz */
+#define     MV_M25Q128_FAST_READ_DUMMY_BYTES     1
+
 /* Sector Sizes and population per device model*/
 #define     MV_M25P32_SECTOR_SIZE               0x10000 /* 64K */
 #define     MV_M25P64_SECTOR_SIZE               0x10000 /* 64K */
@@ -173,15 +178,22 @@ extern "C" {
 #define     MV_MX25L6405_MAX_FAST_SPI_FREQ      50000000    /* 50MHz */
 #define     MV_MX25L6405_FAST_READ_DUMMY_BYTES  1
 #define     MV_MXIC_DP_EXIT_DELAY               30          /* 30 ms */
+#define	    MV_MX25L257_DEVICE_ID		0x2019
+#define	    MV_MX25L257_MAX_SPI_FREQ      	20000000    /* 20MHz */
+#define	    MV_MX25L257_MAX_FAST_SPI_FREQ       50000000    /* 104MHz */
+#define	    MV_MX25L257_FAST_READ_DUMMY_BYTES   1
+#define	    MV_MX25L257_ADDR_CYC_CNT	        4
 
 /* Sector Sizes and population per device model*/
 #define     MV_MX25L1605_SECTOR_SIZE            0x10000 /* 64K */
 #define     MV_MX25L3205_SECTOR_SIZE            0x10000 /* 64K */
 #define     MV_MX25L6405_SECTOR_SIZE            0x10000 /* 64K */
+#define     MV_MX25L257_SECTOR_SIZE        	0x10000 /* 64K */
 #define     MV_MX25L1605_SECTOR_NUMBER          32
 #define     MV_MX25L3205_SECTOR_NUMBER          64
 #define     MV_MX25L6405_SECTOR_NUMBER          128
-#define		MV_MXIC_PAGE_SIZE			        0x100   /* 256 byte */
+#define     MV_MX25L257_SECTOR_NUMBER 		512
+#define     MV_MXIC_PAGE_SIZE			0x100   /* 256 byte */
 
 #define		MV_MX25L_WREN_CMND_OPCD			    0x06	/* Write Enable */
 #define		MV_MX25L_WRDI_CMND_OPCD			    0x04	/* Write Disable */
@@ -193,11 +205,11 @@ extern "C" {
 #define		MV_MX25L_PP_CMND_OPCD			    0x02	/* Page Program */
 #define		MV_MX25L_SE_CMND_OPCD			    0xD8	/* Sector Erase */
 #define		MV_MX25L_BE_CMND_OPCD			    0xC7	/* Bulk Erase */
-#define     MV_MX25L_DP_CMND_OPCD               0xB9    /* Deep Power Down */
+#define         MV_MX25L_DP_CMND_OPCD                       0xB9        /* Deep Power Down */
 #define		MV_MX25L_RES_CMND_OPCD			    0xAB	/* Read Electronic Signature */
 
 /* Status Register Write Protect Bit Masks - 4bits */
-#define		MV_MX25L_STATUS_REG_WP_MASK	        (0x0F << MV_SFLASH_STATUS_REG_WP_OFFSET)
+#define     MV_MX25L_STATUS_REG_WP_MASK	        (0x0F << MV_SFLASH_STATUS_REG_WP_OFFSET)
 #define     MV_MX25L_STATUS_BP_NONE             (0x00 << MV_SFLASH_STATUS_REG_WP_OFFSET)
 #define     MV_MX25L_STATUS_BP_1_OF_128         (0x01 << MV_SFLASH_STATUS_REG_WP_OFFSET)
 #define     MV_MX25L_STATUS_BP_1_OF_64          (0x02 << MV_SFLASH_STATUS_REG_WP_OFFSET)

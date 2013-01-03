@@ -104,7 +104,7 @@ GT_STATUS gtSemDelete
 GT_STATUS gtSemTake
 (
 	IN GT_QD_DEV    *dev,
-	IN GT_SEM smid, 
+	IN GT_SEM smid,
 	IN GT_U32 timeOut
 )
 {
@@ -146,4 +146,3 @@ GT_STATUS gtSemGive
 
 	return GT_OK;
 }
-

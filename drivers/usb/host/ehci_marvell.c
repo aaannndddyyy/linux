@@ -201,12 +201,26 @@ static int ehci_marvell_remove(struct platform_device *pdev)
    return 0;
 } 
  
- 
+#if defined(CONFIG_ARCH_ARMADA_XP)
+extern int mv_usb_resume(int dev);
+
+static int ehci_marvell_resume(struct platform_device *pdev)
+{
+	int status = mv_usb_resume(pdev->id);
+
+	return status;
+}
+#endif
+
+
 static struct platform_driver ehci_marvell_driver =  
 { 
     .driver.name = "ehci_marvell", 
     .probe = ehci_marvell_probe, 
     .remove = ehci_marvell_remove,
+#if defined(CONFIG_ARCH_ARMADA_XP)
+    .resume = ehci_marvell_resume,
+#endif
     .shutdown = usb_hcd_platform_shutdown, 
 };  
 

@@ -20,7 +20,7 @@
 #define LSP_PG_SZ_VER  ""
 #endif
 
-#define LSP_VERSION    "linux-3.2.27-axp_a370-2012_Q4.1" LSP_PG_SZ_VER
+#define LSP_VERSION    "linux-3.2.27-axp_a370-2012_Q4.2" LSP_PG_SZ_VER
 
 static inline void arch_idle(void)
 {

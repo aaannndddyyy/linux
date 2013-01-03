@@ -175,7 +175,7 @@ GT_U32 gtStrlen
 
 typedef struct _GT_IOCTL_PARAM
 {
-	union 
+	union
 	{
 		GT_LPORT	portList[8];
 		GT_LPORT	port;
@@ -200,7 +200,7 @@ typedef struct _GT_IOCTL_PARAM
 
 	} FirstParam;
 
-	union 
+	union
 	{
 		GT_LPORT	port;
 		GT_LPORT	portList[8];
@@ -387,7 +387,7 @@ typedef struct _GT_IOCTL_PARAM
     CTL_CODE(FILE_DEVICE_NETWORK , PHY_CTRL_FUNC_MASK + 8, METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 
-/* 
+/*
 	Functions for Phy Interrupt
 */
 #define IOCTL_gprtPhyIntEnable    \

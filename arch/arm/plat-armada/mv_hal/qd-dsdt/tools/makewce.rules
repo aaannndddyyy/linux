@@ -27,7 +27,7 @@ $(TARGET).lib : $(OBJECTS) $(CSOURCES)
 
 $(OBJECTS) : %.obj : %.c
 	@if not exist $(OBJDIR) mkdir $(OBJDIR)
-	$(CC) $(CFLAGS) $(EXTRA_DEFINE) $(EXTRA_INCLUDE) $(ADDED_CFLAGS) -c $< -Fo$(OBJDIR)\$(notdir $@) 
+	$(CC) $(CFLAGS) $(EXTRA_DEFINE) $(EXTRA_INCLUDE) $(ADDED_CFLAGS) -c $< -Fo$(OBJDIR)\$(notdir $@)
 
 #deps : $(CSOURCES)
 #	@$(ECHO) '##' >> RULES
@@ -47,4 +47,3 @@ clean:
 FORCE :
 
 # end of file
-

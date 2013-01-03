@@ -81,5 +81,3 @@ Vp580CommandInstruction(
 #endif
 
 #endif
-
-

@@ -4,7 +4,7 @@
 * gtBrgStu.c
 *
 * DESCRIPTION:
-*       API definitions for SID (VTU 802.1s Port State Information Database) 
+*       API definitions for SID (VTU 802.1s Port State Information Database)
 *		Translation Unit.
 *
 * DEPENDENCIES:
@@ -80,7 +80,7 @@ GT_STATUS gstuGetEntryCount
 		if(retVal != GT_OK)
 		{
 		    DBG_INFO(("Failed (stuOperationPerform returned GT_FAIL).\n"));
-	    	return retVal;
+		return retVal;
 		}
 
 		if( entry.sid==0x3F )
@@ -129,8 +129,8 @@ GT_STATUS gstuGetEntryFirst
 {
     GT_U8               valid;
     GT_STATUS       	retVal;
-    GT_U8       		port; 
-    GT_LPORT       		lport; 
+    GT_U8       		port;
+    GT_LPORT       		lport;
     GT_STU_ENTRY    	entry;
 
     DBG_INFO(("gstuGetEntryFirst Called.\n"));
@@ -199,12 +199,12 @@ GT_STATUS gstuGetEntryNext
 {
     GT_U8               valid;
     GT_STATUS       	retVal;
-    GT_U8       		port; 
-    GT_LPORT       		lport; 
+    GT_U8       		port;
+    GT_LPORT       		lport;
     GT_STU_ENTRY    	entry;
 
     DBG_INFO(("gstuGetEntryNext Called.\n"));
-    
+
     /* check if device supports this feature */
 
 	if (!IS_IN_DEV_GROUP(dev,DEV_802_1S_STU))
@@ -230,7 +230,7 @@ GT_STATUS gstuGetEntryNext
         return retVal;
     }
 
-    /* retrieve the value from the operation */ 
+    /* retrieve the value from the operation */
 
 	if((entry.sid == 0x3F) && (valid == 0))
 		return GT_NO_SUCH;
@@ -253,11 +253,11 @@ GT_STATUS gstuGetEntryNext
 * gstuFindSidEntry
 *
 * DESCRIPTION:
-*       Find STU entry for a specific SID, it will return the entry, if found, 
-*       along with its associated data 
+*       Find STU entry for a specific SID, it will return the entry, if found,
+*       along with its associated data
 *
 * INPUTS:
-*       stuEntry - contains the SID to searche for 
+*       stuEntry - contains the SID to searche for
 *
 * OUTPUTS:
 *       found    - GT_TRUE, if the appropriate entry exists.
@@ -314,7 +314,7 @@ GT_STATUS gstuFindSidEntry
         return retVal;
     }
 
-    /* retrive the value from the operation */ 
+    /* retrive the value from the operation */
     if ((entry.sid != stuEntry->sid) | (valid == 0))
 		return GT_NO_SUCH;
 
@@ -360,8 +360,8 @@ GT_STATUS gstuAddEntry
 {
     GT_U8               valid;
     GT_STATUS       	retVal;
-    GT_U8       	port; 
-    GT_LPORT       	lport; 
+    GT_U8       	port;
+    GT_LPORT       	lport;
     GT_STU_ENTRY 	tmpStuEntry;
 	GT_BOOL		 	found;
 	int				count = 50000;
@@ -431,7 +431,7 @@ GT_STATUS gstuAddEntry
 *       Deletes STU entry specified by user.
 *
 * INPUTS:
-*       stuEntry - the STU entry to be deleted 
+*       stuEntry - the STU entry to be deleted
 *
 * OUTPUTS:
 *       None.
@@ -463,7 +463,7 @@ GT_STATUS gstuDelEntry
         DBG_INFO(("GT_NOT_SUPPORTED\n"));
 		return GT_NOT_SUPPORTED;
     }
-    
+
     if((stuEntry->sid == 0) || (stuEntry->sid > 0x3F))
 	{
         DBG_INFO(("GT_BAD_PARAM\n"));
@@ -570,8 +570,8 @@ static GT_STATUS stuSetSTUData
 		default:
 			return GT_FAIL;
 	}
-	
-	return retVal;		
+
+	return retVal;
 }
 
 static GT_STATUS stuGetSTUData
@@ -640,7 +640,7 @@ static GT_STATUS stuGetSTUData
 		default:
 			return GT_FAIL;
 	}
-	
+
 	switch (dev->maxPorts)
 	{
 		case 11:
@@ -752,35 +752,35 @@ static GT_STATUS stuOperationPerform
 			}
 
 			/* Set the valid bit (QD_REG_VTU_VID_REG) */
-	   		data= *valid << 12 ;
-    	    retVal = hwWriteGlobalReg(dev,(GT_U8)(QD_REG_VTU_VID_REG),data);
-	   		if(retVal != GT_OK)
-    	    {
-	   			gtSemGive(dev,dev->vtuRegsSem);
-	    		return retVal;
-   		   	}		
+			data= *valid << 12 ;
+	    retVal = hwWriteGlobalReg(dev,(GT_U8)(QD_REG_VTU_VID_REG),data);
+			if(retVal != GT_OK)
+	    {
+				gtSemGive(dev,dev->vtuRegsSem);
+			return retVal;
+			}
 		}
 		else
 		{
 			/* Clear the valid bit (QD_REG_VTU_VID_REG) */
-	   		data= 0 ;
-    	    retVal = hwWriteGlobalReg(dev,(GT_U8)(QD_REG_VTU_VID_REG),data);
-	   		if(retVal != GT_OK)
-    	    {
-	   			gtSemGive(dev,dev->vtuRegsSem);
-	    		return retVal;
-   		   	}		
+			data= 0 ;
+	    retVal = hwWriteGlobalReg(dev,(GT_U8)(QD_REG_VTU_VID_REG),data);
+			if(retVal != GT_OK)
+	    {
+				gtSemGive(dev,dev->vtuRegsSem);
+			return retVal;
+			}
 		}
     }
 
 	/* Set the SID register (QD_REG_STU_SID_REG) */
-   	data= (entry->sid) & 0x3F;
+	data= (entry->sid) & 0x3F;
     retVal = hwWriteGlobalReg(dev,(GT_U8)(QD_REG_STU_SID_REG),data);
-   	if(retVal != GT_OK)
+	if(retVal != GT_OK)
     {
-   		gtSemGive(dev,dev->vtuRegsSem);
-    	return retVal;
-   	}		
+		gtSemGive(dev,dev->vtuRegsSem);
+	return retVal;
+	}
 
 	/* Start the STU Operation by defining the stuOp and VTUBusy */
 	data = (1 << 15) | (stuOp << 12);

@@ -378,4 +378,3 @@
 #include "vp_api_lib_cfg.h"
 
 #endif /* VP_API_CFG_INT_H */
-

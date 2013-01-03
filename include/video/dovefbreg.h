@@ -680,6 +680,7 @@
 
 /* LVDS related registers. */
 #define LCD_LVDS_CLK_CFG		0xF0AC
+#define LCD_LVDS_CFG_CLK_EN		(1 << 31)
 #define LCD_LVDS_CFG_SER_MASK		(1 << 30)
 #define LCD_LVDS_CFG_SER_EN(x)		(x << 30)
 #define LCD_LVDS_CFG_TICK_DRV_MASK	(0x7 << 8)

@@ -16,9 +16,6 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
-#if 0
-#include <linux/clk.h>
-#endif
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -30,7 +27,7 @@
 #include "mvCommon.h"
 #include "mvOs.h"
 
-#ifdef MV_INCLUDE_PDMA
+#ifdef CONFIG_MV_INCLUDE_PDMA
 #include <asm/hardware/pxa-dma.h>
 #include "pdma/mvPdma.h"
 #include "pdma/mvPdmaRegs.h"
@@ -953,8 +950,8 @@ static int orion_nfc_do_cmd_pio(struct orion_nfc_info *info)
 		/* Fallback - in case the NFC did not reach the idle state */
 		ndcr = MV_REG_READ(NFC_CONTROL_REG);
 		if (ndcr & NFC_CTRL_ND_RUN_MASK) {
-			printk(KERN_DEBUG "WRONG NFC STAUS: command %d, NDCR=0x%08x, NDSR=0x%08x, NDECCCTRL=0x%08x)\n", 
-		       	info->cmd, MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG), MV_REG_READ(NFC_ECC_CONTROL_REG));
+			NFC_DPRINT((PRINT_LVL "WRONG NFC STAUS: command %d, NDCR=0x%08x, NDSR=0x%08x, NDECCCTRL=0x%08x)\n",
+			info->cmd, MV_REG_READ(NFC_CONTROL_REG), MV_REG_READ(NFC_STATUS_REG), MV_REG_READ(NFC_ECC_CONTROL_REG)));
 			MV_REG_WRITE(NFC_CONTROL_REG, (ndcr & ~NFC_CTRL_ND_RUN_MASK));
 		}
 	}
@@ -1457,6 +1454,7 @@ static int orion_nfc_probe(struct platform_device *pdev)
 	char * stat[2] = {"Disabled", "Enabled"};
 	char * ecc_stat[] = {"Hamming", "BCH 4bit", "BCH 8bit", "BCH 12bit", "BCH 16bit", "No"};
 	MV_NFC_INFO nfcInfo;
+	MV_STATUS status;
 
 	pdata = dev_get_platdata(&pdev->dev);
 
@@ -1567,8 +1565,11 @@ static int orion_nfc_probe(struct platform_device *pdev)
 	nfcInfo.dataPdmaIntMask = MV_PDMA_END_OF_RX_INTR_EN | MV_PDMA_END_INTR_EN;
 	nfcInfo.cmdPdmaIntMask = 0x0;
 #endif
-	if (mvNfcInit(&nfcInfo, &info->nfcCtrl) != MV_OK) {
-		dev_err(&pdev->dev, "mvNfcInit() failed.\n");
+
+	status = mvNfcInit(&nfcInfo, &info->nfcCtrl);
+	if (status != MV_OK) {
+		dev_err(&pdev->dev, "mvNfcInit() failed. Returned %d\n",
+				status);
 		goto fail_put_clk;
 	}
 

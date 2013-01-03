@@ -176,6 +176,30 @@ static MV_SFLASH_DEVICE_PARAMS sflash[] = {
      MV_M25P128_MAX_FAST_SPI_FREQ,
      MV_M25P128_FAST_READ_DUMMY_BYTES
     },
+    /* ST 25Q128 SPI flash, 16MB, 64 sectors of 256K each */
+    {
+     MV_M25P_WREN_CMND_OPCD,
+     MV_M25P_WRDI_CMND_OPCD,
+     MV_M25P_RDID_CMND_OPCD,
+     MV_M25P_RDSR_CMND_OPCD,
+     MV_M25P_WRSR_CMND_OPCD,
+     MV_M25P_READ_CMND_OPCD,
+     MV_M25P_FAST_RD_CMND_OPCD,
+     MV_M25P_PP_CMND_OPCD,
+     MV_M25P_SE_CMND_OPCD,
+     MV_M25P_BE_CMND_OPCD,
+     MV_M25P_RES_CMND_OPCD,
+     MV_SFLASH_NO_SPECIFIC_OPCD,    /* power save not supported */
+     MV_M25P128_SECTOR_SIZE,
+     MV_M25P128_SECTOR_NUMBER,
+     MV_M25P_PAGE_SIZE,
+     "ST 25Q128",
+     MV_M25PXXX_ST_MANF_ID,
+     MV_M25Q128_DEVICE_ID,
+     MV_M25Q128_MAX_SPI_FREQ,
+     MV_M25Q128_MAX_FAST_SPI_FREQ,
+     MV_M25Q128_FAST_READ_DUMMY_BYTES
+    },
     /* Macronix MXIC MX25L6405 SPI flash, 8MB, 128 sectors of 64K each */
     {
      MV_MX25L_WREN_CMND_OPCD,
@@ -271,6 +295,30 @@ static MV_SFLASH_DEVICE_PARAMS sflash[] = {
      MV_S25FL128_MAX_SPI_FREQ,
      MV_M25P128_MAX_FAST_SPI_FREQ,
      MV_M25P128_FAST_READ_DUMMY_BYTES
+    },
+    /* MACRONIX MX25L25735E SPI Flash, 64MB */
+    {
+	MV_MX25L_WREN_CMND_OPCD,
+	MV_MX25L_WRDI_CMND_OPCD,
+	MV_MX25L_RDID_CMND_OPCD,
+	MV_MX25L_RDSR_CMND_OPCD,
+	MV_MX25L_WRSR_CMND_OPCD,
+	MV_MX25L_READ_CMND_OPCD,
+	MV_MX25L_FAST_RD_CMND_OPCD,
+	MV_MX25L_PP_CMND_OPCD,
+	MV_MX25L_SE_CMND_OPCD,
+	MV_MX25L_BE_CMND_OPCD,
+	MV_MX25L_RES_CMND_OPCD,
+	MV_MX25L_DP_CMND_OPCD,
+	MV_MX25L257_SECTOR_SIZE,
+	MV_MX25L257_SECTOR_NUMBER,
+	MV_MXIC_PAGE_SIZE,
+	"MACRONIX MX25L25735E",
+	MV_MXIC_MANF_ID,
+	MV_MX25L257_DEVICE_ID,
+	MV_MX25L257_MAX_SPI_FREQ,
+	MV_MX25L257_MAX_FAST_SPI_FREQ,
+	MV_MX25L257_FAST_READ_DUMMY_BYTES
     }
 };
 
@@ -564,6 +612,8 @@ MV_STATUS mvSFlashInit(MV_SFLASH_INFO *pFlinfo)
 
     /* loop over the whole table and look for the appropriate SFLASH */
     for (indx = 0; indx < MV_ARRAY_SIZE(sflash); indx++) {
+	DB(mvOsPrintf("%s Matching manufacturer %d device %d\n",
+		     __func__, sflash[indx].manufacturerId, sflash[indx].deviceId);)
 	if ((manf == sflash[indx].manufacturerId) && (dev == sflash[indx].deviceId)) {
 		pFlinfo->manufacturerId = manf;
 		pFlinfo->deviceId = dev;
@@ -573,7 +623,8 @@ MV_STATUS mvSFlashInit(MV_SFLASH_INFO *pFlinfo)
     }
 
     if (!detectFlag) {
-	mvOsPrintf("%s ERROR: Unknown SPI flash device!\n", __func__);
+	mvOsPrintf("%s ERROR: Unknown SPI flash device. Manufacturer %d, Device %d\n", __func__, manf, dev);
+	mvOsPrintf("%s sflash table size %d\n", __func__, MV_ARRAY_SIZE(sflash));
 	return MV_FAIL;
     }
 

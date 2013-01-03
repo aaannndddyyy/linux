@@ -17,4 +17,3 @@ VpMpiCmd(
     uint8 cmdLen,
     uint8 *dataPtr);
 #endif
-

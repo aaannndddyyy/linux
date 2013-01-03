@@ -14,8 +14,8 @@
 
 #undef DEBUG
 #ifdef DEBUG
-#define DBG(fmt, arg...)	mvOsPrintf(KERN_INFO fmt, ##arg) 
-#else 
+#define DBG(fmt, arg...)	mvOsPrintf(KERN_INFO fmt, ##arg)
+#else
 #define DBG(fmt, arg...)
 #endif
 
@@ -57,7 +57,7 @@ uint16 writeBuff[HBI_MAX_DATA_LEN];
 uint8 VpHalHbiInit(
     VpDeviceIdType deviceId)
 {
-	return TRUE; 
+	return TRUE;
 } /* VpHalHbiInit() */
 
 /**
@@ -80,7 +80,7 @@ uint8 VpHalHbiCmd(
 {
 	uint16 cmdSwapped = MV_16BIT_BE(cmd);
 
-	DBG("%s: WRITE(cmd-0x%x)\n", __FUNCTION__, cmd);
+	DBG("%s: WRITE(cmd-0x%x)\n", __func__, cmd);
 	mvSysTdmSpiWrite(deviceId, (uint8p)&cmdSwapped, HBI_CMD_BYTES, NULL, 0);
 
 	return TRUE;
@@ -116,18 +116,17 @@ uint8 VpHalHbiWrite(
 {
 	uint8 i;
 	uint16 cmdSwapped = MV_16BIT_BE(cmd);
- 	uint16p pWriteBuff = &writeBuff[0];
- 
-	if((numwords + 1) > HBI_MAX_DATA_LEN)
-	{
-		mvOsPrintf("%s: Error, HBI data length too big(%u)\n", __FUNCTION__, (numwords + 1));
+	uint16p pWriteBuff = &writeBuff[0];
+
+	if ((numwords + 1) > HBI_MAX_DATA_LEN) {
+		mvOsPrintf("%s: Error, HBI data length too big(%u)\n", __func__, (numwords + 1));
 		return FALSE;
 	}
 
-	for(i = 0;i < (numwords + 1); i++)
+	for (i = 0; i < (numwords + 1); i++)
 		pWriteBuff[i] = MV_16BIT_BE(data[i]);
 
-	DBG("%s: WRITE(cmd-0x%x), (size-%d bytes)\n", __FUNCTION__, cmd, HBI_DATA_BYTES(numwords));
+	DBG("%s: WRITE(cmd-0x%x), (size-%d bytes)\n", __func__, cmd, HBI_DATA_BYTES(numwords));
 	mvSysTdmSpiWrite(deviceId, (uint8p)&cmdSwapped, HBI_CMD_BYTES, (uint8p)pWriteBuff, HBI_DATA_BYTES(numwords));
 
 	return TRUE;
@@ -164,16 +163,15 @@ uint8 VpHalHbiRead(
 	uint16 cmdSwapped = MV_16BIT_BE(cmd);
 	uint16p pReadBuff = &readBuff[0];
 
-	if((numwords + 1) > HBI_MAX_DATA_LEN)
-	{
-		mvOsPrintf("%s: Error, HBI data length too big(%u)\n", __FUNCTION__, (numwords + 1));
+	if ((numwords + 1) > HBI_MAX_DATA_LEN) {
+		mvOsPrintf("%s: Error, HBI data length too big(%u)\n", __func__, (numwords + 1));
 		return FALSE;
 	}
 
-	DBG("%s: READ(cmd-0x%x), (size-%d bytes)\n", __FUNCTION__, cmd, HBI_DATA_BYTES(numwords));
+	DBG("%s: READ(cmd-0x%x), (size-%d bytes)\n", __func__, cmd, HBI_DATA_BYTES(numwords));
 	mvSysTdmSpiRead(deviceId, (uint8p)&cmdSwapped, HBI_CMD_BYTES, (uint8p)pReadBuff, HBI_DATA_BYTES(numwords));
 
-	for(i = 0;i < (numwords + 1); i++)
+	for (i = 0; i < (numwords + 1); i++)
 		data[i] = MV_16BIT_BE(pReadBuff[i]);
 
 	return TRUE;
@@ -223,16 +221,15 @@ VpMpiCmd(
 {
 
     uint8 cmdBuff[4];
-    volatile uint8 cmdSize = 0;
+    uint8 cmdSize = 0;
     uint8 isRead = (cmd & READ_COMMAND);
-   
-     if(cmdLen > MPI_MAX_CMD_LEN)
+
+     if (cmdLen > MPI_MAX_CMD_LEN)
 	mvOsPrintf("Error, MPI data length too big(%u)\n", cmdLen);
- 
+
     /* If a EC read is being preformed don't set the EC register */
-    if (CSLAC_EC_REG_RD != cmd)
-    {
-        /* Write the EC register value passed to the device */
+    if (CSLAC_EC_REG_RD != cmd) {
+	/* Write the EC register value passed to the device */
 	cmdBuff[cmdSize++] = CSLAC_EC_REG_WRT;
 	cmdBuff[cmdSize++] = ecVal;
     }
@@ -240,14 +237,11 @@ VpMpiCmd(
     /* Write the command byte to MPI. */
     cmdBuff[cmdSize++] = cmd;
 
-    if (isRead)
-    {
-	DBG("%s: READ - cmdSize=%d, dataSize=%d\n", __FUNCTION__, cmdSize, cmdLen);
+    if (isRead) {
+	DBG("%s: READ - cmdSize=%d, dataSize=%d\n", __func__, cmdSize, cmdLen);
 	mvSysTdmSpiRead(deviceId, cmdBuff, cmdSize, dataPtr, cmdLen);
-    } 
-    else 
-    {
-	DBG("%s: WRITE - cmdSize=%d, dataSize=%d\n", __FUNCTION__, cmdSize, cmdLen);
+    } else {
+	DBG("%s: WRITE - cmdSize=%d, dataSize=%d\n", __func__, cmdSize, cmdLen);
 	mvSysTdmSpiWrite(deviceId, cmdBuff, cmdSize, dataPtr, cmdLen);
     }
 

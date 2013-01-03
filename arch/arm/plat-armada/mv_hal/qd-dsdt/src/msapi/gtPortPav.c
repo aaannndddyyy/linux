@@ -20,11 +20,11 @@
 * gpavSetPAV
 *
 * DESCRIPTION:
-*       This routine sets the Port Association Vector 
+*       This routine sets the Port Association Vector
 *
 * INPUTS:
 *       port	- logical port number.
-*       pav 	- Port Association Vector 
+*       pav 	- Port Association Vector
 *
 * OUTPUTS:
 *       None.
@@ -34,7 +34,7 @@
 *       GT_FAIL             - on error
 *       GT_BAD_PARAM        - on bad parameters
 *
-* COMMENTS: 
+* COMMENTS:
 *
 * GalTis:
 *
@@ -54,11 +54,11 @@ GT_STATUS gpavSetPAV
     DBG_INFO(("gpavSetPAV Called.\n"));
 
     phyPort = GT_LPORT_2_PORT(port);
-    
+
     /* check if device supports this feature */
-    if((retVal = IS_VALID_API_CALL(dev,phyPort, DEV_PORT_MONITORING)) != GT_OK ) 
+    if((retVal = IS_VALID_API_CALL(dev,phyPort, DEV_PORT_MONITORING)) != GT_OK )
       return retVal;
-	
+
 	/*
 	 * translate Logical Port Vector to Physical Port Vector.
 	 */
@@ -68,7 +68,7 @@ GT_STATUS gpavSetPAV
 	{
 		return GT_BAD_PARAM;
 	}
-		
+
     /* there are 7 ports in the switch */
     retVal = hwSetPortRegField(dev,phyPort,QD_REG_PORT_ASSOCIATION,0,dev->maxPorts,hwPav);
     if(retVal != GT_OK)
@@ -86,13 +86,13 @@ GT_STATUS gpavSetPAV
 * gpavGetPAV
 *
 * DESCRIPTION:
-*       This routine gets the Port Association Vector 
+*       This routine gets the Port Association Vector
 *
 * INPUTS:
 *       port	- logical port number.
 *
 * OUTPUTS:
-*       pav 	- Port Association Vector 
+*       pav 	- Port Association Vector
 *
 * RETURNS:
 *       GT_OK               - on success
@@ -118,9 +118,9 @@ GT_STATUS gpavGetPAV
     phyPort = GT_LPORT_2_PORT(port);
 
     /* check if device supports this feature */
-    if((retVal = IS_VALID_API_CALL(dev,phyPort, DEV_PORT_MONITORING)) != GT_OK ) 
+    if((retVal = IS_VALID_API_CALL(dev,phyPort, DEV_PORT_MONITORING)) != GT_OK )
       return retVal;
-	
+
     if(pav == NULL)
     {
         DBG_INFO(("Failed.\n"));
@@ -152,8 +152,8 @@ GT_STATUS gpavGetPAV
 * INPUTS:
 *       port - the logical port number.
 *       mode - the ingress monitor bit in the PAV
-*              GT_FALSE: Ingress Monitor enabled 
-*              GT_TRUE:  Ingress Monitor disabled 
+*              GT_FALSE: Ingress Monitor enabled
+*              GT_TRUE:  Ingress Monitor disabled
 * OUTPUTS:
 *       None.
 *
@@ -212,11 +212,11 @@ GT_STATUS gpavSetIngressMonitor
 *
 * INPUTS:
 *       port - the logical port number.
-*       
+*
 * OUTPUTS:
 *       mode - the ingress monitor bit in the PAV
-*              GT_FALSE: Ingress Monitor enabled 
-*              GT_TRUE:  Ingress Monitor disabled 
+*              GT_FALSE: Ingress Monitor enabled
+*              GT_TRUE:  Ingress Monitor disabled
 *
 * RETURNS:
 *       GT_OK               - on success
@@ -267,4 +267,3 @@ GT_STATUS gpavGetIngressMonitor
     DBG_INFO(("OK.\n"));
     return GT_OK;
 }
-

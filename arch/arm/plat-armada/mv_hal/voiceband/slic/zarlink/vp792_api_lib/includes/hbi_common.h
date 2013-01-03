@@ -87,4 +87,3 @@ EXTERN bool VpHbiSetBase255(VpDeviceIdType deviceId, uint32 amba_addr, uint16p b
     VpHbiVcpVppAmbaRdWr(FALSE, deviceId, amba_addr, numwords, pData)
 
 #endif /* _HBI_COMMON_H */
-

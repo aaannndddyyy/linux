@@ -413,4 +413,3 @@ VpSysExitCriticalWrapper(
     VP_API_FUNC_INT(objType, pObj, ("%s() = %s", funcName, VpGetString_VpStatusType(status)))
 
 #endif /* VP_DEBUG_H */
-

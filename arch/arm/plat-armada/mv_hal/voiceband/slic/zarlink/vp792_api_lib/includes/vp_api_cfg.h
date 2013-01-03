@@ -97,4 +97,3 @@ typedef uint8 VpScratchMemType;         /* VpBootLoad() is not used for VE792 de
 #include "vp_api_cfg_int.h"
 
 #endif /* VP_API_CFG_H */
-

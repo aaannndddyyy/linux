@@ -67,7 +67,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ctrlEnv/mvCtrlEnvSpec.h"
 #include "mvSysNfcConfig.h"
 #include "mvNfcRegs.h"
-#ifdef MV_INCLUDE_PDMA
+#ifdef CONFIG_MV_INCLUDE_PDMA
 #include "pdma/mvPdma.h"
 #include "pdma/mvPdmaRegs.h"
 #endif
@@ -666,17 +666,24 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	/* Write registers before device detection */
 	MV_REG_WRITE(NFC_CONTROL_REG, ctrl_reg);
 
-#ifdef MTD_NAND_NFC_INIT_RESET
+#ifdef CONFIG_MTD_NAND_NFC_INIT_RESET
 	/* reset the device */
 	ret = mvNfcReset();
+
 	if (ret != MV_OK)
+	{
+		mvOsPrintf("mvNfcReset failed. Returned %d\n", ret);
 		return ret;
+	}
 #endif
 
 	/* Read the device ID */
 	ret = mvNfcReadIdNative(nfcCtrl->currCs, &read_id);
 	if (ret != MV_OK)
+	{
+		mvOsPrintf("mvNfcReadIdNative failed. Returned %d\n", ret);
 		return ret;
+	}
 
 	/* Look for device ID in knwon device table */
 	for (i = 0; i < (sizeof(flashDeviceInfo) / sizeof(MV_NFC_FLASH_INFO)); i++) {
@@ -692,7 +699,10 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	if (flashDeviceInfo[i].flags & NFC_FLAGS_ONFI_MODE_3_SET) {
 		ret = mvNfcDeviceModeSet(nfcCtrl, MV_NFC_ONFI_MODE_3);
 		if (ret != MV_OK)
+		{
+			mvOsPrintf("mvNfcDeviceModeSet failed. Returned %d\n", ret);
 			return ret;
+		}
 	}
 
 	/* Critical Initialization done. Raise NFC clock if needed */
@@ -710,7 +720,10 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	/* calculate Timing parameters */
 	ret = mvNfcTimingSet(nand_clock, &flashDeviceInfo[i]);
 	if (ret != MV_OK)
+	{
+		mvOsPrintf("mvNfcTimingSet failed. Returned %d\n", ret);
 		return ret;
+	}
 
 	/* Configure the control register based on the device detected */
 	ctrl_reg = MV_REG_READ(NFC_CONTROL_REG);
@@ -779,7 +792,7 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	/* Write the updated control register */
 	MV_REG_WRITE(NFC_CONTROL_REG, ctrl_reg);
 
-#ifdef MV_INCLUDE_PDMA
+#ifdef CONFIG_MV_INCLUDE_PDMA
 	/* DMA resource allocation */
 	if (nfcInfo->ioMode == MV_NFC_PDMA_ACCESS) {
 		/* Allocate command buffer */
@@ -842,7 +855,7 @@ MV_STATUS mvNfcInit(MV_NFC_INFO *nfcInfo, MV_NFC_CTRL *nfcCtrl)
 	nfcCtrl->ifMode = nfcInfo->ifMode;
 	nfcCtrl->currCs = MV_NFC_CS_NONE;
 	nfcCtrl->regsPhysAddr = nfcInfo->regsPhysAddr;
-#ifdef MV_INCLUDE_PDMA
+#ifdef CONFIG_MV_INCLUDE_PDMA
 	nfcCtrl->dataPdmaIntMask = nfcInfo->dataPdmaIntMask;
 	nfcCtrl->cmdPdmaIntMask = nfcInfo->cmdPdmaIntMask;
 #endif
@@ -2495,7 +2508,7 @@ static MV_STATUS mvNfcDeviceModeSet(MV_NFC_CTRL *nfcCtrl, MV_NFC_ONFI_MODE mode)
 }
 
 
-#ifdef MTD_NAND_NFC_INIT_RESET
+#ifdef CONFIG_MTD_NAND_NFC_INIT_RESET
 MV_STATUS mvNfcReset(void)
 {
 	MV_U32 reg;
@@ -2514,7 +2527,10 @@ MV_STATUS mvNfcReset(void)
 	/* Wait for Command WRITE request */
 	errCode = mvDfcWait4Complete(NFC_SR_WRCMDREQ_MASK, 1);
 	if (errCode != MV_OK)
+	{
+		mvOsPrintf("%s() - Failed wait for NFC_SR_WRCMDREQ_MASK\n", __func__ );
 		goto Error;
+	}
 
 	/* Send Command */
 	MV_REG_WRITE(NFC_COMMAND_BUFF_0_REG, 0x00A000FF);	/* DFC_NDCB0_RESET */
@@ -2524,7 +2540,10 @@ MV_STATUS mvNfcReset(void)
 	/* Wait for Command completion */
 	errCode = mvDfcWait4Complete(NFC_SR_RDY0_MASK, 1000);
 	if (errCode != MV_OK)
+	{
+		mvOsPrintf("%s() - Failed wait for NFC_SR_RDY0_MASK\n", __func__ );
 		goto Error;
+	}
 
 	/* Wait for ND_RUN bit to get cleared. */
 	while (timeout > 0) {

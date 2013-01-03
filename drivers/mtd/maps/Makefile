@@ -59,7 +59,7 @@ obj-$(CONFIG_MTD_BCM963XX)	+= bcm963xx-flash.o
 obj-$(CONFIG_MTD_LATCH_ADDR)	+= latch-addr-flash.o
 obj-$(CONFIG_MTD_LANTIQ)	+= lantiq-flash.o
 
-ifeq ($(CONFIG_ARCH_ARMADA_XP),y)
-	include $(srctree)/arch/arm/mach-armadaxp/config/mvRules.mk
-	obj-$(CONFIG_MV_INCLUDE_SPI) += ../../../arch/arm/mach-armadaxp/flashmap.o
+ifeq ($(CONFIG_MV_INCLUDE_SPI),y)
+	include $(srctree)/$(MACHINE)/config/mvRules.mk
+	obj-$(CONFIG_MV_INCLUDE_SPI) += ../../../$(MACHINE)/flashmap.o
 endif

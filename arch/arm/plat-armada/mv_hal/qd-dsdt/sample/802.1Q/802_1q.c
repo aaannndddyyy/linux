@@ -4,19 +4,19 @@
 *
 * DESCRIPTION:
 *		There are three 802.1Q modes (GT_SECURE, GT_CHECK, and GT_FALLBACK).
-*		In GT_SECURE mode, the VID for the given frame must be contained in 
-*		the VTU, and the Ingress port must be a member of the VLAN or the 
+*		In GT_SECURE mode, the VID for the given frame must be contained in
+*		the VTU, and the Ingress port must be a member of the VLAN or the
 *		frame will be discarded.
-*		In GT_CHECK mode, the VID for the given frame must be contained in 
-*		the VTU or the frame will be discarded (the frame will not be 
+*		In GT_CHECK mode, the VID for the given frame must be contained in
+*		the VTU or the frame will be discarded (the frame will not be
 *		discarded if the Ingress port is not a memeber of the VLAN).
-*		In GT_FALLBACK mode, Frames are not discarded if their VID's are not 
-*		contained in the VTU. If the frame's VID is contained in the VTU, the 
-*		frame is allowed to exit only those ports that are members of the 
-*		frame's VLAN; otherwise the switch 'falls back' into Port Based VLAN 
+*		In GT_FALLBACK mode, Frames are not discarded if their VID's are not
+*		contained in the VTU. If the frame's VID is contained in the VTU, the
+*		frame is allowed to exit only those ports that are members of the
+*		frame's VLAN; otherwise the switch 'falls back' into Port Based VLAN
 *		mode for the frame (88E6021 Spec. section 3.5.2.1).
 *
-*		Egress Tagging for a member port of a Vlan has the following three 
+*		Egress Tagging for a member port of a Vlan has the following three
 *		choices:
 *		1) Unmodified,
 *		2) Untagged, and
@@ -39,19 +39,19 @@
 * sample802_1qSetup
 *
 * DESCRIPTION:
-*		This routine will show how to configure the switch device so that it 
-*		can be a Home Gateway. This example assumes that all the frames are not 
+*		This routine will show how to configure the switch device so that it
+*		can be a Home Gateway. This example assumes that all the frames are not
 *		VLAN-Tagged.
 *		1) to clear VLAN ID Table,
 * 		2) to enable 802.1Q in SECURE mode for each port except CPU port,
-*		3) to enable 802.1Q in FALL BACK mode for the CPU port. 
-*		4) to add VLAN ID 1 with member port 0 and CPU port 
+*		3) to enable 802.1Q in FALL BACK mode for the CPU port.
+*		4) to add VLAN ID 1 with member port 0 and CPU port
 *		(untagged egress),
-*		5) to add VLAN ID 2 with member the rest of the ports and CPU port 
-*		(untagged egress), 
+*		5) to add VLAN ID 2 with member the rest of the ports and CPU port
+*		(untagged egress),
 *		6) to configure the default vid of each port:
 *		Port 0 have PVID 1, CPU port has PVID 3, and the rest ports have PVID 2.
-*		Note: CPU port's PVID should be unknown VID, so that QuarterDeck can use 
+*		Note: CPU port's PVID should be unknown VID, so that QuarterDeck can use
 *		VlanTable (header info) for TX.
 *
 *
@@ -65,9 +65,9 @@
 *       GT_OK               - on success
 *       GT_FAIL             - on error
 *
-* COMMENTS: 
+* COMMENTS:
 *		WARNING!!
-*		If you create just two VLAN for this setup, Trailer mode or Header mode 
+*		If you create just two VLAN for this setup, Trailer mode or Header mode
 *		for the CPU port has to be enabled and Ethernet driver which connects to
 *		CPU port should understand VLAN-TAGGING, Trailer mode, or Header mode.
 *
@@ -138,7 +138,7 @@ GT_STATUS sample802_1qSetup(GT_QD_DEV *dev)
 	}
 
 	/*
-	 *	5) Add VLAN ID 2 with the rest of the Ports and CPU Port as members of 
+	 *	5) Add VLAN ID 2 with the rest of the Ports and CPU Port as members of
 	 *	the Vlan.
 	*/
 	gtMemSet(&vtuEntry,0,sizeof(GT_VTU_ENTRY));
@@ -204,7 +204,7 @@ GT_STATUS sample802_1qSetup(GT_QD_DEV *dev)
 *       GT_OK               - on success
 *       GT_FAIL             - on error
 *
-* COMMENTS: 
+* COMMENTS:
 *		Some device support Discard Untagged feature. If so, gprtSetDiscardUntagged
 *		function will do the work.
 *
@@ -231,7 +231,7 @@ GT_STATUS sampleAdmitOnlyTaggedFrame(GT_QD_DEV *dev,GT_LPORT port)
 			MSG_PRINT(("Failure accessing device.\n"));
 			return status;
 	}
-			
+
 
 	/*
 	 *	1) Add VLAN ID 0xFFF with the given port as a member.
@@ -280,14 +280,14 @@ GT_STATUS sampleAdmitOnlyTaggedFrame(GT_QD_DEV *dev,GT_LPORT port)
 * RETURNS:
 *       GT_OK               - on success
 *       GT_FAIL             - on error
-* COMMENTS: 
+* COMMENTS:
 *
 *******************************************************************************/
 GT_STATUS sampleDisplayVIDTable(GT_QD_DEV *dev)
 {
 	GT_STATUS status;
         GT_VTU_ENTRY vtuEntry;
-	GT_LPORT port;	
+	GT_LPORT port;
 	int portIndex;
 
 	gtMemSet(&vtuEntry,0,sizeof(GT_VTU_ENTRY));
@@ -306,7 +306,7 @@ GT_STATUS sampleDisplayVIDTable(GT_QD_DEV *dev)
 
 		MSG_PRINT(("Tag%i:%#x  ",port,vtuEntry.vtuData.memberTagP[port]));
 	}
-	
+
 	MSG_PRINT(("\n"));
 
 	while(1)
@@ -324,7 +324,7 @@ GT_STATUS sampleDisplayVIDTable(GT_QD_DEV *dev)
 
 			MSG_PRINT(("Tag%i:%#x  ",port,vtuEntry.vtuData.memberTagP[port]));
 		}
-	
+
 		MSG_PRINT(("\n"));
 
 	}

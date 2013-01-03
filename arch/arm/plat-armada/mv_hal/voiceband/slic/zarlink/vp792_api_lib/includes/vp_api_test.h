@@ -132,7 +132,7 @@ typedef enum {
     VP_TEST_STATUS_GAIN_OOR           = 28, /**< User specified gain is out of range */
     VP_TEST_STATUS_VA_OOR             = 29, /**< Measured Voltage is out-of-range */
     VP_TEST_STATUS_VB_OOR             = 30, /**< " " */
-    VP_TEST_STATUS_IMTOFFSET_OOR      = 31, 
+    VP_TEST_STATUS_IMTOFFSET_OOR      = 31,
     VP_TEST_STATUS_BUF_OVERFLOW       = 32, /* test would exceed the buffer storage available */
     VP_TEST_STATUS_NUM_TYPES,               /**< NOT an ERROR, Just used for coding purposes */
     VP_TEST_STATUS_ENUM_SIZE = FORCE_STANDARD_C_ENUM_SIZE /* Portability Req.*/

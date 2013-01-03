@@ -824,7 +824,7 @@ static int dovefb_init_layer(struct platform_device *pdev,
 	/*
 	 * Allocate framebuffer memory.
 	 */
-	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE*4);
+	dfli->fb_size = PAGE_ALIGN(DEFAULT_FB_SIZE);
 
 	dfli->fb_start = NULL;
 	dfli->fb_start_dma = 0;
@@ -1004,7 +1004,7 @@ static void dovefb_conf_lvds(struct dovefb_info *info, struct dovefb_mach_info *
 
 	reg = readl(info->reg_base + LCD_LVDS_CLK_CFG);
 
-	/* Enable LVDS clock. */
+	/* Enable LVDS serializer. */
 	reg &= ~LCD_LVDS_CFG_SER_MASK;
 	reg |= LCD_LVDS_CFG_SER_EN(1);
 
@@ -1024,6 +1024,10 @@ static void dovefb_conf_lvds(struct dovefb_info *info, struct dovefb_mach_info *
 	/* Set data delay. */
 	reg &= ~LCD_LVDS_CFG_TICK_DRV_MASK;
 	reg |= LCD_LVDS_CFG_TICK_DRV(dmi->lvds_info.lvds_tick_drv);
+
+	/* Enable LVDS clock */
+	reg |= LCD_LVDS_CFG_CLK_EN;
+
 	writel(reg, info->reg_base + LCD_LVDS_CLK_CFG);
 	return;
 }
@@ -1247,11 +1251,19 @@ static int dovefb_suspend(struct platform_device *pdev, pm_message_t mesg)
 		readl(dfi->reg_base + LCD_SPU_COLORKEY_U);
 	dfi->LCD_SPU_COLORKEY_V_saved_value =
 		readl(dfi->reg_base + LCD_SPU_COLORKEY_V);
+	dfi->LCD_SPU_DMA_CTRL0_saved_value =
+		readl(dfi->reg_base + LCD_SPU_DMA_CTRL0);
 	dfi->LCD_SPU_DMA_CTRL1_saved_value =
 		readl(dfi->reg_base + LCD_SPU_DMA_CTRL1);
 	dfi->LCD_SPU_ADV_REG_saved_value =
 		readl(dfi->reg_base + LCD_SPU_ADV_REG);
-	
+
+	/* Save general registers */
+	dfi->LCD_CFG_GRA_PITCH_saved_value =
+		readl(dfi->reg_base + LCD_CFG_GRA_PITCH);
+	dfi->LCD_CFG_RDREG4F_saved_value =
+		readl(dfi->reg_base + LCD_CFG_RDREG4F);
+
 	console_lock();
 //	acquire_console_sem();
 
@@ -1283,8 +1295,14 @@ int lcd_set_clock(struct clk *clk, unsigned long rate);
 static int dovefb_resume(struct platform_device *pdev)
 {
 	struct dovefb_info *dfi = platform_get_drvdata(pdev);
+	struct dovefb_mach_info *dmi;
 
 	printk(KERN_INFO "dovefb_resume().\n");
+
+	dmi = pdev->dev.platform_data;
+	if (dmi == NULL)
+		return -EINVAL;
+
 
 	 console_lock();
 	//acquire_console_sem();
@@ -1311,6 +1329,12 @@ static int dovefb_resume(struct platform_device *pdev)
 		return -1;
 	}
 
+	if (dmi->dram != NULL)
+		dovefb_conf_mbus_windows(dfi, dmi->dram);
+
+	if (dmi->lvds_info.enabled)
+		dovefb_conf_lvds(dfi, dmi);
+
 	/* Restore cursor related registers */
 	writel(dfi->LCD_SPU_HWC_HPXL_VLN_saved_value,
 		dfi->reg_base + LCD_SPU_HWC_HPXL_VLN);
@@ -1326,10 +1350,20 @@ static int dovefb_resume(struct platform_device *pdev)
 		dfi->reg_base + LCD_SPU_COLORKEY_U);
 	writel(dfi->LCD_SPU_COLORKEY_V_saved_value,
 		dfi->reg_base + LCD_SPU_COLORKEY_V);
-	writel(dfi->LCD_SPU_DMA_CTRL1_saved_value,
-		dfi->reg_base + LCD_SPU_DMA_CTRL1);
 	writel(dfi->LCD_SPU_ADV_REG_saved_value,
 		dfi->reg_base + LCD_SPU_ADV_REG);
+
+	/* Restore general regiters */
+	writel(dfi->LCD_CFG_GRA_PITCH_saved_value,
+		dfi->reg_base + LCD_CFG_GRA_PITCH);
+	writel(dfi->LCD_CFG_RDREG4F_saved_value,
+		dfi->reg_base + LCD_CFG_RDREG4F);
+
+	/* Finally, enable DMA */
+	writel(dfi->LCD_SPU_DMA_CTRL0_saved_value,
+		dfi->reg_base + LCD_SPU_DMA_CTRL0);
+	writel(dfi->LCD_SPU_DMA_CTRL1_saved_value,
+		dfi->reg_base + LCD_SPU_DMA_CTRL1);
 
 	/* Disable all interrupts */
 	writel( 0x0, dfi->reg_base + SPU_IRQ_ENA);

@@ -321,6 +321,10 @@ MV_BOOL mvBoardIsPortInGmii(MV_U32 ethPortNum)
 		return MV_FALSE;
 }
 
+MV_BOOL mvBoardIsPortInRgmii(MV_U32 ethPortNum)
+{
+	return !mvBoardIsPortInGmii(ethPortNum);
+}
 
 /*******************************************************************************
 * mvBoardPhyAddrGet - Get the phy address

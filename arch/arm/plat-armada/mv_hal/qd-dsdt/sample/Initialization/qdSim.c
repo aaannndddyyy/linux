@@ -3,16 +3,16 @@
 * qdSim.c
 *
 * DESCRIPTION:
-*       Simulate QuaterDeck Device(88E6052)'s register map. When QuareterDeck API 
+*       Simulate QuaterDeck Device(88E6052)'s register map. When QuareterDeck API
 *		try to read/write a bit or bits into QuaterDeck, the simulator will redirect to
 * 		its own memory place and performing the function very close to QuaterDeck.
-*		For example, 
+*		For example,
 *		1) user can set/reset a certain bit of QuarterDeck registers(Phy,Port,and General registers).
 *		2) user can access ATU (flush, load, purge, etc. with max MAC addresses of 32)
 *		3) user can manually generate an Interrupt and test the Interrupt routine.
 *		4) when user read a register, it will clear a certain register if it's a Self Clear register.
 *		5) when user write a register, it will return ERROR if it's read only register.
-*		 
+*
 *
 * DEPENDENCIES:   QuaterDeck (88E6052) Register MAP.
 *
@@ -72,7 +72,7 @@ typedef struct _QDSIM_ATU_ENTRY
 	GT_U8 atuMac[6];
 } QDSIM_ATU_ENTRY;
 
-/* 
+/*
 	Since QuarterDeck Simulator supports only fixed size of atu entry,
 	we are going with array list not dynamic linked list.
 */
@@ -98,7 +98,7 @@ typedef struct _QDSIM_VTU_ENTRY
 	GT_U16 vid;
 } QDSIM_VTU_ENTRY;
 
-/* 
+/*
 	Since QuarterDeck Simulator supports only fixed size of atu entry,
 	we are going with array list not dynamic linked list.
 */
@@ -147,9 +147,9 @@ void * qdMemSet
 {
 	GT_U32 i;
 	char* buf;
-	
+
 	buf = (char*)start;
-		
+
 	for(i=0; i<size; i++)
 	{
 		*buf++ = (char)symbol;
@@ -191,10 +191,10 @@ void * qdMemCpy
 	GT_U32 i;
 	char* buf;
 	char* src;
-	
+
 	buf = (char*)destination;
 	src = (char*)source;
-		
+
 	for(i=0; i<size; i++)
 	{
 		*buf++ = *src++;
@@ -239,7 +239,7 @@ int qdMemCmp
 	for(i=0; i<size; i++)
 	{
 		if((value = (int)(src1[i] - src2[i])) != 0)
-			return value; 
+			return value;
 	}
 
 	return 0;
@@ -287,7 +287,7 @@ int qdSimATUFindNext(QDSIM_ATU_ENTRY* entry)
 					node = ATUNode[node].nextEntry;
 				}
 			}
-				
+
 		}
 		return MAX_ATU_ADDRESS;
 	}
@@ -327,7 +327,7 @@ GT_BOOL qdSimATUAdd(QDSIM_ATU_ENTRY* entry)
 		if(ATUNode[i].nextEntry == MAX_ATU_ADDRESS)
 			break;
 	}
-	
+
 	if (i==MAX_ATU_ADDRESS)
 	{
 		return GT_FALSE;
@@ -342,7 +342,7 @@ GT_BOOL qdSimATUAdd(QDSIM_ATU_ENTRY* entry)
 			break;
 		preNode = node;
 		node = ATUNode[node].nextEntry;
-	}	
+	}
 
 	/* if the same Mac address is in the list and dbnum is identical, then just update and return. */
 	if (i != ATUList.atuSize)
@@ -402,7 +402,7 @@ GT_BOOL qdSimATUDel(QDSIM_ATU_ENTRY* entry)
 		}
 		preNode = node;
 		node = ATUNode[node].nextEntry;
-	}	
+	}
 
 	if (i == ATUList.atuSize)
 	{
@@ -438,7 +438,7 @@ GT_BOOL qdSimATUFlushUnlockedEntry()
 			(ATUNode[i].nextEntry != MAX_ATU_ADDRESS))
 		{
 			qdSimATUDel(&ATUNode[i].atuEntry);
-		}			
+		}
 	}
 	return GT_TRUE;
 }
@@ -464,13 +464,13 @@ GT_BOOL qdSimATUFlushUnlockedInDB(int dbNum)
 	{
 		if(ATUNode[i].atuEntry.DBNum != dbNum)
 			continue;
-		
+
 		if(((ATUNode[i].atuEntry.atuData & 0xF) != 0xF)	&&
 			(!(ATUNode[i].atuEntry.atuMac[0] & 1)) 		&&
 			(ATUNode[i].nextEntry != MAX_ATU_ADDRESS))
 		{
 			qdSimATUDel(&ATUNode[i].atuEntry);
-		}			
+		}
 	}
 	return GT_TRUE;
 }
@@ -486,8 +486,8 @@ void qdSimATUInit()
 	for (i=0; i<MAX_ATU_ADDRESS; i++)
 		ATUNode[i].nextEntry = MAX_ATU_ADDRESS;
 
-	ATUList.atuSize = 0;	
-	ATUList.head = 0;	
+	ATUList.atuSize = 0;
+	ATUList.head = 0;
 }
 
 void qdSimGetATUInfo(QDSIM_ATU_ENTRY* entry)
@@ -596,7 +596,7 @@ int qdSimVTUFindNext(QDSIM_VTU_ENTRY* entry)
 		else
 			return MAX_QD_VTU_ENTRIES;
 	}
-		
+
 	for(i=0; i<VTUList.vtuSize; i++)
 	{
 		if(VTUNode[node].vtuEntry.vid > entry->vid)
@@ -629,7 +629,7 @@ GT_BOOL qdSimVTUAdd(QDSIM_VTU_ENTRY* entry)
 		if(VTUNode[i].nextEntry == MAX_QD_VTU_ENTRIES)
 			break;
 	}
-	
+
 	if (i==MAX_QD_VTU_ENTRIES)
 	{
 		return GT_FALSE;
@@ -644,7 +644,7 @@ GT_BOOL qdSimVTUAdd(QDSIM_VTU_ENTRY* entry)
 			break;
 		preNode = node;
 		node = VTUNode[node].nextEntry;
-	}	
+	}
 
 	/* if the same vid is in the list, then just update and return. */
 	if (i != VTUList.vtuSize)
@@ -696,7 +696,7 @@ GT_BOOL qdSimVTUDel(QDSIM_VTU_ENTRY* entry)
 			break;
 		preNode = node;
 		node = VTUNode[node].nextEntry;
-	}	
+	}
 
 	if (i == VTUList.vtuSize)
 	{
@@ -736,7 +736,7 @@ GT_BOOL qdSimVTUUpdate(QDSIM_VTU_ENTRY* entry)
 		if(VTUNode[node].vtuEntry.vid == entry->vid)
 			break;
 		node = VTUNode[node].nextEntry;
-	}	
+	}
 
 	if (i == VTUList.vtuSize)
 	{
@@ -760,8 +760,8 @@ void qdSimVTUInit()
 	for (i=0; i<MAX_QD_VTU_ENTRIES; i++)
 		VTUNode[i].nextEntry = MAX_QD_VTU_ENTRIES;
 
-	VTUList.vtuSize = 0;	
-	VTUList.head = 0;	
+	VTUList.vtuSize = 0;
+	VTUList.head = 0;
 }
 
 void qdSimGetVTUInfo(QDSIM_VTU_ENTRY* entry)
@@ -1012,8 +1012,8 @@ void qdSimRegsInit()
 	int i;
 
 	qdMemSet(qdSimRegs, 0xff, sizeof(qdSimRegs));
-	
-	/* 
+
+	/*
 		PHY Registers Setup
 	*/
 	for(i=0; i<qdSimDev.qdSimNumOfPhys; i++)
@@ -1075,7 +1075,7 @@ void qdSimRegsInit()
 	qdSimRegs[qdSimDev.qdSimGlobalRegBase][22] = 0xffff;	/* IP-PRI Mapping */
 	qdSimRegs[qdSimDev.qdSimGlobalRegBase][23] = 0xffff;	/* IP-PRI Mapping */
 	qdSimRegs[qdSimDev.qdSimGlobalRegBase][24] = 0xfa41;	/* IEEE-PRI Mapping */
-			  
+
 	switch(qdSimDev.qdSimDevId)
 	{
 		case GT_88E6021:
@@ -1934,7 +1934,7 @@ GT_STATUS qdSimSetPhyInt(unsigned int portNumber, unsigned short u16Data)
 		qdSimRegs[0][QD_PHY_INT_PORT_SUMMARY_REG] |= (1<<portNumber);
 	else
 		qdSimRegs[0][QD_PHY_INT_PORT_SUMMARY_REG] &= ~(1<<portNumber);
-	
+
 	qdSimRegs[MAX_SMI_ADDRESS-1][QD_REG_GLOBAL_STATUS] |= 0x2;
 	return GT_OK;
 }

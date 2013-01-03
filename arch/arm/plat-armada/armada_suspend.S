@@ -61,6 +61,9 @@ ENTRY(armadaxp_powerdown)
 	*/
 	bl v7_flush_kern_cache_all
 
+	/* Flush L2 Cache */
+	bl auroraL2_flush_all
+
 	/*
 	* Issue a Data Synchronization Barrier instruction to ensure that all
 	* state saving has been	completed.

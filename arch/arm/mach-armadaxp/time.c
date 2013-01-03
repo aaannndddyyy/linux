@@ -159,21 +159,22 @@ static void axp_clkevt_mode(enum clock_event_mode mode, struct clock_event_devic
 	u32 u;
 	local_irq_save(flags);
 
-	if (mode == CLOCK_EVT_MODE_PERIODIC) {
+	if ((mode == CLOCK_EVT_MODE_PERIODIC) ||
+	    (mode == CLOCK_EVT_MODE_ONESHOT)) {
 		/* Setup timer to fire at 1/HZ intervals */
 		MV_REG_WRITE(LCL_TIMER0_RELOAD, (ticks_per_jiffy - 1));
 		MV_REG_WRITE(LCL_TIMER0_VAL, (ticks_per_jiffy - 1));
 
-
 		/* Enable timer interrupt */
-		/*axp_irq_unmask(IRQ_LOCALTIMER);*/
 		axp_irq_unmask(irq_get_irq_data(IRQ_LOCALTIMER));
-
 
 		/* Enable timer */
 		u = MV_REG_READ(LCL_TIMER_CTRL);
 #if !defined (CONFIG_ARMADA_XP_REV_Z1) && !defined (CONFIG_MACH_ARMADA_XP_FPGA)
-		u |= (LCL_TIMER0_EN | LCL_TIMER0_RELOAD_EN | LCL_TIMER_TURN_25MHZ);
+		if(mode == CLOCK_EVT_MODE_PERIODIC)
+			u |= (LCL_TIMER0_EN | LCL_TIMER0_RELOAD_EN | LCL_TIMER_TURN_25MHZ);
+		else
+			u |= (LCL_TIMER0_EN | LCL_TIMER_TURN_25MHZ);
 #else
 		u |= (LCL_TIMER0_EN | LCL_TIMER0_RELOAD_EN);
 #endif
@@ -192,7 +193,6 @@ static void axp_clkevt_mode(enum clock_event_mode mode, struct clock_event_devic
 		/* ACK pending timer interrupt */
 		MV_REG_WRITE(LCL_TIMER_CAUSE, LCL_INT_TIMER0_CLR);
 	}
-
 
 	local_irq_restore(flags);
 }

@@ -166,7 +166,3 @@ typedef struct {
 } Vp790DeviceObjectType;
 
 #endif  /* vp790_api.h */
-
-
-
-

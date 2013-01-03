@@ -11,4 +11,3 @@
 #define API_PROFILE_TYPE_H
 typedef unsigned char VpProfileDataType;
 #endif
-

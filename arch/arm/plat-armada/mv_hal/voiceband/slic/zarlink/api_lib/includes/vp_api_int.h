@@ -537,7 +537,3 @@ Vp580SetLineTone(
 #endif
 
 #endif /* VP_API_INT_H */
-
-
-
-

@@ -7,10 +7,3 @@ For more information about load balancing, please refer to 88E6095 Spec.
 
 loadBalance.c
 	sampleLoadBalance demonstrates how to setup Trunk Mask Table.
-
-
-
-
-
-
-

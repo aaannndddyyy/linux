@@ -29,7 +29,8 @@
 #define HBI_CFG_PWAIT_MODEOSD   0    /* 0=PWAIT pin TTL, 1=PWAIT pin open source/drain */
 #define HBI_CFG_INT_MODETTL     1    /* 0=INT pin open drain, 1=INT pin TTL */
 #define HBI_CFG_PINEA           0    /* 0=IO[2:0], 1=EA[10:8] */
-#define HBI_PINCONFIG   (HBI_CFG_ENDLITTLE | (HBI_CFG_PWAIT_POLHI << 1) | (HBI_CFG_PWAIT_EN << 2) | (HBI_CFG_PWAIT_MODEOSD << 3) | (HBI_CFG_INT_MODETTL << 4) | (HBI_CFG_PINEA << 5))
+#define HBI_PINCONFIG   (HBI_CFG_ENDLITTLE | (HBI_CFG_PWAIT_POLHI << 1) | (HBI_CFG_PWAIT_EN << 2) | \
+			 (HBI_CFG_PWAIT_MODEOSD << 3) | (HBI_CFG_INT_MODETTL << 4) | (HBI_CFG_PINEA << 5))
 #define HBI_CMD_CONFIGURE_INT	0xFD00
 #define DEFAULT_DEVICE_ID	0
 /******************************************************************************
@@ -41,4 +42,3 @@ EXTERN uint8 VpHalHbiCmd(VpDeviceIdType deviceId, uint16 cmd);
 EXTERN uint8 VpHalHbiWrite(VpDeviceIdType deviceId, uint16 cmd, uint8 numwords, uint16p data);
 EXTERN uint8 VpHalHbiRead(VpDeviceIdType deviceId, uint16 cmd, uint8 numwords, uint16p data);
 #endif /* HBI_HAL_H */
-

@@ -212,7 +212,3 @@ typedef struct {
 } Vp580DeviceObjectType;
 
 #endif  /**< vp580_api.h */
-
-
-
-

@@ -26,9 +26,6 @@ DISCLAIMED.  The GPL License provides additional details about this warranty
 disclaimer.
 *******************************************************************************/
 
-#ifndef AUTOCONF_INCLUDED
-#include <linux/config.h>
-#endif
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -45,7 +42,7 @@ disclaimer.
 #include "mvCommon.h"
 #include "mvOs.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
-#include "cesa_if.h" /* moved here before cryptodev.h due to include dependencies */
+#include "cesa/mvCesaIf.h" /* moved here before cryptodev.h due to include dependencies */
 #include "mvSysCesaApi.h"
 #include <cryptodev.h>
 #include <uio.h>
@@ -118,11 +115,10 @@ static int32_t			cesa_ocf_id 		= -1;
 static struct cesa_ocf_data 	**cesa_ocf_sessions = NULL;
 static u_int32_t		cesa_ocf_sesnum = 0;
 static DEFINE_SPINLOCK(cesa_lock);
-static atomic_t result_count;
-static struct cesa_ocf_process *result_Q[CESA_RESULT_Q_SIZE];
-static unsigned int next_result;
-static unsigned int result_done;
-static unsigned char chan_id[MV_CESA_CHANNELS];
+static atomic_t res_count;
+static struct cesa_ocf_process *res_array[CESA_RESULT_Q_SIZE];
+unsigned int res_empty;
+unsigned int res_ready;
 
 /* static APIs */
 static int 		cesa_ocf_process	(device_t, struct cryptop *, int);
@@ -187,7 +183,7 @@ skb_copy_bits_back(struct sk_buff *skb, int offset, caddr_t cp, int len)
         offset -= skb_headlen(skb);
         for (i = 0; len > 0 && i < skb_shinfo(skb)->nr_frags; i++) {
                 if (offset < skb_shinfo(skb)->frags[i].size) {
-                        memcpy(page_address(skb_shinfo(skb)->frags[i].page) +
+                        memcpy(page_address(skb_shinfo(skb)->frags[i].page.p) +
                                         skb_shinfo(skb)->frags[i].page_offset,
                                         cp, min_t(int, skb_shinfo(skb)->frags[i].size, len));
                         len -= skb_shinfo(skb)->frags[i].size;
@@ -310,7 +306,7 @@ cesa_ocf_process(device_t dev, struct cryptop *crp, int hint)
 	struct cesa_ocf_data *cesa_ocf_cur_ses;
 	int sid = 0, temp_len = 0, i;
 	int encrypt = 0, decrypt = 0, auth = 0;
-	int  status, cesa_resources = 0;
+	int  status, free_resrc = 0;
 	struct sk_buff *skb = NULL;
 	struct uio *uiop = NULL;
 	unsigned char *ivp;
@@ -323,9 +319,11 @@ cesa_ocf_process(device_t dev, struct cryptop *crp, int hint)
         dprintk("%s()\n", __func__);
 
 	for(chan = 0; chan < MV_CESA_CHANNELS; chan++)
-		cesa_resources += cesaReqResources[chan];
+		free_resrc += cesaReqResources[chan];
 
-		if (cesa_resources == 0) {
+		/* In case request should be split, at least 2 slots
+			should be available in CESA fifo */
+		if (free_resrc < 2) {
                 	dprintk("%s,%d: ERESTART\n", __FILE__, __LINE__);
                 	return ERESTART;
 		}
@@ -414,7 +412,7 @@ cesa_ocf_process(device_t dev, struct cryptop *crp, int hint)
         	for ( i = 0; i < skb_shinfo(skb)->nr_frags; i++ ) {
             		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
             		p_buf_info->bufSize = frag->size;
-            		p_buf_info->bufVirtPtr = page_address(frag->page) + frag->page_offset;
+            		p_buf_info->bufVirtPtr = page_address(frag->page.p) + frag->page_offset;
             		p_buf_info++;
         	}
         	p_mbuf_info->numFrags = skb_shinfo(skb)->nr_frags + 1;
@@ -677,7 +675,7 @@ cesa_ocf_process(device_t dev, struct cryptop *crp, int hint)
 
 	/* Hal Q is full, send again. This should never happen */
 	if(status == MV_NO_RESOURCE) {
-		printk("%s,%d: cesa no more resources \n", __FILE__, __LINE__);
+		dprintk("%s,%d: cesa no more resources \n", __FILE__, __LINE__);
 		if(cesa_ocf_cmd)
 			cesa_ocf_free(cesa_ocf_cmd);
 		if(cesa_ocf_cmd_wa)
@@ -711,10 +709,8 @@ cesa_callback(unsigned long dummy)
 
 	dprintk("%s()\n", __func__);
 
-	spin_lock(&cesa_lock);
-
-	while (atomic_read(&result_count) != 0) {
-		cesa_ocf_cmd = result_Q[result_done];
+	while (atomic_read(&res_count) != 0) {
+		cesa_ocf_cmd = res_array[res_ready];
 		crp = cesa_ocf_cmd->crp; 
 
 		if (cesa_ocf_cmd->need_cb) {
@@ -725,12 +721,10 @@ cesa_callback(unsigned long dummy)
 			crypto_done(crp);
 		}
 	
-		result_done = ((result_done + 1) % CESA_RESULT_Q_SIZE);
-		atomic_dec(&result_count);
-		cesa_ocf_cmd->valid = 0;
+		cesa_ocf_free(cesa_ocf_cmd);
+		res_ready = ((res_ready + 1) % CESA_RESULT_Q_SIZE);
+		atomic_dec(&res_count);
 	}
-
-	spin_unlock(&cesa_lock);
 
 	return;
 }
@@ -743,44 +737,44 @@ cesa_interrupt_handler(int irq, void *arg)
 {
 	MV_CESA_RESULT  	result;
 	MV_STATUS               status;
-        unsigned int cause;
-	unsigned char chan = *((u8 *)arg);
+        u32 cause;
+	u8 chan;
 
 	dprintk("%s()\n", __func__);
+
+	for (chan = 0; chan < MV_CESA_CHANNELS; chan++) {
 
   	/* Read cause register */
 	cause = MV_REG_READ(MV_CESA_ISR_CAUSE_REG(chan));
 
     	if (likely((cause & MV_CESA_CAUSE_ACC_DMA_MASK) != 0)) {
 			
-		/* Clear pending irq */
+			/* clear interrupts */
     		MV_REG_WRITE(MV_CESA_ISR_CAUSE_REG(chan), 0);
 
-		spin_lock(&cesa_lock);
-
-		/* Get completed results */
 		while (1) {
-			if (atomic_read(&result_count) < CESA_RESULT_Q_SIZE) {
+				if(likely(atomic_read(&res_count) < CESA_RESULT_Q_SIZE)) {
+					/* Get Ready requests */
+					spin_lock(&cesa_lock);
 				status = mvCesaIfReadyGet(chan, &result);
-				if (status == MV_OK) {
-					result_Q[next_result] = (struct cesa_ocf_process *)result.pReqPrv;
-					next_result = ((next_result + 1) % CESA_RESULT_Q_SIZE);
-					atomic_inc(&result_count);
+					spin_unlock(&cesa_lock);
+					if(likely(status == MV_OK)) {
+						res_array[res_empty] = (struct cesa_ocf_process *)result.pReqPrv;
+						res_empty = ((res_empty + 1) % CESA_RESULT_Q_SIZE);
+						atomic_inc(&res_count);
 					continue;
 				} else
 					break;
 			} else {
-				spin_unlock(&cesa_lock);
-				/* In case reaching this point -result_Q should be tuned   */
+					/* In case reaching this point -res_array should be tuned   */
 				printk("%s: Error: Q request is full(chan=%d)\n", __func__, chan);
 				return IRQ_HANDLED;
 			}
 		}
-
-		spin_unlock(&cesa_lock);
+		}
 	}
 
-	if(likely(atomic_read(&result_count) > 0))
+	if(likely(atomic_read(&res_count) > 0))
 #ifdef CESA_OCF_TASKLET	
 		tasklet_hi_schedule(&cesa_ocf_tasklet);
 #else
@@ -1124,7 +1118,7 @@ static int
 cesa_ocf_init(void)
 {
 	u8 chan = 0;
-	const char *irq_name[] = {"mv_cesa:0","mv_cesa:1"};
+	const char *irq_str[] = {"cesa0","cesa1"};
 
 	if (mvCtrlPwrClckGet(CESA_UNIT_ID, 0) == MV_FALSE)
 		return 0;
@@ -1143,12 +1137,12 @@ cesa_ocf_init(void)
 
 	dprintk("%s\n", __func__);
 
-	next_result = 0;
-	result_done = 0;
+	res_empty = 0;
+	res_ready = 0;
 
 	/* The pool size here is twice the requests queue size due to reordering */
 	cesa_ocf_pool = (struct cesa_ocf_process*)kmalloc((sizeof(struct cesa_ocf_process) * 
-					CESA_Q_SIZE * MV_CESA_CHANNELS * 2), GFP_KERNEL);
+					CESA_Q_SIZE * MV_CESA_CHANNELS * 2), GFP_ATOMIC);
 	if (cesa_ocf_pool == NULL) {
             	printk("%s,%d: ENOBUFS \n", __FILE__, __LINE__);
             	return EINVAL;
@@ -1185,11 +1179,9 @@ cesa_ocf_init(void)
 		MV_REG_WRITE( MV_CESA_ISR_CAUSE_REG(chan), 0);
     		MV_REG_WRITE( MV_CESA_ISR_MASK_REG(chan), MV_CESA_CAUSE_ACC_DMA_MASK);
 
-		chan_id[chan] = chan;
-
 		/* register interrupt */
 		if( request_irq( CESA_IRQ(chan), cesa_interrupt_handler,
-                             	(IRQF_DISABLED) , irq_name[chan], &chan_id[chan]) < 0) {
+				(IRQF_DISABLED) , irq_str[chan], &cesa_ocf_id) < 0) {
             		printk("%s,%d: cannot assign irq %x\n", __FILE__, __LINE__, CESA_IRQ(chan));
 			return EINVAL;
         	}

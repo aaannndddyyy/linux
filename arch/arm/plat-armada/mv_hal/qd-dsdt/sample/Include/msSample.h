@@ -112,11 +112,11 @@ extern FGT_INT_HANDLER qdIntHandler;
 int vtuEntryCmpFunc(void* buf, int a, int b);
 int atuEntryCmpFunc(void* buf, int a, int b);
 GT_STATUS gtSort(int list[], GT_CMP_FUNC cmpFunc, void* buf, GT_U32 len);
-GT_U16 createATUList(GT_QD_DEV *dev, TEST_ATU_ENTRY atuEntry[], GT_U16 entrySize, GT_U16 dbNumSize, 
+GT_U16 createATUList(GT_QD_DEV *dev, TEST_ATU_ENTRY atuEntry[], GT_U16 entrySize, GT_U16 dbNumSize,
 					GT_U16 sameMacsInEachDb, GT_U16 bSize);
-GT_STATUS testFillUpAtu(GT_QD_DEV *dev, ATU_ENTRY_INFO *atuEntry, GT_U8 atuSize, 
+GT_STATUS testFillUpAtu(GT_QD_DEV *dev, ATU_ENTRY_INFO *atuEntry, GT_U8 atuSize,
 					GT_U8 dbNum, GT_U16 first2Bytes, GT_ATU_UC_STATE state);
-GT_U16 runQDHash(GT_U8* eaddr, GT_U16 dbNum, int bSize, GT_U16* pHash, 
+GT_U16 runQDHash(GT_U8* eaddr, GT_U16 dbNum, int bSize, GT_U16* pHash,
 					GT_U16* preBucket, GT_U16* posBucket);
 GT_STATUS testDisplayATUList();
 
@@ -144,4 +144,3 @@ void qdSimInit();
 #endif
 
 #endif   /* __pfTesth */
-

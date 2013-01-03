@@ -9,7 +9,9 @@
 #include <linux/init.h>
 #include <asm/memory.h>
 
-	__INIT
+
+#define AXP_COHERENCY_FABRIC_CTL_REG 0xD0020200
+#define AXP_COHERENCY_FABRIC_CFG_REG 0xD0020204
 
 /*
  * specific entry point for secondary CPUs.  This provides
@@ -28,10 +30,27 @@ ENTRY(axp_secondary_startup)
 #endif
 	mrc	p15, 0, r0, c0, c0, 5
 	and	r0, r0, #15
-	adr	r4, 1f
-	ldmia	r4, {r5, r6}
-	sub	r4, r4, r5
-	add	r6, r6, r4
+
+	/* Add CPU to coherency fabric */
+
+	/* Create bit by cpu index */
+	mov     r2,r0
+	add     r2,r2,#24
+	MOV     r3, #1
+	lsl     r3, r3, r2
+
+	/* Add CPU to SMP group - Atomic */
+	ldr     r0, = AXP_COHERENCY_FABRIC_CTL_REG
+	ldr     r10, [r0]
+	orr     r10 , r10, r3
+	str	r10,[r0]
+
+	/* Enable coherency on CPU - Atomic*/
+	ldr     r0, = AXP_COHERENCY_FABRIC_CFG_REG
+	ldr     r10, [r0]
+	orr     r10 , r10, r3
+	str     r10,[r0]
+
 #ifndef CONFIG_SHEEVA_ERRATA_ARM_CPU_4948
 	/*
 	 * Disable L0 on secondary CPU if flag set
@@ -64,24 +83,10 @@ l0_dis_skip:
 	mcr	p15, 1, r7, c15, c2, 0	
 sp_ena_skip:
 #endif
-pen:
-#if __LINUX_ARM_ARCH__ >= 7
-	dsb
-#else
-	 mcr p15, 0, r0, c7, c10, 4
-#endif
-	ldr	r7, [r6]
-	cmp	r7, r0
-	bne	pen
 
-	/*
-	 * we've been released from the holding pen: secondary_stack
-	 * should now contain the SVC stack for this core
-	 */
 	b	secondary_startup
 
-1:	.long	.
-	.long	pen_release
+
 #ifndef CONFIG_SHEEVA_ERRATA_ARM_CPU_4948
 l0_disable_flag_addr:
 	.word	l0_disable_flag

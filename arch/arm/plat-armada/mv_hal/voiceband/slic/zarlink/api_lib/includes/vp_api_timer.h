@@ -105,6 +105,3 @@ typedef struct {
 } VpCslacTimerStruct;
 
 #endif
-
-
-

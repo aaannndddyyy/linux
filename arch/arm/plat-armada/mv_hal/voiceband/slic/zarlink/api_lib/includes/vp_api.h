@@ -137,7 +137,3 @@ typedef char VpTestHeapType;
 #endif
 
 #endif /* VP_API_H */
-
-
-
-

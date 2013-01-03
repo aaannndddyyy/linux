@@ -16,17 +16,17 @@
 /*
  *  This setup function configures the Port 0 of Marvell SOHO Switch Device with
  *	capability of PIRL to be :
- *	
+ *
  *	1) Ingress Rate    : 128Kbps (128K bit per sec)
  *	2) Discarded frame : Do not account discarded frame due to queue congestion
  *	3) Filtered frame  : Account filtered frame
  *	4) Limit action    : Drop packets when the incoming rate exceeds the limit
  *	5) Rate type       : Rate is based on Traffic type
- *	6) Traffic type    : ARP, MGMT, Multicast, Broadcast, and Unicast frames are 
+ *	6) Traffic type    : ARP, MGMT, Multicast, Broadcast, and Unicast frames are
  *						 tracked as part of the rate resource calculation.
  *	7) Byte counted    : Account only Layer 3 bytes (IP header and payload)
  *
- *	Notes: This sample uses IRL Unit 0. The available number of IRL Units are 
+ *	Notes: This sample uses IRL Unit 0. The available number of IRL Units are
  *	various depending on the device. Please refer to the datasheet for detailed
  *	information.
  *
@@ -41,7 +41,7 @@ GT_STATUS samplePIRLSetup(GT_QD_DEV *dev)
 	GT_LPORT 	port;
 
 	/* change Current Timer Update Interval */
-	status = gpirlSetCurTimeUpInt(dev,4);	
+	status = gpirlSetCurTimeUpInt(dev,4);
 	switch (status)
 	{
 		case GT_OK:
@@ -90,4 +90,3 @@ GT_STATUS samplePIRLSetup(GT_QD_DEV *dev)
 
 	return status;
 }
-

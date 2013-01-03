@@ -46,9 +46,9 @@ void * gtMemSet
 {
 	GT_U32 i;
 	char* buf;
-	
+
 	buf = (char*)start;
-		
+
 	for(i=0; i<size; i++)
 	{
 		*buf++ = (char)symbol;
@@ -90,10 +90,10 @@ void * gtMemCpy
 	GT_U32 i;
 	char* buf;
 	char* src;
-	
+
 	buf = (char*)destination;
 	src = (char*)source;
-		
+
 	for(i=0; i<size; i++)
 	{
 		*buf++ = *src++;
@@ -138,7 +138,7 @@ int gtMemCmp
 	for(i=0; i<size; i++)
 	{
 		if((value = (int)(src1[i] - src2[i])) != 0)
-			return value; 
+			return value;
 	}
 
 	return 0;
@@ -169,9 +169,9 @@ GT_U32 gtStrlen
 {
 	GT_U32 i = 0;
 	char* src;
-	
+
 	src = (char*)source;
-		
+
 	while(*src++) i++;
 
     return i;
@@ -208,6 +208,3 @@ void gtDelay
 {
     mvOsUDelay(delayTime);
 }
-
-
-

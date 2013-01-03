@@ -95,6 +95,11 @@
 #include "mv_mtd/nand_nfc.h"
 #endif
 
+/* USB */
+#ifdef CONFIG_MV_INCLUDE_USB
+#include "usb/mvUsb.h"
+#endif
+
 #define MV_COHERENCY_FABRIC_CTRL_REG		(MV_COHERENCY_FABRIC_OFFSET + 0x0)
 #define MV_COHERENCY_FABRIC_CFG_REG		(MV_COHERENCY_FABRIC_OFFSET + 0x4)
 
@@ -756,6 +761,21 @@ static void __init eth_init(void)
 }
 
 #endif /* CONFIG_MV_ETHERNET */
+
+
+/************
+ * GPIO
+ ***********/
+static struct platform_device mv_gpio = {
+	.name	= "mv_gpio",
+	.id		= 0,
+	.num_resources	= 0,
+};
+
+static void __init mv_gpio_init()
+{
+	platform_device_register(&mv_gpio);
+}
 
 /***********
  * IPC NET *
@@ -1430,6 +1450,7 @@ static int mvAmpInitCpuIf()
 }
 #endif
 
+
 /*****************************************************************************
  * DB BOARD: Restore from suspend to RAM
  * ****************************************************************************/
@@ -1451,6 +1472,18 @@ void axp_db_restore(void)
 		return;
 	}
 
+#ifdef CONFIG_MV_INCLUDE_SDIO
+	static MV_UNIT_WIN_INFO addrWinMap[MAX_TARGETS + 1];
+
+	if(MV_OK == mvCtrlAddrWinMapBuild(addrWinMap, MAX_TARGETS + 1))
+		if (MV_OK == mvSdmmcWinInit(addrWinMap)) {
+			printk("Resuming SDIO\n");
+		}
+#endif
+
+#ifdef CONFIG_MV_INCLUDE_USB
+	mvUsbPllInit();
+#endif
 	mvSysEthPhyInit();
 
 	/* TODO - timer should be restored by kernel hook */
@@ -1523,6 +1556,7 @@ static void __init axp_db_init(void)
 
 	print_board_info();
 
+	/* GPIO */
 	mv_gpio_init();
 
 	/* RTC */
@@ -1603,11 +1637,11 @@ static void __init axp_db_init(void)
  * This fixup function is used to reserve memory for the LCD engine
  * as these drivers require large chunks of consecutive memory.
  */
-void __init axp_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
-		char **from, struct meminfo *meminfo)
+void __init axp_tag_fixup_mem32(struct tag *t, char **cmdline, struct meminfo *mi)
+
 {
 	struct tag *last_tag = NULL;
-	int total_size = PAGE_ALIGN(DEFAULT_FB_SIZE*4) * 2;
+	int total_size = PAGE_ALIGN(DEFAULT_FB_SIZE) * 2;
 	uint32_t memory_start;
 
 	for (; read_tag(t->hdr.size); t = tag_next(t))
@@ -1625,7 +1659,7 @@ void __init axp_tag_fixup_mem32(struct machine_desc *mdesc, struct tag *t,
 
 	/* Resereve memory from last tag for LCD usage.	*/
 	last_tag->u.mem.size -= total_size;
-	memory_start = last_tag->u.mem.start + last_tag->u.mem.size;
+	memory_start = last_tag->u.mem.start + last_tag->u.mem.size + 1;
 
 	kw_lcd0_dmi.fb_mem[0] = (void*)memory_start;
 	kw_lcd0_dmi.fb_mem_size[0] = total_size / 2;

@@ -14,15 +14,15 @@
 #include <msSample.h>
 
 /*
- * For each platform, all we need is 
- * 1) Assigning functions into 
+ * For each platform, all we need is
+ * 1) Assigning functions into
  * 		fgtReadMii : to read MII registers, and
  * 		fgtWriteMii : to write MII registers.
  *
  * 2) Register Interrupt (Not Defined Yet.)
 */
 
-/* 
+/*
  *  EV-96122 Specific Definition
 */
 
@@ -32,13 +32,13 @@
 #define READ_VALID                              1<<27
 
 #ifdef FIREFOX
-#define ETHER_SMI_REG                   0x10 
+#define ETHER_SMI_REG                   0x10
 #define internalRegBaseAddr 0x80008000
 #define NONE_CACHEABLE		0x00000000
 #define CACHEABLE			0x00000000
 #define SMI_RX_TIMEOUT		1000
 #else
-#define ETHER_SMI_REG                   0x080810 
+#define ETHER_SMI_REG                   0x080810
 #define internalRegBaseAddr 0x14000000
 #define NONE_CACHEABLE		0xa0000000
 #define CACHEABLE			0x80000000
@@ -47,7 +47,7 @@
 
 typedef unsigned int              SMI_REG;
 
-#ifdef LE /* Little Endian */          	
+#ifdef LE /* Little Endian */
 #define SHORT_SWAP(X) (X)
 #define WORD_SWAP(X) (X)
 #define LONG_SWAP(X) ((l64)(X))
@@ -67,7 +67,7 @@ typedef unsigned int              SMI_REG;
                             (((X)&0xff00000000ULL)>>8)+         \
                             (((X)&0xff0000000000ULL)>>24)+      \
                             (((X)&0xff000000000000ULL)>>40)+    \
-                            (((X)&0xff00000000000000ULL)>>56))   
+                            (((X)&0xff00000000000000ULL)>>56))
 
 #endif
 
@@ -111,14 +111,14 @@ int i;
 
 /* first check that it is not busy */
     GT_REG_READ (ETHER_SMI_REG,(unsigned int*)&smiReg);
-    if(smiReg & SMI_BUSY) 
+    if(smiReg & SMI_BUSY)
     {
         for(i = 0 ; i < SMI_RX_TIMEOUT ; i++);
         do {
             GT_REG_READ (ETHER_SMI_REG,(unsigned int*)&smiReg);
             if(timeOut-- < 1 ) {
-    	        return false;
-    	    }
+	        return false;
+	    }
         } while (smiReg & SMI_BUSY);
     }
 /* not busy */
@@ -131,7 +131,7 @@ int i;
     GT_REG_WRITE (ETHER_SMI_REG,*((unsigned int*)&smiReg));
     timeOut = 10; /* initialize the time out var again */
     GT_REG_READ (ETHER_SMI_REG,(unsigned int*)&smiReg);
-    if(!(smiReg & READ_VALID)) 
+    if(!(smiReg & READ_VALID))
         {
             i=0;
             while(i < SMI_RX_TIMEOUT)
@@ -143,22 +143,22 @@ int i;
         do {
             GT_REG_READ (ETHER_SMI_REG,(unsigned int*)&smiReg);
             if(timeOut-- < 1 ) {
-    	        return false;
-    	    }
+	        return false;
+	    }
         } while (!(smiReg & READ_VALID));
      }
     *value = (unsigned int)(smiReg & 0xffff);
-    
+
     return true;
 
 
 }
 
 /*****************************************************************************
-* 
+*
 * bool etherWriteMIIReg (unsigned int portNumber , unsigned int MIIReg,
 * unsigned int value)
-* 
+*
 * Description
 * This function will access the MII registers and will write the value
 * to the MII register.
@@ -183,14 +183,14 @@ int i;
 
 /* first check that it is not busy */
     GT_REG_READ (ETHER_SMI_REG,(unsigned int*)&smiReg);
-    if(smiReg & SMI_BUSY) 
+    if(smiReg & SMI_BUSY)
     {
         for(i = 0 ; i < SMI_RX_TIMEOUT ; i++);
         do {
             GT_REG_READ (ETHER_SMI_REG,(unsigned int*)&smiReg);
             if(timeOut-- < 1 ) {
-    	        return false;
-    	    }
+	        return false;
+	    }
         } while (smiReg & SMI_BUSY);
     }
 /* not busy */
@@ -209,5 +209,5 @@ int i;
 
 void gtBspMiiInit(GT_QD_DEV* dev)
 {
-	return;	
+	return;
 }

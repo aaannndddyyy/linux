@@ -183,7 +183,7 @@ GT_STATUS osSemWait(GT_SEM smid, GT_U32 timeOut)
 		return GT_TIMEOUT;
 
 #elif defined(LINUX)
-	sem_wait((semaphore*) smid) ; 
+	sem_wait((semaphore*) smid) ;
 #else
 	return GT_OK;
 
@@ -225,7 +225,7 @@ GT_STATUS osSemSignal(GT_SEM smid)
 		return GT_FAIL;
 
 #elif defined(LINUX)
-	sem_post((semaphore*) smid) ; 
+	sem_post((semaphore*) smid) ;
 #else
 	return GT_OK;
 #endif

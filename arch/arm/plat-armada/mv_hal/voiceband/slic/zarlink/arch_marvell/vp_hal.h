@@ -16,4 +16,3 @@
 #include "hbi_hal.h"
 #include "sys_service.h"
 #endif /* _VP_HAL_H */
-

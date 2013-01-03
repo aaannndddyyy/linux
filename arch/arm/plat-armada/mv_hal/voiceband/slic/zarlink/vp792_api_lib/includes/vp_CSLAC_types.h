@@ -531,7 +531,3 @@ typedef enum
     VP_FXO_DIAL_PRFL_ENUM_SIZE = FORCE_STANDARD_C_ENUM_SIZE /* Portability Req.*/
 } vpCslac_fxo_dialPrflParams;
 #endif
-
-
-
-

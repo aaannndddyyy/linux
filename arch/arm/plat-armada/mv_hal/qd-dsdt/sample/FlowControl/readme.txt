@@ -8,10 +8,3 @@ examined in this sample.
 flowCtrl.c
 	sampleSetFlowControl can be used to enable or disable flow control
 	of the given port
-
-
-
-
-
-
-

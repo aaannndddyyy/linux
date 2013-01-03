@@ -70,6 +70,28 @@ static void mv_usb_release(struct device *dev)
     kfree(pdev);
 } 
 
+int mv_usb_resume(int dev)
+{
+	int status, isHost;
+	char *name_ptr;
+
+	if (MV_FALSE == mvCtrlPwrClckGet(USB_UNIT_ID, dev)) {
+		printk(KERN_DEBUG "\nWarning Integrated USB %d is Powered Off\n", dev);
+		return -EINVAL;
+	}
+
+	/* Check if this USB is mapped to this AMP group - YY */
+	if(MV_FALSE == mvUnitMapIsMine(USB0 + dev))
+		return -EINVAL;
+
+	isHost = mvIsUsbHost & (1 << dev);
+	name_ptr = isHost ? usb_host_name : usb_dev_name;
+
+	printk(KERN_DEBUG "registered dev#%d as a %s\n", dev, name_ptr);
+	status = mvSysUsbInit(dev, isHost);
+
+	return status;
+}
 
 static int __init   mv_usb_init(void)
 {

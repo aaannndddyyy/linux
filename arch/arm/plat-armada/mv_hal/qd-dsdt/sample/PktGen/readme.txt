@@ -10,11 +10,3 @@ Main Functions:
 
 Used APIs:
     gprtSetPktGenEnable
-		
-
-
-
-
-
-
-

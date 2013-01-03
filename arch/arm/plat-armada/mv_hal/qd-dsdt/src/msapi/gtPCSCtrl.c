@@ -33,7 +33,7 @@
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -103,7 +103,7 @@ GT_STATUS gpcsGetCommaDet
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -169,7 +169,7 @@ GT_STATUS gpcsGetPCSLink
 *
 * DESCRIPTION:
 *		This routine retrieves SynOK bit. It is set to a one when the PCS has
-*		detected a few comma patterns and is synchronized with its peer PCS 
+*		detected a few comma patterns and is synchronized with its peer PCS
 *		layer.
 *
 * INPUTS:
@@ -182,7 +182,7 @@ GT_STATUS gpcsGetPCSLink
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -252,7 +252,7 @@ GT_STATUS gpcsGetSyncOK
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -322,7 +322,7 @@ GT_STATUS gpcsGetSyncFail
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -393,7 +393,7 @@ GT_STATUS gpcsGetAnBypassed
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -464,7 +464,7 @@ GT_STATUS gpcsGetAnBypassMode
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -535,7 +535,7 @@ GT_STATUS gpcsSetAnBypassMode
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -570,13 +570,13 @@ GT_STATUS gpcsGetPCSAnEn
         if (!IS_IN_DEV_GROUP(dev, DEV_INTERNAL_GPHY))
         {
             DBG_INFO(("GT_NOT_SUPPORTED\n"));
-	    	return GT_NOT_SUPPORTED;
+		return GT_NOT_SUPPORTED;
         }
 
         if ((hwPort < 4) || (hwPort > 7))
         {
             DBG_INFO(("GT_NOT_SUPPORTED\n"));
-	    	return GT_NOT_SUPPORTED;
+		return GT_NOT_SUPPORTED;
         }
     }
 
@@ -615,7 +615,7 @@ GT_STATUS gpcsGetPCSAnEn
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -653,13 +653,13 @@ GT_STATUS gpcsSetPCSAnEn
         if (!IS_IN_DEV_GROUP(dev, DEV_INTERNAL_GPHY))
         {
             DBG_INFO(("GT_NOT_SUPPORTED\n"));
-	    	return GT_NOT_SUPPORTED;
+		return GT_NOT_SUPPORTED;
         }
 
         if ((hwPort < 4) || (hwPort > 7))
         {
             DBG_INFO(("GT_NOT_SUPPORTED\n"));
-	    	return GT_NOT_SUPPORTED;
+		return GT_NOT_SUPPORTED;
         }
     }
 
@@ -694,7 +694,7 @@ GT_STATUS gpcsSetPCSAnEn
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -764,7 +764,7 @@ GT_STATUS gpcsSetRestartPCSAn
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -836,7 +836,7 @@ GT_STATUS gpcsGetPCSAnDone
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -887,7 +887,7 @@ GT_STATUS gpcsSetFCValue
 * gpcsGetFCValue
 *
 * DESCRIPTION:
-*		This routine retrieves Flow Control Value which will be used for Forcing 
+*		This routine retrieves Flow Control Value which will be used for Forcing
 *		Flow Control enabled or disabled.
 *
 * INPUTS:
@@ -901,7 +901,7 @@ GT_STATUS gpcsSetFCValue
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -953,7 +953,7 @@ GT_STATUS gpcsGetFCValue
 * gpcsSetForcedFC
 *
 * DESCRIPTION:
-*		This routine forces Flow Control. If FCValue is set to one, calling this 
+*		This routine forces Flow Control. If FCValue is set to one, calling this
 *		routine with GT_TRUE will force Flow Control to be enabled.
 *
 * INPUTS:
@@ -967,7 +967,7 @@ GT_STATUS gpcsGetFCValue
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1031,7 +1031,7 @@ GT_STATUS gpcsSetForcedFC
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1097,7 +1097,7 @@ GT_STATUS gpcsGetForcedFC
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1148,7 +1148,7 @@ GT_STATUS gpcsSetLinkValue
 * gpcsGetLinkValue
 *
 * DESCRIPTION:
-*		This routine retrieves Link Value which will be used for Forcing Link 
+*		This routine retrieves Link Value which will be used for Forcing Link
 *		up or down.
 *
 * INPUTS:
@@ -1162,7 +1162,7 @@ GT_STATUS gpcsSetLinkValue
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1214,7 +1214,7 @@ GT_STATUS gpcsGetLinkValue
 * gpcsSetForcedLink
 *
 * DESCRIPTION:
-*		This routine forces Link. If LinkValue is set to one, calling this 
+*		This routine forces Link. If LinkValue is set to one, calling this
 *		routine with GT_TRUE will force Link to be up.
 *
 * INPUTS:
@@ -1228,7 +1228,7 @@ GT_STATUS gpcsGetLinkValue
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1292,7 +1292,7 @@ GT_STATUS gpcsSetForcedLink
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1358,7 +1358,7 @@ GT_STATUS gpcsGetForcedLink
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1422,7 +1422,7 @@ GT_STATUS gpcsSetDpxValue
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1474,7 +1474,7 @@ GT_STATUS gpcsGetDpxValue
 * gpcsSetForcedDpx
 *
 * DESCRIPTION:
-*		This routine forces duplex mode. If DpxValue is set to one, calling this 
+*		This routine forces duplex mode. If DpxValue is set to one, calling this
 *		routine with GT_TRUE will force duplex mode to be full duplex.
 *
 * INPUTS:
@@ -1488,7 +1488,7 @@ GT_STATUS gpcsGetDpxValue
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1552,7 +1552,7 @@ GT_STATUS gpcsSetForcedDpx
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1617,7 +1617,7 @@ GT_STATUS gpcsGetForcedDpx
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1677,7 +1677,7 @@ GT_STATUS gpcsSetForceSpeed
 *		GT_OK   - on success
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 * GalTis:
@@ -1717,7 +1717,7 @@ GT_STATUS gpcsGetForceSpeed
 	{
         DBG_INFO(("OK.\n"));
 	}
-	
+
 	*mode = data;
 
     /* return */
@@ -1869,10 +1869,3 @@ GT_STATUS gpcsSetRGMIITimingDelay
 	/* return */
 	return retVal;
 }
-
-
-
-
-
-
-

@@ -235,4 +235,3 @@ GT_STATUS sampleGetRMONCounter3(GT_QD_DEV *dev)
 
 	return GT_OK;
 }
-

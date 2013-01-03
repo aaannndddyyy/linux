@@ -3,7 +3,7 @@
 * trailer.c
 *
 * DESCRIPTION:
-*		This sample shows how to enable/disable CPU port's ingress and egress 
+*		This sample shows how to enable/disable CPU port's ingress and egress
 *		Trailer mode.
 *
 * DEPENDENCIES:   NONE.
@@ -29,7 +29,7 @@ GT_STATUS sampleCPUTrailerEnable(GT_QD_DEV *dev, GT_BOOL en)
 	}
 
 	/*
-	 *	Enable CPU's Ingress Trailer 
+	 *	Enable CPU's Ingress Trailer
 	*/
 	if((status = gprtSetIngressMode(dev,dev->cpuPortNum, inMode)) != GT_OK)
 	{
@@ -38,7 +38,7 @@ GT_STATUS sampleCPUTrailerEnable(GT_QD_DEV *dev, GT_BOOL en)
 	}
 
 	/*
-	 *	Enable CPU's Egress Trailer 
+	 *	Enable CPU's Egress Trailer
 	*/
 	if((status = gprtSetTrailerMode(dev,dev->cpuPortNum, en)) != GT_OK)
 	{

@@ -522,7 +522,8 @@ int     mv_eth_switch_stop(struct net_device *dev)
 {
 	struct eth_port *priv = MV_ETH_PRIV(dev);
 	struct eth_netdev *dev_priv = MV_DEV_PRIV(dev);
-	int group;
+	struct cpu_ctrl *cpuCtrl;
+	int group, cpu;
 
 	/* stop upper layer */
 	netif_carrier_off(dev);
@@ -542,6 +543,7 @@ int     mv_eth_switch_stop(struct net_device *dev)
 			printk(KERN_ERR "mv_switch_promisc_set to 0 failed\n");
 	}
 	mv_eth_switch_started--;
+
 	if (mv_eth_switch_started == 0)	{
 		/* first make sure that the port finished its Rx polling - see tg3 */
 		/* otherwise it may cause issue in SMP, one CPU is here and the other is doing the polling */
@@ -551,12 +553,13 @@ int     mv_eth_switch_stop(struct net_device *dev)
 
 		/* stop tx/rx activity, mask all interrupts, relese skb in rings,*/
 		mv_eth_stop_internals(priv);
-
-		del_timer(&priv->tx_done_timer);
-		clear_bit(MV_ETH_F_TX_DONE_TIMER_BIT, &(priv->flags));
-		del_timer(&priv->cleanup_timer);
-		clear_bit(MV_ETH_F_CLEANUP_TIMER_BIT, &(priv->flags));
-
+		for_each_possible_cpu(cpu) {
+			cpuCtrl = priv->cpu_config[cpu];
+			del_timer(&cpuCtrl->tx_done_timer);
+			clear_bit(MV_ETH_F_TX_DONE_TIMER_BIT, &(cpuCtrl->flags));
+			del_timer(&cpuCtrl->cleanup_timer);
+			clear_bit(MV_ETH_F_CLEANUP_TIMER_BIT, &(cpuCtrl->flags));
+		}
 		if (dev->irq != 0)
 			free_irq(dev->irq, priv);
 	}

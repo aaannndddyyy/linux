@@ -158,7 +158,6 @@ int run_cesa_debug(CESA_DEBUG *cesa_debug)
 
 static int
 cesadev_ioctl(
-	struct inode *inode,
 	struct file *filp,
 	unsigned int cmd,
 	unsigned long arg)
@@ -201,7 +200,6 @@ cesadev_ioctl(
 	return(-error);
 }
 
-
 static int
 cesadev_open(struct inode *inode, struct file *filp)
 {
@@ -221,7 +219,12 @@ static struct file_operations cesadev_fops = {
 	.owner = THIS_MODULE,
 	.open = cesadev_open,
 	.release = cesadev_release,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
+	.ioctl = cesadev_ioctl,
+#endif
+#ifdef HAVE_UNLOCKED_IOCTL
 	.unlocked_ioctl = cesadev_ioctl,
+#endif
 };
 
 static struct miscdevice cesadev = {

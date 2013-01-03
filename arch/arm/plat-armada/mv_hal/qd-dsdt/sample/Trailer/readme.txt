@@ -10,10 +10,3 @@ section 3.5.5 and section 3.7.3
 trailer.c
 	sampleCPUTrailerEnable can be used to enable or disable CPU port's
 	trailer mode
-
-
-
-
-
-
-

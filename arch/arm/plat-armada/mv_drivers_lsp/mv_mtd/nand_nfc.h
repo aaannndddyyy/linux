@@ -5,7 +5,7 @@
 #include <linux/mtd/partitions.h>
 #include "mvCommon.h"
 #include "mvOs.h"
-#ifdef MV_INCLUDE_PDMA
+#ifdef CONFIG_MV_INCLUDE_PDMA
 #include "pdma/mvPdma.h"
 #endif
 #include "nfc/mvNfc.h"

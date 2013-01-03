@@ -3,9 +3,9 @@
 * hgVlan.c
 *
 * DESCRIPTION:
-*       Setup the VLAN table of QuaterDeck so that it can be used as a Home 
+*       Setup the VLAN table of QuaterDeck so that it can be used as a Home
 *		Gateway.
-*		
+*
 *
 * DEPENDENCIES:   None.
 *
@@ -14,8 +14,8 @@
 *******************************************************************************/
 #include "msSample.h"
 
-static GT_STATUS sampleHomeGatewayVlan(GT_QD_DEV *dev, 
-		                       GT_LPORT numOfPorts, 
+static GT_STATUS sampleHomeGatewayVlan(GT_QD_DEV *dev,
+		                       GT_LPORT numOfPorts,
 				       GT_LPORT cpuPort);
 
 /*
@@ -37,11 +37,11 @@ GT_STATUS sampleVlanSetup(GT_QD_DEV *dev)
  *	all ports (including CPU Port) except WAN Port are in VLAN 2.
  *	1) Set PVID for each port. (CPU port has PVID 2, which is the same as LAN)
  *	2) Set Port Based VLAN Map for each port. (CPU port's VLAN Map is set for all LAN ports)
- *  Notes: 
+ *  Notes:
  *		1) Trailer Mode
  *			When Ethernet Device, which is directly connected to CPU port, sends out a packet
  *			to WAN, DPV in Trailer Tag should have WAN port bit set (bit 0 in this case), and
- *			to LAN, Trailer Tag should be set to 0. 
+ *			to LAN, Trailer Tag should be set to 0.
  *			Restriction : Only one group of VLAN can have multiple ports.
  *		2) Header Mode
  *			When Ethernet Device, which is directly connected to CPU port, sends out a packet
@@ -54,7 +54,7 @@ static GT_STATUS sampleHomeGatewayVlan(GT_QD_DEV *dev,GT_LPORT numOfPorts, GT_LP
 	GT_LPORT index,port,portToSet;
 	GT_LPORT portList[MAX_SWITCH_PORTS];
 
-	/* 
+	/*
 	 *  set PVID for each port.
 	 *	the first port(port 0, WAN) has default VID 2 and all others has 1.
 	 */
@@ -74,7 +74,7 @@ static GT_STATUS sampleHomeGatewayVlan(GT_QD_DEV *dev,GT_LPORT numOfPorts, GT_LP
 		}
 	}
 
-	/* 
+	/*
 	 *  set Port VLAN Mapping.
 	 *	port 0 (WAN) and cpu port are in a vlan 2.
 	 *	And all the rest ports (LAN) and cpu port are in a vlan 1.

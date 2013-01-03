@@ -405,4 +405,3 @@ typedef uint8 VpScratchMemType;
 #include "vp_api_cfg_int.h"
 
 #endif /* VP_API_CFG_H */
-

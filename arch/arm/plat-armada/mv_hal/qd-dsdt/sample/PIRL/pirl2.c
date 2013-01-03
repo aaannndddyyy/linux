@@ -14,9 +14,9 @@
 
 
 /*
- *  This setup function configures the resource 0 of Port 0 of Marvell SOHO 
+ *  This setup function configures the resource 0 of Port 0 of Marvell SOHO
  *	Switch Device with capability of PIRL to be :
- *	
+ *
  *	1) Ingress Rate    : 128Kbps (128K bit per sec)
  *	2) Custom setup for Ingress Rate : disabled
  *	3) Discarded frame : Do not account discarded frame due to queue congestion
@@ -31,7 +31,7 @@
  *						 entire imcoming frame.
  *	10) Limit action   : Drop packets when the incoming rate exceeds the limit
  *	11) Rate type      : Rate is based on Traffic type
- *	12) Traffic type   : ARP, MGMT, Multicast, Broadcast, and Unicast frames are 
+ *	12) Traffic type   : ARP, MGMT, Multicast, Broadcast, and Unicast frames are
  *					  	 tracked as part of the rate resource calculation.
  *	13) Byte counted   : Account only Layer 3 bytes (IP header and payload)
  *
@@ -45,7 +45,7 @@ GT_STATUS samplePIRL2Setup(GT_QD_DEV *dev)
 	GT_LPORT 	port;
 
 	/* change Current Timer Update Interval */
-	status = gpirl2SetCurTimeUpInt(dev,4);	
+	status = gpirl2SetCurTimeUpInt(dev,4);
 	switch (status)
 	{
 		case GT_OK:
@@ -113,9 +113,9 @@ GT_STATUS samplePIRL2Setup(GT_QD_DEV *dev)
 /*
  *	This setup function shows how to configure Ingress Rate of 128Kbps with the
  *	custom data information.
- *  it configures the resource 0 of Port 0 of Marvell SOHO Switch Device with 
+ *  it configures the resource 0 of Port 0 of Marvell SOHO Switch Device with
  *	capability of PIRL to be :
- *	
+ *
  *	1) Custom setup for Ingress Rate : Enabled
  *	2) Custom EBS Limit : 0xFFFFFF
  *	3) Custom CBS Limit : 0x200000
@@ -133,7 +133,7 @@ GT_STATUS samplePIRL2Setup(GT_QD_DEV *dev)
  *						 entire imcoming frame.
  *	13) Limit action   : Drop packets when the incoming rate exceeds the limit
  *	14) Rate type      : Rate is based on Traffic type
- *	15) Traffic type   : ARP, MGMT, Multicast, Broadcast, and Unicast frames are 
+ *	15) Traffic type   : ARP, MGMT, Multicast, Broadcast, and Unicast frames are
  *					  	 tracked as part of the rate resource calculation.
  *	16) Byte counted   : Account only Layer 3 bytes (IP header and payload)
  *
@@ -197,5 +197,3 @@ GT_STATUS samplePIRL2CustomSetup(GT_QD_DEV *dev)
 
 	return status;
 }
-
-

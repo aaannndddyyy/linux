@@ -49,7 +49,7 @@ QD_OBJS		= $(HAL_QD_DIR)/src/driver/gtDrvConfig.o $(HAL_QD_DIR)/src/driver/gtDrv
                   $(HAL_QD_DIR)/src/msapi/gtSysStatus.o $(HAL_QD_DIR)/src/msapi/gtPortRateCtrl.o\
                   $(HAL_QD_DIR)/src/msapi/gtPortPav.o $(HAL_QD_DIR)/src/msapi/gtVct.o		\
 		  $(HAL_QD_DIR)/src/msapi/gtPIRL2.o $(HAL_QD_DIR)/src/msapi/gtCCPVT.o		\
-		  $(HAL_QD_DIR)/src/msapi/gtPCSCtrl.o
+		  $(HAL_QD_DIR)/src/msapi/gtPCSCtrl.o $(HAL_QD_DIR)/src/msapi/gtBrgStu.o
 
 LSP_OBJS        = core.o irq.o time.o leds.o sysmap.o export.o clock.o
 
@@ -86,12 +86,15 @@ armadaxp-$(CONFIG_MV_ETH_PMT)	        += $(HAL_ETH_PMT_DIR)/mvPmt.o
 armadaxp-$(CONFIG_MV_ETH_HWF)           += $(HAL_ETH_GBE_DIR)/mvHwf.o
 endif
 
-armadaxp-$(CONFIG_MV_INCLUDE_CESA) 	+= $(HAL_CESA_DIR)/mvCesa.o $(HAL_CESA_DIR)/mvCesaDebug.o 	\
+armadaxp-$(CONFIG_MV_INCLUDE_CESA) 	+= $(HAL_CESA_DIR)/mvCesa.o $(HAL_CESA_DIR)/mvCesaIf.o		\
+					   $(HAL_CESA_DIR)/mvCesaDebug.o 				\
 					   $(HAL_CESA_DIR)/mvCesaAddrDec.o				\
                         		   $(HAL_CESA_DIR)/mvMD5.o $(HAL_CESA_DIR)/mvSHA1.o 		\
 					   $(HAL_CESA_DIR)/mvSHA256.o					\
 					   $(HAL_CESA_AES_DIR)/mvAesAlg.o $(HAL_CESA_AES_DIR)/mvAesApi.o\
 					   $(HAL_IF_DIR)/mvSysCesa.o
+armadaxp-$(CONFIG_MV_CESA_TEST)         += $(HAL_CESA_DIR)/mvCesaTest.o
+
 armadaxp-$(CONFIG_MV_INCLUDE_INTEG_SATA)+= $(HAL_IF_DIR)/mvSysSata.o $(HAL_SATA_DIR)/mvSataSoc.o	\
 					   $(HAL_SATA_DIR)/mvSataAddrDec.o
 armadaxp-$(CONFIG_MV_INCLUDE_SPI) 	+= $(HAL_SPI_DIR)/mvSpi.o $(HAL_SPI_DIR)/mvSpiCmnd.o 		\

@@ -66,7 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvOs.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "boardEnv/mvBoardEnvLib.h"
-#include "mv_cesa/cesa_if.h"
+#include "cesa/mvCesaIf.h"
 
 extern u32 mv_crypto_phys_base_get(u8 chan);
 extern u32 mv_crypto_virt_base_get(u8 chan);
@@ -113,7 +113,7 @@ MV_STATUS mvSysCesaInit(int numOfSession, int queueDepth, void *osHandle)
 		if(status == MV_OK) {
 		halData.ctrlModel = mvCtrlModelGet();
 		halData.ctrlRev = mvCtrlRevGet();
-			status = mvCesaIfInit (numOfSession, queueDepth,
+			status = mvCesaIfHalInit (numOfSession, queueDepth,
 					osHandle, &halData);
 	}
 	}

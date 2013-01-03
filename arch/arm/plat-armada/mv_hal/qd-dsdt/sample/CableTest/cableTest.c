@@ -3,7 +3,7 @@
 * cableTest.c
 *
 * DESCRIPTION:
-*		This sample shows how to run Virtual Cable Test and how to use the 
+*		This sample shows how to run Virtual Cable Test and how to use the
 *		test result.
 *
 * DEPENDENCIES:
@@ -17,7 +17,7 @@
 
 void sampleDisplayCableTestResult
 (
-	GT_TEST_STATUS *cableStatus, 
+	GT_TEST_STATUS *cableStatus,
 	GT_CABLE_LEN *cableLen
 )
 {
@@ -74,7 +74,7 @@ GT_STATUS sampleCableTest(GT_QD_DEV *dev,GT_LPORT port)
 	GT_STATUS status;
     GT_CABLE_STATUS cableStatus;
 	int i;
-		
+
 	/*
 	 *	Start and get Cable Test Result
 	*/
@@ -107,4 +107,3 @@ GT_STATUS sampleCableTest(GT_QD_DEV *dev,GT_LPORT port)
 
 	return GT_OK;
 }
-

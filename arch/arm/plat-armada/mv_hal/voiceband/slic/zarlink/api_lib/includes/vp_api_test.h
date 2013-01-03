@@ -898,8 +898,3 @@ typedef enum
 } VpSelfTestResultIdType;
 
 #endif /* VP_API_TEST_H */
-
-
-
-
-

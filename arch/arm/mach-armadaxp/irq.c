@@ -25,6 +25,7 @@
 
 unsigned int  irq_int_type[NR_IRQS];
 static DEFINE_SPINLOCK(irq_controller_lock);
+#define ENABLED_DOORBELS 	(0xF0FF)
 
 int max_per_cpu_irq = 28; // not enabled, default.
 static int __init per_cpu_irq_setup(char *__unused)
@@ -35,6 +36,7 @@ return 1;
 
 __setup("per_cpu_irq_enable", per_cpu_irq_setup);
 
+#if (defined(CONFIG_PERF_EVENTS) && defined(CONFIG_HW_PERF_EVENTS)) || defined(CONFIG_ERROR_HANDLING)
 static void axp_unmask_fabric_interrupt(int cpu)
 {
 	u32 val;
@@ -68,62 +70,31 @@ if (cpu > 0) { /*disabled for both cpu */
 }
 #endif	
 }
+#endif /* (CONFIG_PERF_EVENTS && CONFIG_HW_PERF_EVENTS) || CONFIG_ERROR_HANDLING */
 
 #ifdef CONFIG_ARMADAXP_USE_IRQ_INDIRECT_MODE
 void axp_irq_mask(struct irq_data *d)
 {	
-	int i;
-	u32 irq=d->irq;
-	if (irq < 8){ // per CPU; treat giga as shared interrupt
-		MV_REG_WRITE(CPU_INT_SET_MASK_LOCAL_REG, irq);
+	MV_REG_WRITE(CPU_INT_SET_MASK_LOCAL_REG, d->irq);
 #if (defined(CONFIG_PERF_EVENTS) && defined(CONFIG_HW_PERF_EVENTS)) || defined(CONFIG_ERROR_HANDLING)
-		if(irq==IRQ_AURORA_MP){
-			for_each_online_cpu(i) {
-                        axp_mask_fabric_interrupt(i);
-			}
+	int cpu;
+	if(d->irq == IRQ_AURORA_MP){
+		for_each_online_cpu(cpu) {
+			axp_mask_fabric_interrupt(cpu);
 		}
-#endif
 	}
-	else
-		MV_REG_WRITE(CPU_INT_CLEAR_ENABLE_REG, irq);
+#endif
 }
 
 void axp_irq_unmask(struct irq_data *d)
 {	
-	int i;
-	if (d->irq < 8){ // per CPU
-		MV_REG_WRITE(CPU_INT_CLEAR_MASK_LOCAL_REG, d->irq);
+	MV_REG_WRITE(CPU_INT_CLEAR_MASK_LOCAL_REG, d->irq);
+	MV_REG_WRITE(CPU_INT_SET_ENABLE_REG, d->irq);	
 #if (defined(CONFIG_PERF_EVENTS) && defined(CONFIG_HW_PERF_EVENTS)) || defined(CONFIG_ERROR_HANDLING)
-		if(d->irq==IRQ_AURORA_MP){
-			for_each_online_cpu(i) {
-				axp_unmask_fabric_interrupt(i);
-			}
-		}
-#endif
-	}else
-		MV_REG_WRITE(CPU_INT_SET_ENABLE_REG, d->irq);
-}
-
-void axp_irq_disable(struct irq_data *d)
-{	
-	int i;
-	u32 irq=d->irq;
-	MV_REG_WRITE(CPU_INT_CLEAR_ENABLE_REG, irq);
-	for_each_online_cpu(i) {
-                axp_mask_fabric_interrupt(i);
-        }
-
-}
-
-void axp_irq_enable(struct irq_data *d)
-{	
-	u32 irq=d->irq;
-	int i;
-	MV_REG_WRITE(CPU_INT_SET_ENABLE_REG, irq);
-#if (defined(CONFIG_PERF_EVENTS) && defined(CONFIG_HW_PERF_EVENTS)) || defined(CONFIG_ERROR_HANDLING)
-	if(irq == IRQ_AURORA_MP){
-		for_each_online_cpu(i) {
-			axp_unmask_fabric_interrupt(i);
+	int cpu;
+	if(d->irq == IRQ_AURORA_MP){
+		for_each_online_cpu(cpu) {
+			axp_unmask_fabric_interrupt(cpu);
 		}
 	}
 #endif
@@ -270,12 +241,13 @@ int axp_set_affinity(struct irq_data *d, const struct cpumask *mask_val,bool for
 #endif /* CONFIG_ARMADAXP_USE_IRQ_INDIRECT_MODE */
 
 #ifdef CONFIG_SMP
-void second_cpu_init(void)
+void axp_ipi_init(void)
 {
 	struct irq_data *d = irq_get_irq_data(IRQ_AURORA_IN_DRBL_LOW);
 	unsigned long temp;
+	
 	/* open IPI mask */
-	temp = MV_REG_READ(AXP_IN_DRBEL_MSK) | 0xff;
+	temp = MV_REG_READ(AXP_IN_DRBEL_MSK) | ENABLED_DOORBELS;
 	MV_REG_WRITE(AXP_IN_DRBEL_MSK, temp);
 
 	axp_irq_unmask(d);
@@ -287,13 +259,6 @@ static struct irq_chip axp_irq_chip = {
 	.irq_mask	= axp_irq_mask,
 	.irq_mask_ack	= axp_irq_mask,
 	.irq_unmask	= axp_irq_unmask,
-#ifdef CONFIG_ARMADAXP_USE_IRQ_INDIRECT_MODE
-	.irq_disable	= axp_irq_disable,
-	.irq_enable	= axp_irq_enable,
-#else
-	.irq_disable	= axp_irq_mask,
-	.irq_enable	= axp_irq_unmask,
-#endif
 #ifdef CONFIG_SMP
 	.irq_set_affinity   = axp_set_affinity,
 #endif
@@ -312,7 +277,6 @@ void __init axp_init_irq(void)
 		MV_REG_WRITE(CPU_INT_CLEAR_MASK_LOCAL_REG, irq);
 #endif
 #endif
-
 	}
 /*
  * Register IRQ sources
@@ -344,13 +308,14 @@ void __init axp_init_irq(void)
         	/* Set the default affinity to the boot cpu. */
         	cpumask_clear(irq_default_affinity);
         	cpumask_set_cpu(smp_processor_id(), irq_default_affinity);
+
 		/* open IPI mask */
 		/* this  register write does the job of axp_irq_unmask(IRQ_AURORA_IN_DRBL_LOW)
 		   i.e. enable / unmask the DRBL_LOW interrupt.
 		*/
 	        MV_REG_WRITE(CPU_INT_CLEAR_MASK_LOCAL_REG, 0);
 		addr = /*(void __iomem *)*/(AXP_IN_DRBEL_MSK);
-		MV_REG_WRITE(addr, 0xf0ff); // only IPI 0
+		MV_REG_WRITE(addr, ENABLED_DOORBELS);
 	}
 #endif
 

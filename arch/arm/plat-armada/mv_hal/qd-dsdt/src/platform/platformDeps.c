@@ -53,7 +53,7 @@ GT_BOOL gtAssignFunctions
 
 	dev->fgtReadMii = fReadMii;
 	dev->fgtWriteMii = fWriteMii;
-	
+
 	return GT_TRUE;
 }
 

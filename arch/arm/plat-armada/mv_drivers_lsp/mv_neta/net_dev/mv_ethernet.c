@@ -48,7 +48,6 @@ disclaimer.
 #include "mv_switch.h"
 #endif /* CONFIG_MV_ETH_SWITCH_LINK */
 
-
 static int mv_eth_start(struct net_device *dev);
 static int mv_eth_set_mac_addr_internals(struct net_device *dev, void *addr);
 
@@ -62,12 +61,11 @@ static int mv_eth_start(struct net_device *dev)
 {
 	struct eth_port *priv = MV_ETH_PRIV(dev);
 	int group;
+
 	/* in default link is down */
 	netif_carrier_off(dev);
 
 	/* Stop the TX queue - it will be enabled upon PHY status change after link-up interrupt/timer */
-
-	printk(KERN_NOTICE "%s: mv_eth_start\n", dev->name);
 	netif_tx_stop_all_queues(dev);
 
 	/* fill rx buffers, start rx/tx activity, set coalescing */
@@ -137,7 +135,6 @@ int mv_eth_stop(struct net_device *dev)
 
 	/* stop upper layer */
 	netif_carrier_off(dev);
-	printk(KERN_NOTICE "%s: mv_eth_stop\n", dev->name);
 	netif_tx_stop_all_queues(dev);
 
 	/* stop tx/rx activity, mask all interrupts, relese skb in rings,*/

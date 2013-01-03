@@ -540,6 +540,21 @@ void __init kirkwood_audio_init(void)
 	}
 }
 
+
+/************
+ * GPIO
+ ***********/
+static struct platform_device mv_gpio = {
+	.name   = "mv_gpio",
+	.id             = 0,
+	.num_resources  = 0,
+};
+
+static void __init mv_gpio_init()
+{
+	platform_device_register(&mv_gpio);
+}
+
 /********
  * SDIO *
  ********/

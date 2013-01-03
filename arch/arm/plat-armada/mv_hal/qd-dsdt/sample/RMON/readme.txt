@@ -26,7 +26,3 @@ rmon.c
 	sampleGetRMONCounter3
 		shows how to read RMON counter for each port
         this routine is for the devices that use GT_STATS_COUNTERS3.
-
-
-
-

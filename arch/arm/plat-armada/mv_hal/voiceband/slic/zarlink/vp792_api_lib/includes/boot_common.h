@@ -54,6 +54,3 @@ VpBootLoadInternal(
     VpBootSupportFuncPtrType validateFunc);
 
 #endif /* BOOT_COMMON_H */
-
-
-

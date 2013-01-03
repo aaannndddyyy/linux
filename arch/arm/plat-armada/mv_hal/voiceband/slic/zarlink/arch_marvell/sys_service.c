@@ -181,35 +181,36 @@ VpSysDebugPrintf(
 {
     va_list ap;
     static char buf[1024];
-    static uint16 indexBuf = 0;
-    static MV_STD_BOOL beginLine = TRUE;
+    static uint16 indexBuf;
+    static bool beginLine = TRUE;
     uint16 bufLen;
     int retval;
-    
+
     if (beginLine == TRUE) {
-        mvOsPrintf("<DBG> ");
-        beginLine = FALSE;
+	mvOsPrintf("<DBG> ");
+	beginLine = FALSE;
     }
     /* print in a string to check if there's a \n */
     va_start(ap, format);
     retval = vsprintf(&buf[indexBuf], format, ap);
     va_end(ap);
-    
+
     bufLen = strlen(&buf[indexBuf]);
     if (buf[indexBuf + bufLen - 1] == '\n') {
-        buf[indexBuf + bufLen - 1] = ' ';
-        retval = mvOsPrintf("%s</DBG>\n", buf);
-        indexBuf = 0;
-        beginLine = TRUE;
+		buf[indexBuf + bufLen - 1] = ' ';
+		retval = mvOsPrintf("%s</DBG>\n", buf);
+		indexBuf = 0;
+		beginLine = TRUE;
     } else {
-        indexBuf += bufLen;
-        /* Just in case of a buffer overflow, not suppose to append */
-        if (indexBuf > 800) {
-            retval = mvOsPrintf("%s</DBG>\n", buf);
-            indexBuf = 0;
-            beginLine = TRUE;
-        }
-    }
+		indexBuf += bufLen;
+
+		/* Just in case of a buffer overflow, not suppose to append */
+		if (indexBuf > 800) {
+			retval = mvOsPrintf("%s</DBG>\n", buf);
+			indexBuf = 0;
+			beginLine = TRUE;
+		}
+      }
     return retval;
 }
 #endif /* ENABLE_DBG_TAG */

@@ -131,7 +131,7 @@ static struct mtd_info *sflash_probe(struct map_info *map)
 	memset(mtd, 0, sizeof(*mtd));
 	memset(sflash, 0, sizeof(*sflash));
 	    
-	DB(printk("\nINFO: %s - Base address %08x",__FUNCTION__, sflash->baseAddr));
+	DB(printk("\nINFO: %s - Base address %08x\n",__FUNCTION__, map->phys));
 #ifdef CONFIG_ARCH_FEROCEON_ORION	
 	/* First check that SPI bus mode is configured to connect to an external SFlash */
     if (mvCtrlSpiBusModeDetect() != MV_SPI_CONN_TO_EXT_FLASH)
@@ -144,7 +144,7 @@ static struct mtd_info *sflash_probe(struct map_info *map)
 #endif
 	/* Try to detect the flash and initialize it over SPI */	
 	sflash->baseAddr         = map->phys;
-    sflash->index            = MV_INVALID_DEVICE_NUMBER; /* will be detected in init */	
+	sflash->index            = MV_INVALID_DEVICE_NUMBER; /* will be detected in init */	
 	sflash_disable_irqs(flags, sflash_in_irq);	
 	if (mvSFlashInit(sflash) != MV_OK)
 	{
@@ -381,7 +381,22 @@ static int sflash_suspend(struct mtd_info *mtd)
 
 static void sflash_resume(struct mtd_info *mtd)
 {
-	DB(printk("\nINFO: %s called - DUMMY", __FUNCTION__));
+	struct map_info *map = mtd->priv;
+	MV_SFLASH_INFO *sflash = map->fldrv_priv;
+	MV_ULONG flags = 0, sflash_in_irq = 0;
+
+	sflash_disable_irqs(flags, sflash_in_irq);
+	if (mvSFlashInit(sflash) != MV_OK)
+	{
+		sflash_enable_irqs(flags, sflash_in_irq);
+		printk(KERN_NOTICE "ERROR: %s - Failed to initialize the SFlash.", __FUNCTION__);
+		kfree(mtd);
+		kfree(sflash);
+		return;
+	}
+	sflash_enable_irqs(flags, sflash_in_irq);
+
+	printk(KERN_NOTICE "Resuming serial Flash succeeded\n");
 }
 
 static int sflash_block_isbad (struct mtd_info *mtd, loff_t ofs)

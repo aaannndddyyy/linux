@@ -68,12 +68,12 @@ VpSysPcmCollectAndProcess(
     uint16 operationMask);
 
 /* Enable the XML tag <DBG> debug output </DBG>  */
-//#define ENABLE_DBG_TAG
+/* #define ENABLE_DBG_TAG */
 
 #ifdef ENABLE_DBG_TAG
     EXTERN int
     VpSysDebugPrintf(
-        const char *format, ...);
+		const char *format, ...);
 #else
     #define VpSysDebugPrintf mvOsPrintf
 #endif /* ENABLE_DBG_TAG */
@@ -81,4 +81,3 @@ VpSysPcmCollectAndProcess(
 #endif /* SYS_SERVICE_H */
 
 #endif /* MV_KERNEL_SLIC_SUPPORT */
-

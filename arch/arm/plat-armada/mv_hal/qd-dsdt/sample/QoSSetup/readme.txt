@@ -9,15 +9,15 @@ a frame is determined by (in priority order):
 		database with a priority defined.
 	3) The IEEE 802.3ac Tag containing IEEE 802.1p priority information
 		if enabled on the port.
-	4) The IPv4 Type of Service (TOS)/DiffServ field or IPv6 Traffic Class 
+	4) The IPv4 Type of Service (TOS)/DiffServ field or IPv6 Traffic Class
 		field if enabled on the port.
 	5) The Port's default priority defined in DefPri.
 
 This sample program will deal with the above 3) ~ 5) cases.
 
 qos.c
-	sampleQoS will enable using both IEEE 802.3ac Tag and IPv4/IPv6 Traffic 
-	Class field and IEEE 802.3ac has a higher priority than IPv4/IPv6. 
+	sampleQoS will enable using both IEEE 802.3ac Tag and IPv4/IPv6 Traffic
+	Class field and IEEE 802.3ac has a higher priority than IPv4/IPv6.
 	The following is the QoS mapping programmed by sampleQos:
 	1) IEEE 802.3ac Tag (Priority 0 ~ 7, 3 bits)
 		Priority 1~3 is using QuarterDeck Queue 0.
@@ -30,12 +30,3 @@ qos.c
 		Priority 32~55 is using QuaterDeck Queue 2.
 		Priority 56~63 is using QuaterDeck Queue 3.
 	3) Each port's default priority is set to 1.
-
-			
-
-
-
-
-
-
-

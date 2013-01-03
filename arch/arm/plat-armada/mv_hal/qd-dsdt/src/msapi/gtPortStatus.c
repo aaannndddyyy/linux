@@ -211,7 +211,7 @@ GT_STATUS procPx_Mode
 *       GT_OK   - on success
 *       GT_FAIL - on error
 *       GT_NOT_SUPPORTED - if current device does not support this feature.
-*		
+*
 * COMMENTS:
 *
 *
@@ -515,7 +515,7 @@ GT_STATUS gprtGetHdFlow
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
 * COMMENTS:
-*		
+*
 * GalTis:
 *
 *******************************************************************************/
@@ -578,7 +578,7 @@ GT_STATUS gprtGetPHYDetect
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
 * COMMENTS:
-*		This function should not be called if gsysGetPPUState returns 
+*		This function should not be called if gsysGetPPUState returns
 *		PPU_STATE_ACTIVE.
 *
 * GalTis:
@@ -780,7 +780,7 @@ GT_STATUS gprtGetPortMode
 *       port - the logical port number.
 *
 * OUTPUTS:
-*       mode - GT_TRUE for MII PHY Mode, 
+*       mode - GT_TRUE for MII PHY Mode,
 *			   GT_FALSE for MII MAC Mode
 *
 * RETURNS:
@@ -1015,7 +1015,7 @@ GT_STATUS gprtGetSpeed
 *
 * OUTPUTS:
 *       mode - GT_PORT_SPEED_MODE type.
-*				(PORT_SPEED_1000_MBPS,PORT_SPEED_100_MBPS, PORT_SPEED_10_MBPS, 
+*				(PORT_SPEED_1000_MBPS,PORT_SPEED_100_MBPS, PORT_SPEED_10_MBPS,
 *				etc.)
 *
 * RETURNS:
@@ -1060,11 +1060,11 @@ GT_STATUS gprtGetSpeedMode
 	if (IS_IN_DEV_GROUP(dev,DEV_GIGABIT_SWITCH))
 	{
 	    /* Get the force flow control bit.  */
-    	retVal = hwGetPortRegField(dev,hwPort, QD_REG_PORT_STATUS,8,2,&data);
+	retVal = hwGetPortRegField(dev,hwPort, QD_REG_PORT_STATUS,8,2,&data);
 	}
 	else
 	{
-    	retVal = hwGetPortRegField(dev,hwPort, QD_REG_PORT_STATUS,8,1,&data);
+	retVal = hwGetPortRegField(dev,hwPort, QD_REG_PORT_STATUS,8,1,&data);
 	}
 
 	*speed = (GT_PORT_SPEED_MODE)data;
@@ -1092,7 +1092,7 @@ GT_STATUS gprtGetSpeedMode
 *
 * INPUTS:
 *       port - 	the logical port number.
-*				(for FullSail, it will be port 2, and for ClipperShip, 
+*				(for FullSail, it will be port 2, and for ClipperShip,
 *				it could be either port 5 or port 6.)
 *       mode -  GT_TRUE for Full Duplex,
 *				GT_FALSE for Half Duplex.
@@ -1134,8 +1134,8 @@ GT_STATUS gprtSetDuplex
 	/* check if phy is not configurable. */
 	if(IS_CONFIGURABLE_PHY(dev, hwPort))
 	{
-		/* 
-		 * phy is configurable. this function is not for the port where phy 
+		/*
+		 * phy is configurable. this function is not for the port where phy
 		 * can be configured.
 		 */
 		return GT_NOT_SUPPORTED;
@@ -1233,11 +1233,11 @@ GT_STATUS gprtGetHighErrorRate
 * gprtGetMGMII
 *
 * DESCRIPTION:
-*		SERDES Interface mode. When this bit is cleared to a zero and a PHY is 
+*		SERDES Interface mode. When this bit is cleared to a zero and a PHY is
 *		detected connected to this port, the SERDES interface between this port
 *		and the PHY will be SGMII.  When this bit is set to a one and a PHY is
-*		detected connected to this port, the SERDES interface between this port 
-*		and the PHY will be MGMII. When no PHY is detected on this port and the 
+*		detected connected to this port, the SERDES interface between this port
+*		and the PHY will be MGMII. When no PHY is detected on this port and the
 *		SERDES interface is being used, it will be configured in 1000Base-X mode.
 *
 * INPUTS:
@@ -1284,11 +1284,11 @@ GT_STATUS gprtGetMGMII
     /* translate binary to BOOL  */
 	if (IS_IN_DEV_GROUP(dev,DEV_MGMII_REVERSE_STATUS))
 	{
-    	BIT_2_BOOL_R(data, *state);
+	BIT_2_BOOL_R(data, *state);
 	}
 	else
 	{
-    	BIT_2_BOOL(data, *state);
+	BIT_2_BOOL(data, *state);
 	}
 
     if(retVal != GT_OK)
@@ -1309,11 +1309,11 @@ GT_STATUS gprtGetMGMII
 * gprtSetMGMII
 *
 * DESCRIPTION:
-*		SERDES Interface mode. When this bit is cleared to a zero and a PHY is 
+*		SERDES Interface mode. When this bit is cleared to a zero and a PHY is
 *		detected connected to this port, the SERDES interface between this port
 *		and the PHY will be SGMII.  When this bit is set toa one and a PHY is
-*		detected connected to this port, the SERDES interface between this port 
-*		and the PHY will be MGMII. When no PHY is detected on this port and the 
+*		detected connected to this port, the SERDES interface between this port
+*		and the PHY will be MGMII. When no PHY is detected on this port and the
 *		SERDES interface is being used, it will be configured in 1000Base-X mode.
 *
 * INPUTS:
@@ -1456,7 +1456,7 @@ GT_STATUS gprtGetTxPaused
 *		port - the logical port number.
 *
 * OUTPUTS:
-*		state - GT_TRUE if Rx MAC determines that no more data should be 
+*		state - GT_TRUE if Rx MAC determines that no more data should be
 *					entering this port.
 *				  GT_FALSE otherwise.
 *
@@ -1767,8 +1767,8 @@ GT_STATUS gprtGetMiiInterface
 *
 * DESCRIPTION:
 *		This routine gets egress queue size counter value.
-*		This counter reflects the current number of Egress buffers switched to 
-*		this port. This is the total number of buffers across all four priority 
+*		This counter reflects the current number of Egress buffers switched to
+*		this port. This is the total number of buffers across all four priority
 *		queues.
 *
 * INPUTS:
@@ -1782,7 +1782,7 @@ GT_STATUS gprtGetMiiInterface
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
-* COMMENTS: 
+* COMMENTS:
 *
 *******************************************************************************/
 GT_STATUS gprtGetOutQSize
@@ -1852,7 +1852,7 @@ GT_STATUS gprtGetOutQSize
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
-* COMMENTS: 
+* COMMENTS:
 *
 *******************************************************************************/
 GT_STATUS gprtGetBufHigh
@@ -1922,7 +1922,7 @@ GT_STATUS gprtGetBufHigh
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
-* COMMENTS: 
+* COMMENTS:
 *
 *******************************************************************************/
 GT_STATUS gprtGetFcEn
@@ -1970,7 +1970,7 @@ GT_STATUS gprtGetFcEn
 
 	/* translate binary to BOOL  */
 	BIT_2_BOOL(data, *fcEn);
-	
+
 	return retVal;
 }
 
@@ -1979,7 +1979,7 @@ GT_STATUS gprtGetFcEn
 *
 * DESCRIPTION:
 *		This routine gets Ingress reserved queue size counter.
-*		This counter reflects the current number of reserved ingress buffers 
+*		This counter reflects the current number of reserved ingress buffers
 *		assigned to this port.
 *
 * INPUTS:
@@ -1993,7 +1993,7 @@ GT_STATUS gprtGetFcEn
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
-* COMMENTS: 
+* COMMENTS:
 *
 *******************************************************************************/
 GT_STATUS gprtGetRsvSize
@@ -2058,7 +2058,7 @@ GT_STATUS gprtGetRsvSize
 *		GT_FAIL - on error
 *		GT_NOT_SUPPORTED - if current device does not support this feature.
 *
-* COMMENTS: 
+* COMMENTS:
 *
 *******************************************************************************/
 GT_STATUS gprtGetQSizePerQPri
@@ -2173,7 +2173,7 @@ GT_STATUS gprtGetC_Duplex
 * gprtGetC_Mode
 *
 * DESCRIPTION:
-*		This routine retrives port's interface type configuration mode 
+*		This routine retrives port's interface type configuration mode
 *		determined at reset.
 *
 * INPUTS:
@@ -2233,6 +2233,3 @@ GT_STATUS gprtGetC_Mode
     /* return */
     return retVal;
 }
-
-
-

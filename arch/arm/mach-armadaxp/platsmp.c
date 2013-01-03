@@ -23,7 +23,7 @@
 #include "include/mach/smp.h"
 
 extern void axp_secondary_startup(void);
-extern void second_cpu_init(void);
+extern void axp_ipi_init(void);
 extern void second_cpu_msi_init(void);
 extern MV_CPU_DEC_WIN *mv_sys_map(void);
 extern unsigned long mv_cpu_count;
@@ -54,12 +54,6 @@ static inline unsigned int get_sample_at_reset_core_count(void)
 	return ((MV_REG_READ(SOC_COHERENCY_FABRIC_CFG_REG) & 0xF) + 1);
 }
 
-/*
- * control for which core is the next to come out of the secondary
- * boot "holding pen"
- */
-volatile int __cpuinitdata pen_release = -1;
-
 static unsigned int __init get_core_count(void)
 {
 #ifdef CONFIG_MACH_ARMADA_XP_FPGA
@@ -80,11 +74,15 @@ void __init set_core_count(unsigned int cpu_count)
 	group_cpu_mask = ((1 << cpu_count) - 1) << (hard_smp_processor_id());
 }
 
-static DEFINE_SPINLOCK(boot_lock);
+/* 
+ * Platform intialization routine for seconday CPUs
+ */
 
-void __cpuinit platform_secondary_init(unsigned int cpu)
+
+void  platform_secondary_init(unsigned int cpu)
 {
 	trace_hardirqs_off();
+
 #ifndef CONFIG_ARMADA_XP_REV_Z1
 #ifdef	CONFIG_SHEEVA_DEEP_IDLE
 	armadaxp_fabric_restore_deepIdle();
@@ -96,70 +94,43 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * core (e.g. timer irq), then they will not have been enabled
 	 * for us: do so
 	 */
-	second_cpu_init();
+	axp_ipi_init();
 #ifdef CONFIG_PCI_MSI
 	/* Support for MSI interrupts */
 	second_cpu_msi_init();
 #endif
-	/*
-	 * let the primary processor know we're out of the
-	 * pen, then head off into the C entry point
-	 */
-	pen_release = -1;
+
 	smp_wmb();
-
-	/*
-	 * Synchronise with the boot thread.
-	 */
-	spin_lock(&boot_lock);
-	spin_unlock(&boot_lock);
 }
 
-int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
+int  boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	unsigned long timeout;
 
-	/*
-	 * set synchronisation state between this boot processor
-	 * and the secondary one
-	 */
-	spin_lock(&boot_lock);
+	MV_U32 reg;
 
-	/*
-	 * The secondary processor is waiting to be released from
-	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
-	 *
-	 * Note that "pen_release" is the hardware CPU ID, whereas
-	 * "cpu" is Linux's internal ID.
-	 */
-	flush_cache_all();
-	pen_release = get_hw_cpu_id(cpu);
-	flush_cache_all();
+	cpu = get_hw_cpu_id(cpu);
 
-	/* send ipi to wake cpu in case it in offline state */
-	axp_smp_cross_call(cpumask_of(cpu), 0);
+	printk("SMP: CPU %d Waking up CPU %d\n", master_cpu_id, cpu);
 
-	timeout = jiffies + (10 * HZ);
-	while (time_before(jiffies, timeout)) {
-		smp_rmb();
-		if (pen_release == -1)
-			break;
+	/* Set resume control and address */
+	MV_REG_WRITE(AXP_CPU_RESUME_CTRL_REG, 0x0);
+	MV_REG_WRITE(AXP_CPU_RESUME_ADDR_REG(cpu),
+			virt_to_phys(axp_secondary_startup));
 
-		dmac_map_area((const void *)&pen_release, 32, DMA_BIDIRECTIONAL);
-		udelay(10);
-	}
+	dsb();
 
-	/*
-	 * now the secondary core is starting up let it run its
-	 * calibrations, then wait for it to finish
-	 */
-	spin_unlock(&boot_lock);
+	/* Kick secondary CPUs */
+	reg = MV_REG_READ(AXP_CPU_RESET_REG(cpu));
+	reg = reg & ~(1 << AXP_CPU_RESET_OFFS);
+	MV_REG_WRITE(AXP_CPU_RESET_REG(cpu), reg);
 
-	return pen_release != -1 ? -ENOSYS : 0;
+	mb();
+	udelay(10);
+
+	return 0;
 }
 
-static void __init wakeup_cpus(void)
+static void set_cpu_clocks(void)
 {
 	MV_U32 val = 0;
 	MV_U32 ncores = get_core_count();
@@ -170,6 +141,8 @@ static void __init wakeup_cpus(void)
 	/* Scale up CPU#1 clock to max */
 	MV_U32 divider = MV_REG_READ(CPU_DIV_CLK_CTRL3_RATIO_FULL1_REG);
 	divider = (divider & 0x3F);
+
+	pr_info("Setting Clocks for secondary CPUs\n");
 
 	for (cpu_id = master_cpu_id + 1; cpu_id < (master_cpu_id + ncores); cpu_id++) {
 		if (cpu_id == 1) {
@@ -190,7 +163,7 @@ static void __init wakeup_cpus(void)
 		}
 	}
 #else /*CONFIG_ARMADA_XP_REV_Z1*/
-       /* Scale up CPU#1 clock to max */
+	/* Scale up CPU#1 clock to max */
 	if (ncores > 1) {
 		val = MV_REG_READ(CPU_DIV_CLK_CTRL2_RATIO_FULL0_REG);
 		val &= ~(0xFF000000);   /* cpu1 clkdiv ratio; cpu0 based on SAR */
@@ -240,35 +213,15 @@ static void __init wakeup_cpus(void)
 #endif
 #endif /*CONFIG_MACH_ARMADA_XP_FPGA*/
 
-	/* Set resume control and address */
-	MV_REG_WRITE(AXP_CPU_RESUME_CTRL_REG, 0x0);
-
-	for (cpu_id = master_cpu_id + 1; cpu_id < (master_cpu_id + ncores); cpu_id++)
-		MV_REG_WRITE(AXP_CPU_RESUME_ADDR_REG(cpu_id), virt_to_phys(axp_secondary_startup));
-
-	/* nobody is to be released from the pen yet */
-	pen_release = -1;
-
-	/* Kick secondary CPUs */
-	for (cpu_id = master_cpu_id + 1; cpu_id < (master_cpu_id + ncores); cpu_id++) {
-		/* TODO YY - check that the core is activated in coherency fabric */
-		printk("SMP: CPU %d Waking up CPU %d\n", master_cpu_id, cpu_id);
-		val = MV_REG_READ(AXP_CPU_RESET_REG(cpu_id)) & ~(1 << AXP_CPU_RESET_OFFS);
-		MV_REG_WRITE(AXP_CPU_RESET_REG(cpu_id), val);
-	}
-
-	mb();
-	udelay(10);
 }
 
-static void __init initialize_bridge(void)
+static void init_coherency(void)
 {
 	MV_U32 reg;
-	MV_U32 ncores = get_core_count();
 	MV_U32 core_bits;
 
-	/* Set 1 bits for cores in this group */
-	core_bits = ((0x1 << ncores) - 1) << master_cpu_id;
+	/* Enable the boot CPU in coherency fabric */
+	core_bits = 1 << master_cpu_id;
 
 #ifdef CONFIG_MV_AMP_ENABLE
 	mvSemaLock(MV_SEMA_BRIDGE);
@@ -278,7 +231,7 @@ static void __init initialize_bridge(void)
 	reg |= (core_bits << 24);
 	MV_REG_WRITE(SOC_COHERENCY_FABRIC_CFG_REG, reg);
 
-	/* enable Snooping on coherency fabric */
+	/* Enable Snooping on coherency fabric */
 	reg = MV_REG_READ(SOC_COHERENCY_FABRIC_CTRL_REG);
 	reg |= (core_bits << 24);
 	MV_REG_WRITE(SOC_COHERENCY_FABRIC_CTRL_REG, reg);
@@ -307,12 +260,20 @@ void __init smp_init_cpus(void)
 		printk("Cpu Interface initialization failed.\n");
 		return;
 	}
-	/*mvCpuIfAddDecShow();*/
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-	set_smp_cross_call(axp_smp_cross_call);
 
+	set_smp_cross_call(axp_smp_cross_call);
+}
+
+void smp_resume()
+{
+	if(mv_cpu_count > 1)
+		set_cpu_clocks();
+	init_coherency();
+
+	axp_ipi_init();
 }
 
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
@@ -370,7 +331,7 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	}
 	if (max_cpus > 1) {
 		flush_cache_all();
-		wakeup_cpus();
+		set_cpu_clocks();
 	}
-	initialize_bridge();
+	init_coherency();
 }

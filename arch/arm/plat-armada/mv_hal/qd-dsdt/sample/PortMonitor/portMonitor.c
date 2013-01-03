@@ -3,8 +3,8 @@
 * portMonitor.c
 *
 * DESCRIPTION:
-*		This sample shows how to monitor a certain port. Port monitoring is 
-*		supported by the ClipperShip device with Egress only monitoring or 
+*		This sample shows how to monitor a certain port. Port monitoring is
+*		supported by the ClipperShip device with Egress only monitoring or
 *		Egress and Ingress monitoring.
 *
 * DEPENDENCIES:
@@ -19,7 +19,7 @@
 
 /*
  *	Enable EgressMonitoring for the monitoredPort.
- *	With this setup, monitoringPort will receive every packet 
+ *	With this setup, monitoringPort will receive every packet
  *	which egressed from monitoredPort.
 */
 GT_STATUS sampleEgressMonitor(GT_QD_DEV *dev,GT_LPORT monitoredPort, GT_LPORT monitoringPort)
@@ -43,7 +43,7 @@ GT_STATUS sampleEgressMonitor(GT_QD_DEV *dev,GT_LPORT monitoredPort, GT_LPORT mo
 
 /*
  *	Enable Egress Monitoring and Ingress Monitoring for the monitoredPort.
- *	With this setup, monitoringPort will receive every packet 
+ *	With this setup, monitoringPort will receive every packet
  *	which is both from monitoredPort and to monitoredPort.
 */
 GT_STATUS samplePortMonitor(GT_QD_DEV *dev,GT_LPORT monitoredPort, GT_LPORT monitoringPort)
@@ -105,4 +105,3 @@ GT_STATUS sampleDisablePortMonitor(GT_QD_DEV *dev,GT_LPORT monitoredPort)
 
 	return GT_OK;
 }
-

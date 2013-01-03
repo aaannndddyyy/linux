@@ -27,7 +27,6 @@
         })
 
 
-extern volatile int pen_release;
 
 static DECLARE_COMPLETION(cpu_killed);
 
@@ -48,14 +47,6 @@ static inline void platform_do_lowpower(unsigned int cpu)
 		*/
 
 		wfi();
-
-		if (pen_release == cpu) {
-			/*
-			 * OK, proper wakeup, we're done
-			 */
-			printk("%s %d\n", __func__, __LINE__);
-			break;
-		}
 
 		/*
 		 * getting here, means that we have come out of WFI without

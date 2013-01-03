@@ -25,8 +25,10 @@ DISCLAIMED.  The GPL License provides additional details about this warranty
 disclaimer.
 *******************************************************************************/
 
-#include "mvCommon.h"		/* Should be included before mvSysHwConfig */
 #include <linux/etherdevice.h>
+#include <linux/interrupt.h>
+
+#include "mvCommon.h"		/* Should be included before mvSysHwConfig */
 #include "mvOs.h"
 #include "mvSysHwConfig.h"
 #include "eth-phy/mvEthPhy.h"
@@ -182,6 +184,8 @@ int mv_switch_vlan_in_vtu_set(unsigned short vlan_id, unsigned short db_num, uns
 	GT_VTU_ENTRY vtu_entry;
 	unsigned int p;
 
+	memset(&vtu_entry, 0, sizeof(GT_VTU_ENTRY));
+	vtu_entry.sid = 1;
 	vtu_entry.vid = vlan_id;
 	vtu_entry.DBNum = db_num;
 	vtu_entry.vidPriOverride = GT_FALSE;
@@ -436,6 +440,7 @@ int mv_switch_jumbo_mode_set(int max_size)
 int mv_switch_load(unsigned int switch_ports_mask)
 {
 	int p;
+	GT_STU_ENTRY	stuEntry;
 
 	printk(KERN_ERR "  o Loading Switch QuarterDeck driver\n");
 
@@ -479,10 +484,14 @@ int mv_switch_load(unsigned int switch_ports_mask)
 	qd_dev = &qddev;
 	qd_cpu_port = qd_cfg.cpuPortNum;
 
-	SWITCH_DBG(SWITCH_DBG_LOAD, ("Device ID     : 0x%x\n", qd_dev->deviceId));
-	SWITCH_DBG(SWITCH_DBG_LOAD, ("Base Reg Addr : 0x%x\n", qd_dev->baseRegAddr));
-	SWITCH_DBG(SWITCH_DBG_LOAD, ("No. of Ports  : %d\n", qd_dev->numOfPorts));
-	SWITCH_DBG(SWITCH_DBG_LOAD, ("CPU Ports     : %ld\n", qd_dev->cpuPortNum));
+	/* Create entry in STU table  */
+	memset(&stuEntry, 0, sizeof(GT_STU_ENTRY));
+	stuEntry.sid = 1; /* required: ((sid > 0) && (sid < 0x3F)) */
+	gstuAddEntry(qd_dev, &stuEntry);
+
+	printk(KERN_ERR "    o Device ID     : 0x%x\n", qd_dev->deviceId);
+	printk(KERN_ERR "    o No. of Ports  : %d\n", qd_dev->numOfPorts);
+	printk(KERN_ERR "    o CPU Port      : %ld\n", qd_dev->cpuPortNum);
 
 	qsgmii_module = mvBoardIsQsgmiiModuleConnected();
 	if (qsgmii_module)
@@ -528,7 +537,7 @@ int mv_switch_load(unsigned int switch_ports_mask)
 		if ((mvBoardSwitchConnectedPortGet(MV_ETH_PORT_0) == p) ||
 		    (mvBoardSwitchConnectedPortGet(MV_ETH_PORT_1) == p)) {
 			/* Switch port connected to GMAC - force link UP - 1000 Full with FC */
-			printk(KERN_ERR "    o Setting Switch CPU port (port #%d) for 1000 Full with FC\n", p);
+			printk(KERN_ERR "    o Setting Switch Port #%d connected to GMAC port for 1000 Full with FC\n", p);
 			if (gpcsSetForceSpeed(qd_dev, p, PORT_FORCE_SPEED_1000_MBPS) != GT_OK) {
 				printk(KERN_ERR "Force speed 1000mbps - Failed\n");
 				return -1;
@@ -553,7 +562,7 @@ int mv_switch_load(unsigned int switch_ports_mask)
 			}
 			continue;
 		}
-		printk(KERN_ERR "    o Disable disconnected switch port (port #%d) and force link down\n", p);
+		printk(KERN_ERR "    o Disable disconnected Switch Port #%d and force link down\n", p);
 
 		if (gstpSetPortState(qd_dev, p, GT_PORT_DISABLE) != GT_OK) {
 			printk(KERN_ERR "gstpSetPortState failed\n");
@@ -565,7 +574,6 @@ int mv_switch_load(unsigned int switch_ports_mask)
 			return -1;
 		}
 	}
-
 	return 0;
 }
 
@@ -635,12 +643,12 @@ int mv_switch_unload(unsigned int switch_ports_mask)
 
 int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 {
-	unsigned int i, p;
+	unsigned int p;
 	unsigned char cnt;
 	GT_LPORT port_list[MAX_SWITCH_PORTS];
 
 	if (qd_dev == NULL) {
-		printk(KERN_ERR "mv_switch_init: qd_dev not initialized, call mv_switch_load() first\n");
+		printk(KERN_ERR "%s: qd_dev not initialized, call mv_switch_load() first\n", __func__);
 		return -1;
 	}
 
@@ -660,12 +668,13 @@ int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 		printk(KERN_ERR "gstatsFlushAll failed\n");
 
 	/* set all ports not to unmodify the vlan tag on egress */
-	for (i = 0; i < qd_dev->numOfPorts; i++) {
-		if (MV_BIT_CHECK(switch_ports_mask, p))
-			if (gprtSetEgressMode(qd_dev, i, GT_UNMODIFY_EGRESS) != GT_OK) {
+	for (p = 0; p < qd_dev->numOfPorts; p++) {
+		if (MV_BIT_CHECK(switch_ports_mask, p)) {
+			if (gprtSetEgressMode(qd_dev, p, GT_UNMODIFY_EGRESS) != GT_OK) {
 				printk(KERN_ERR "gprtSetEgressMode GT_UNMODIFY_EGRESS failed\n");
 				return -1;
 			}
+		}
 	}
 
 	/* initializes the PVT Table (cross-chip port based VLAN) to all one's (initial state) */
@@ -676,31 +685,32 @@ int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 
 	/* set all ports to work in Normal mode */
 	for (p = 0; p < qd_dev->numOfPorts; p++) {
-		if (MV_BIT_CHECK(switch_ports_mask, p))
+		if (MV_BIT_CHECK(switch_ports_mask, p)) {
 			if (gprtSetFrameMode(qd_dev, p, GT_FRAME_MODE_NORMAL) != GT_OK) {
 				printk(KERN_ERR "gprtSetFrameMode GT_FRAME_MODE_NORMAL failed\n");
 				return -1;
 			}
+		}
 	}
 
 	/* set priorities rules */
-	for (i = 0; i < qd_dev->numOfPorts; i++) {
+	for (p = 0; p < qd_dev->numOfPorts; p++) {
 		if (MV_BIT_CHECK(switch_ports_mask, p)) {
 			/* default port priority to queue zero */
-			if (gcosSetPortDefaultTc(qd_dev, i, 0) != GT_OK)
-				printk(KERN_ERR "gcosSetPortDefaultTc failed (port %d)\n", i);
+			if (gcosSetPortDefaultTc(qd_dev, p, 0) != GT_OK)
+				printk(KERN_ERR "gcosSetPortDefaultTc failed (port %d)\n", p);
 
 			/* enable IP TOS Prio */
-			if (gqosIpPrioMapEn(qd_dev, i, GT_TRUE) != GT_OK)
-				printk(KERN_ERR "gqosIpPrioMapEn failed (port %d)\n", i);
+			if (gqosIpPrioMapEn(qd_dev, p, GT_TRUE) != GT_OK)
+				printk(KERN_ERR "gqosIpPrioMapEn failed (port %d)\n", p);
 
 			/* set IP QoS */
-			if (gqosSetPrioMapRule(qd_dev, i, GT_FALSE) != GT_OK)
-				printk(KERN_ERR "gqosSetPrioMapRule failed (port %d)\n", i);
+			if (gqosSetPrioMapRule(qd_dev, p, GT_FALSE) != GT_OK)
+				printk(KERN_ERR "gqosSetPrioMapRule failed (port %d)\n", p);
 
 			/* disable Vlan QoS Prio */
-			if (gqosUserPrioMapEn(qd_dev, i, GT_FALSE) != GT_OK)
-				printk(KERN_ERR "gqosUserPrioMapEn failed (port %d)\n", i);
+			if (gqosUserPrioMapEn(qd_dev, p, GT_FALSE) != GT_OK)
+				printk(KERN_ERR "gqosUserPrioMapEn failed (port %d)\n", p);
 		}
 	}
 
@@ -710,13 +720,16 @@ int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 	case GT_88E6165:
 	case GT_88E6171:
 	case GT_88E6351:
+	case GT_88E6172:
+	case GT_88E6176:
 		/* set Header Mode in all ports to False */
 		for (p = 0; p < qd_dev->numOfPorts; p++) {
-			if (MV_BIT_CHECK(switch_ports_mask, p))
+			if (MV_BIT_CHECK(switch_ports_mask, p)) {
 				if (gprtSetHeaderMode(qd_dev, p, GT_FALSE) != GT_OK) {
 					printk(KERN_ERR "gprtSetHeaderMode GT_FALSE failed\n");
 					return -1;
 				}
+			}
 		}
 
 		if (gprtSetHeaderMode(qd_dev, qd_cpu_port, GT_TRUE) != GT_OK) {
@@ -736,13 +749,13 @@ int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 	/* of the VLAN's ports. Our MAC addr will be added during start operation to the VLAN DB  */
 	/* at switch level to forward packets with this DA to CPU port.                           */
 	SWITCH_DBG(SWITCH_DBG_LOAD, ("Enabling Tunneling on ports: "));
-	for (i = 0; i < qd_dev->numOfPorts; i++) {
-		if (MV_BIT_CHECK(switch_ports_mask, i) && (i != qd_cpu_port)) {
-			if (gprtSetVlanTunnel(qd_dev, i, GT_TRUE) != GT_OK) {
-				printk(KERN_ERR "gprtSetVlanTunnel failed (port %d)\n", i);
+	for (p = 0; p < qd_dev->numOfPorts; p++) {
+		if (MV_BIT_CHECK(switch_ports_mask, p) && (p != qd_cpu_port)) {
+			if (gprtSetVlanTunnel(qd_dev, p, GT_TRUE) != GT_OK) {
+				printk(KERN_ERR "gprtSetVlanTunnel failed (port %d)\n", p);
 				return -1;
 			} else {
-				SWITCH_DBG(SWITCH_DBG_LOAD, ("%d ", i));
+				SWITCH_DBG(SWITCH_DBG_LOAD, ("%d ", p));
 			}
 		}
 	}
@@ -774,6 +787,8 @@ int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 	case GT_88E6165:
 	case GT_88E6171:
 	case GT_88E6351:
+	case GT_88E6172:
+	case GT_88E6176:
 		break;		/* do nothing */
 
 	default:
@@ -806,6 +821,7 @@ int mv_switch_init(int mtu, unsigned int switch_ports_mask)
 	/* for debug: */
 	mv_switch_status_print();
 #endif
+
 	return 0;
 }
 
@@ -817,9 +833,10 @@ unsigned int mv_switch_link_detection_init(void)
 	static int link_init_done = 0;
 	unsigned int connected_phys_mask = 0;
 
-	/* initialize link detection only once */
-	if (link_init_done)
+	if (qd_dev == NULL) {
+		printk(KERN_ERR "%s: qd_dev not initialized, call mv_switch_load() first\n", __func__);
 		return 0;
+	}
 
 	switch_irq = mvBoardSwitchIrqGet();
 
@@ -831,36 +848,43 @@ unsigned int mv_switch_link_detection_init(void)
 #else
 		connected_phys_mask = 0x1F;	/* KW40: Switch PHYs 0, 1, 2, 3, 4 */
 #endif
-		/* Enable Phy Link Status Changed interrupt at Phy level for the all enabled ports */
-		for (p = 0; p < qd_dev->numOfPorts; p++) {
-			if (MV_BIT_CHECK(connected_phys_mask, p) && (p != qd_cpu_port)) {
-				if (gprtPhyIntEnable(qd_dev, p, (GT_LINK_STATUS_CHANGED)) != GT_OK)
-					printk(KERN_ERR "gprtPhyIntEnable failed port %d\n", p);
+
+		if (!link_init_done) {
+			/* Enable Phy Link Status Changed interrupt at Phy level for the all enabled ports */
+			for (p = 0; p < qd_dev->numOfPorts; p++) {
+				if (MV_BIT_CHECK(connected_phys_mask, p) && (p != qd_cpu_port)) {
+					if (gprtPhyIntEnable(qd_dev, p, (GT_LINK_STATUS_CHANGED)) != GT_OK)
+						printk(KERN_ERR "gprtPhyIntEnable failed port %d\n", p);
+				}
 			}
-		}
 
-		if (switch_irq != -1) {
-			/* Interrupt supported */
+			if (switch_irq != -1) {
+				/* Interrupt supported */
 
-			if ((qd_dev->deviceId == GT_88E6161) || (qd_dev->deviceId == GT_88E6165) ||
-			    (qd_dev->deviceId == GT_88E6351) || (qd_dev->deviceId == GT_88E6171)) {
-				GT_DEV_EVENT gt_event = { GT_DEV_INT_PHY, 0, connected_phys_mask };
+				if ((qd_dev->deviceId == GT_88E6161) || (qd_dev->deviceId == GT_88E6165) ||
+				    (qd_dev->deviceId == GT_88E6351) || (qd_dev->deviceId == GT_88E6171) ||
+				    (qd_dev->deviceId == GT_88E6172) || (qd_dev->deviceId == GT_88E6176)) {
 
-				if (eventSetDevInt(qd_dev, &gt_event) != GT_OK)
-					printk(KERN_ERR "eventSetDevInt failed\n");
+					GT_DEV_EVENT gt_event = { GT_DEV_INT_PHY, 0, connected_phys_mask };
 
-				if (eventSetActive(qd_dev, GT_DEVICE_INT) != GT_OK)
-					printk(KERN_ERR "eventSetActive failed\n");
-			} else {
-				if (eventSetActive(qd_dev, GT_PHY_INTERRUPT) != GT_OK)
-					printk(KERN_ERR "eventSetActive failed\n");
+					if (eventSetDevInt(qd_dev, &gt_event) != GT_OK)
+						printk(KERN_ERR "eventSetDevInt failed\n");
+
+					if (eventSetActive(qd_dev, GT_DEVICE_INT) != GT_OK)
+						printk(KERN_ERR "eventSetActive failed\n");
+				} else {
+					if (eventSetActive(qd_dev, GT_PHY_INTERRUPT) != GT_OK)
+						printk(KERN_ERR "eventSetActive failed\n");
+				}
 			}
 		}
 	}
 
-	if (gephy_on_port >= 0) {
-		if (gprtPhyIntEnable(qd_dev, gephy_on_port, (GT_LINK_STATUS_CHANGED)) != GT_OK)
-			printk(KERN_ERR "gprtPhyIntEnable failed port %d\n", gephy_on_port);
+	if (!link_init_done) {
+		if (gephy_on_port >= 0) {
+			if (gprtPhyIntEnable(qd_dev, gephy_on_port, (GT_LINK_STATUS_CHANGED)) != GT_OK)
+				printk(KERN_ERR "gprtPhyIntEnable failed port %d\n", gephy_on_port);
+		}
 	}
 
 	if (qsgmii_module)
@@ -872,29 +896,32 @@ unsigned int mv_switch_link_detection_init(void)
 	if (rgmiia_on_port >= 0)
 		connected_phys_mask |= (1 << rgmiia_on_port);
 
-	/* we want to use a timer for polling link status if no interrupt is available for all or some of the PHYs */
-	if ((switch_irq == -1)) { /* liron, TODO: || (rgmiia_on_port >= 0) */
-		/* Use timer for polling */
-		switch_link_poll = 1;
-		init_timer(&switch_link_timer);
-		switch_link_timer.function = mv_switch_link_timer_function;
+	if (!link_init_done) {
+		/* we want to use a timer for polling link status if no interrupt is available for all or some of the PHYs */
+		if ((switch_irq == -1)) { /* liron, TODO: || (rgmiia_on_port >= 0) */
+			/* Use timer for polling */
+			switch_link_poll = 1;
+			init_timer(&switch_link_timer);
+			switch_link_timer.function = mv_switch_link_timer_function;
 
-		if (switch_irq == -1)
-			switch_link_timer.data = connected_phys_mask;
-		else		/* timer only for RGMII-A connected port */
-			switch_link_timer.data = (1 << rgmiia_on_port);
+			if (switch_irq == -1)
+				switch_link_timer.data = connected_phys_mask;
+			else		/* timer only for RGMII-A connected port */
+				switch_link_timer.data = (1 << rgmiia_on_port);
 
-		switch_link_timer.expires = jiffies + (HZ);	/* 1 second */
-		add_timer(&switch_link_timer);
+			switch_link_timer.expires = jiffies + (HZ);	/* 1 second */
+			add_timer(&switch_link_timer);
+		}
 	}
 
-	if (switch_irq != -1) {
-		/* Interrupt supported */
+	if (!link_init_done) {
+		if (switch_irq != -1) {
+			/* Interrupt supported */
+			mv_eth_switch_interrupt_unmask(qsgmii_module, gephy_on_port);
 
-		mv_eth_switch_interrupt_unmask(qsgmii_module, gephy_on_port);
-
-		if (request_irq(switch_irq, mv_switch_isr, (IRQF_DISABLED | IRQF_SAMPLE_RANDOM), "switch", NULL))
-			printk(KERN_ERR "failed to assign irq%d\n", switch_irq);
+			if (request_irq(switch_irq, mv_switch_isr, (IRQF_DISABLED | IRQF_SAMPLE_RANDOM), "switch", NULL))
+				printk(KERN_ERR "failed to assign irq%d\n", switch_irq);
+		}
 	}
 
 	link_init_done = 1;

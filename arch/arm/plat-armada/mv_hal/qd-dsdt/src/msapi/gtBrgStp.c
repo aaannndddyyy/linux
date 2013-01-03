@@ -22,7 +22,7 @@ static GT_STATUS enhancedBPDUSet(GT_QD_DEV *dev,GT_BOOL en)
 	GT_U16			enBits;
 
 	/* If disable, reset the BPDU bit(bit0) from Rsvd2CpuEnables register */
-   	if(en == GT_FALSE)
+	if(en == GT_FALSE)
 	{
 		if((retVal = gsysGetRsvd2CpuEnables(dev,&enBits)) != GT_OK)
 		{
@@ -33,16 +33,16 @@ static GT_STATUS enhancedBPDUSet(GT_QD_DEV *dev,GT_BOOL en)
 
 		if((retVal = gsysSetRsvd2CpuEnables(dev,enBits)) != GT_OK)
 		{
-    	    DBG_INFO(("gsysSetRsvd2CpuEnables failed.\n"));
+	    DBG_INFO(("gsysSetRsvd2CpuEnables failed.\n"));
 			return retVal;
 		}
 
 		return retVal;
 	}
 
-	/* 
-		If enable, 
-		1) Set MGMT Pri bits, 
+	/*
+		If enable,
+		1) Set MGMT Pri bits,
 		2) Set BPDU bit(bit0) from Rsvd2CpuEnables register,
 		3) Enable Rsvd2Cpu
 	*/
@@ -163,13 +163,13 @@ GT_STATUS gstpSetMode
 	for (i=0; i<dbNum; i++)
 	{
 	    /* Set the Atu entry parameters.    */
-    	atuEntry.macAddr.arEther[0] = 0x01;
+	atuEntry.macAddr.arEther[0] = 0x01;
 	    atuEntry.macAddr.arEther[1] = 0x80;
-    	atuEntry.macAddr.arEther[2] = 0xC2;
+	atuEntry.macAddr.arEther[2] = 0xC2;
 	    atuEntry.macAddr.arEther[3] = 0x00;
-    	atuEntry.macAddr.arEther[4] = 0x00;
+	atuEntry.macAddr.arEther[4] = 0x00;
 	    atuEntry.macAddr.arEther[5] = 0x00;
-    	atuEntry.portVec = GT_LPORTVEC_2_PORTVEC((1<<dev->cpuPortNum));
+	atuEntry.portVec = GT_LPORTVEC_2_PORTVEC((1<<dev->cpuPortNum));
 		if(IS_IN_DEV_GROUP(dev,DEV_ATU_EXT_PRI))
 		{
 			if(IS_IN_DEV_GROUP(dev,DEV_FQPRI_IN_TABLE))
@@ -195,15 +195,15 @@ GT_STATUS gstpSetMode
 		atuEntry.DBNum = (GT_U8)i;
 	    atuEntry.entryState.mcEntryState = GT_MC_PRIO_MGM_STATIC;
 
-    	if(en == GT_TRUE)
+	if(en == GT_TRUE)
 	    {
-    	    retVal = gfdbAddMacEntry(dev,&atuEntry);
+	    retVal = gfdbAddMacEntry(dev,&atuEntry);
 	    }
-    	else
+	else
 		{
 			if(dev->stpMode == 0)
 				break;
-        	retVal = gfdbDelAtuEntry(dev,&atuEntry);
+		retVal = gfdbDelAtuEntry(dev,&atuEntry);
 		}
 
 		if (retVal != GT_OK)
@@ -213,14 +213,14 @@ GT_STATUS gstpSetMode
     if(retVal == GT_OK)
 	{
 	    if(en == GT_TRUE)
-    	    dev->stpMode = 1;
+	    dev->stpMode = 1;
 	    else
-    	    dev->stpMode = 2;
+	    dev->stpMode = 2;
         DBG_INFO(("OK.\n"));
 	}
     else
 	{
-   	    dev->stpMode = 0;
+	    dev->stpMode = 0;
         DBG_INFO(("Failed.\n"));
 	}
 

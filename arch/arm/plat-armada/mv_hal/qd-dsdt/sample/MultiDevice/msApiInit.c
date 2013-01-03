@@ -9,8 +9,8 @@
 *	  	------------------
 *		|CPU Ethernet Dev|
 *		------------------
-*		 |		
-*		 |		
+*		 |
+*		 |
 *		 |   8--------------9	 8--------------9	  8--------------
 *		 |----| QD Device 0|------| QD Device 1|-----| QD Device 2|
 *	         --------------		  --------------		--------------
@@ -21,7 +21,7 @@
 *		port 9 of Device 0 is connected to port 8 of Device 1, and
 *		port 9 of Device 1 is connected to port 8 of Device 2.
 *
-*		Device 0 uses Phy Address 1, 
+*		Device 0 uses Phy Address 1,
 *		Device 1 uses Phy Address 2, and
 *		Device 2 uses Phy Address 3
 *		Notes: Phy Address 0 cannot be used in a Multi Chip Address Mode.
@@ -79,8 +79,8 @@ GT_STATUS qdMultiDevStart()
 	int i,j;
 
 	memset((char*)&cfg,0,sizeof(GT_SYS_CONFIG));
-	
-	/* 
+
+	/*
 	 *	Create QD Device Structure for each device.
 	 */
 	for(i=0; i<N_OF_QD_DEVICES; i++)
@@ -96,7 +96,7 @@ GT_STATUS qdMultiDevStart()
 
 		memset((char*)qdMultiDev[i],0,sizeof(GT_QD_DEV));
 	}
-	
+
 	/*
 	 *  Register all the required functions to QuarterDeck Driver for each device.
 	*/
@@ -139,7 +139,7 @@ GT_STATUS qdMultiDevStart()
 #else
 #ifdef MULTI_ADDR_MODE	/* It should have been defined for this sample code */
 		cfg.mode.scanMode = SMI_MULTI_ADDR_MODE;	/* find a QD in indirect access mode */
-		cfg.mode.baseAddr = DEVICE0_PHY_ADDR + i;		/* this is the phyAddr used by QD family device. 
+		cfg.mode.baseAddr = DEVICE0_PHY_ADDR + i;		/* this is the phyAddr used by QD family device.
 																		Valid values are 1 ~ 31.*/
 #else
 		cfg.mode.scanMode = SMI_AUTO_SCAN_MODE;	/* Scan 0 or 0x10 base address to find the QD */
@@ -168,10 +168,10 @@ GT_STATUS qdMultiDevStart()
 		}
 	}
 
-	/* 
+	/*
 		Now, we need to configure Cascading information for each devices.
 		1. Set Interswitch port mode for port 8 and 9 for device 0,1,and 2,
-			so that switch device can expect Marvell Tag from frames 
+			so that switch device can expect Marvell Tag from frames
 			ingressing/egressing this port.
 		2. Set CPU Port information (for To_CPU frame) for each port of device.
 		3. Set Cascading Port information (for From_CPU fram) for each device.
@@ -200,10 +200,10 @@ GT_STATUS qdMultiDevStart()
 
 		/*
 			1. Set Interswitch port mode for port 8 and 9 for device 0,1,and 2,
-				so that switch device can expect Marvell Tag from frames 
+				so that switch device can expect Marvell Tag from frames
 				ingressing/egressing this port.
 			2. Set CPU Port information (for To_CPU frame) for each port of device.
-		*/			
+		*/
 		for(j=0; j<qdMultiDev[i]->numOfPorts; j++)
 		{
 			if((i == cpuPort) || (i == cascadePort))
@@ -232,7 +232,7 @@ GT_STATUS qdMultiDevStart()
 
 		/*
 			3. Set Cascading Port information (for From_CPU fram) for each device.
-		*/	 	
+		*/
 		if((status=gsysSetCascadePort(qdMultiDev[i],cascadePort)) != GT_OK)
 		{
 			MSG_PRINT(("gsysSetCascadePort returned %i\n",status));
@@ -241,14 +241,14 @@ GT_STATUS qdMultiDevStart()
 
 		/*
 			4. Set Device ID (if required)
-		*/	 	
+		*/
 		if((status=gsysSetDeviceNumber(qdMultiDev[i],DEVICE0_ID+i)) != GT_OK)
 		{
 			MSG_PRINT(("gsysSetDeviceNumber returned %i\n",status));
 			goto errorExit;
 		}
 
-	}	
+	}
 
 	MSG_PRINT(("QuarterDeck has been started.\n"));
 
@@ -261,12 +261,11 @@ errorExit:
 		if(qdMultiDev[i] != NULL)
 		{
 			qdUnloadDriver(qdMultiDev[i]);
-	  		free(qdMultiDev[i]);
+			free(qdMultiDev[i]);
 		}
-	}	
+	}
 
 	MSG_PRINT(("QuarterDeck initialization failed.\n"));
 
 	return status;
 }
-

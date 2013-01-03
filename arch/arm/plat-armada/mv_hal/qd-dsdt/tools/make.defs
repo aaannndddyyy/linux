@@ -42,7 +42,7 @@ endif
 
 TOOL       = gnu
 
-SW_ROOT = $(subst \,/,$(USER_BASE))
+SW_ROOT = $(subst \,/,$(DSDT_USER_BASE))
 SRC_BASE_PATH = $(SW_ROOT)/src
 QD_INCLUDE_PATH = $(SW_ROOT)/Include/h
 
@@ -103,5 +103,3 @@ INCLUDE_PATH = -I. \
                -I$(QD_INCLUDE_PATH)/platform \
                -I$(SW_ROOT)/include \
                -I$(OS_INCLUDE_PATH)
-
-

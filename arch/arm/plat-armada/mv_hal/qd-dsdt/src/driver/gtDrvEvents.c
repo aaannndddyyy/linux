@@ -92,4 +92,3 @@ GT_BOOL eventQdSr
 
     return (*intCause)?GT_TRUE:GT_FALSE;
 }
-

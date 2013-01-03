@@ -3,9 +3,9 @@
 * minizeCPUTraffic.c
 *
 * DESCRIPTION:
-*		This sample shows how to setup the CPU port not to be a member of any 
-*		VLAN, while it still be a manager of a switch. 
-*		
+*		This sample shows how to setup the CPU port not to be a member of any
+*		VLAN, while it still be a manager of a switch.
+*
 * DEPENDENCIES:
 *		Please check the device's spec. if the device supports this feature.
 *		At the moment this sample was written, 88E6095 was the only device support
@@ -26,7 +26,7 @@
 	1) Mirror ARPs to the CPU with To_CPU Marvell Tag
 	2) Convert unicast frames directed to the CPU into To_CPU Marvell Tag
 	Assumption : Device ID, Cascading Port, CPU Port, and Interswitch Port are
-		already set properly. For more information, please refer to the 
+		already set properly. For more information, please refer to the
 		sample/MultiDevice/msApiInit.c
 */
 
@@ -42,7 +42,7 @@ GT_STATUS sampleMinimizeCPUTraffic1(GT_QD_DEV *dev, GT_U8* macAddr)
 
 	/*
 	 *	Remove CPU port from VLAN Member Table.
-	*/ 
+	*/
 	for(i=0; i<dev->numOfPorts; i++)
 	{
 		if((status = gvlnGetPortVlanPorts(dev,(GT_LPORT)i,memPorts,&memPortsLen)) != GT_OK)
@@ -103,7 +103,7 @@ GT_STATUS sampleMinimizeCPUTraffic1(GT_QD_DEV *dev, GT_U8* macAddr)
 		return status;
 	}
 
-	
+
 	return GT_OK;
 }
 
@@ -128,7 +128,7 @@ GT_STATUS sampleMinimizeCPUTraffic2(GT_QD_DEV *dev, GT_U8* macAddr)
 
 	/*
 	 *	Remove CPU port from VLAN Member Table.
-	*/ 
+	*/
 	for(i=0; i<dev->numOfPorts; i++)
 	{
 		if (i == cpuPort)
@@ -179,8 +179,6 @@ GT_STATUS sampleMinimizeCPUTraffic2(GT_QD_DEV *dev, GT_U8* macAddr)
 	memset(&macEntry,0,sizeof(GT_ATU_ENTRY));
 	memset(macEntry.macAddr.arEther,0xFF,6);
 	gfdbDelAtuEntry(dev,&macEntry);
-	
+
 	return GT_OK;
 }
-
-

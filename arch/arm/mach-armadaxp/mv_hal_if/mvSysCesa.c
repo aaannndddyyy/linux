@@ -66,7 +66,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "mvOs.h"
 #include "ctrlEnv/mvCtrlEnvLib.h"
 #include "boardEnv/mvBoardEnvLib.h"
-#include "mv_cesa/cesa_if.h"
+#include "cesa/mvCesaIf.h"
 
 extern u32 mv_crypto_phys_base_get(u8 chan);
 extern u32 mv_crypto_virt_base_get(u8 chan);
@@ -96,21 +96,26 @@ MV_STATUS mvSysCesaInit(int numOfSession, int queueDepth, void *osHandle)
 	if(status == MV_OK) {
 		for(chan = 0; chan < MV_CESA_CHANNELS; chan++) {
 			status = mvCesaIfTdmaWinInit(chan, addrWinMap);
-			
+
 			if(status != MV_OK) {
 				mvOsPrintf("Error, unable to initialize CESA windows for channel(%d)\n", chan);
 				break;
 			}
 			halData.sramPhysBase[chan] = (MV_ULONG)mv_crypto_phys_base_get(chan);
 			halData.sramVirtBase[chan] = (MV_U8*)mv_crypto_virt_base_get(chan);
+#ifdef CONFIG_ARMADA_SUPPORT_DEEP_IDLE_FAST_EXIT
+			halData.sramOffset[chan] = 32;
+#else
 			halData.sramOffset[chan] = 0;
+#endif
 		}
 
 		if(status == MV_OK) {
-			halData.ctrlModel = mvCtrlModelGet();
-			halData.ctrlRev = mvCtrlRevGet();
-			status = mvCesaIfInit (numOfSession, queueDepth, osHandle, &halData);
-		}
+		halData.ctrlModel = mvCtrlModelGet();
+		halData.ctrlRev = mvCtrlRevGet();
+			status = mvCesaIfHalInit (numOfSession, queueDepth,
+					osHandle, &halData);
+	}
 	}
 
 	return status;

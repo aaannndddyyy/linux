@@ -447,7 +447,3 @@ typedef uint16 VpGenTimerStatusType;
 #define VP_API_NONMASK_PACKET_EVENTS        0x0000
 
 #endif /* VP_API_EVENT_H */
-
-
-
-

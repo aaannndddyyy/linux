@@ -1278,9 +1278,3 @@ typedef enum {
 
 
 #endif  /* Vp880_API_INT_H */
-
-
-
-
-
-

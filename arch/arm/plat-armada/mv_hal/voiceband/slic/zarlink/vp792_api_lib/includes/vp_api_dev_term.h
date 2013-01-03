@@ -73,7 +73,7 @@ typedef enum
 
     /* FXO */
     VP_TERM_FXO_GENERIC            = 0x80, VP_TERM_FXO_FIRST = VP_TERM_FXO_GENERIC,
-    VP_TERM_FXO_DISC               = 0x81, 
+    VP_TERM_FXO_DISC               = 0x81,
     VP_TERM_FXO_CUSTOM             = 0x82, VP_TERM_FXO_LAST = VP_TERM_FXO_CUSTOM,
 
     VP_TERM_ENUM_SIZE = FORCE_STANDARD_C_ENUM_SIZE /* Portability Req. */

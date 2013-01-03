@@ -417,8 +417,12 @@ struct dovefb_info {
 	unsigned int LCD_SPU_COLORKEY_Y_saved_value;
 	unsigned int LCD_SPU_COLORKEY_U_saved_value;
 	unsigned int LCD_SPU_COLORKEY_V_saved_value;
+	unsigned int LCD_SPU_DMA_CTRL0_saved_value;
 	unsigned int LCD_SPU_DMA_CTRL1_saved_value;
 	unsigned int LCD_SPU_ADV_REG_saved_value;
+
+	unsigned int LCD_CFG_GRA_PITCH_saved_value;
+	unsigned int LCD_CFG_RDREG4F_saved_value;
 };
 
 /*

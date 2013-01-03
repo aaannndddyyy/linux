@@ -1726,7 +1726,7 @@ static inline int mv_eth_rx(struct eth_port *pp, int rx_todo, int rxq)
 		if (skb) {
 			STAT_DBG(pp->stats.rx_netif++);
 			rx_status = netif_receive_skb(skb);
-			STAT_DBG((rx_status == 0) ? : pp->stats.rx_drop_sw++);
+			STAT_DBG((rx_status == 0) ? 0 : pp->stats.rx_drop_sw++);
 		}
 
 		/* Refill processing: */
@@ -1886,7 +1886,8 @@ static int mv_eth_tx(struct sk_buff *skb, struct net_device *dev)
 	if (pp->flags & MV_ETH_F_DBG_TX) {
 		printk(KERN_ERR "\n");
 		printk(KERN_ERR "%s - eth_tx_%lu: cpu=%d, in_intr=0x%lx, port=%d, txp=%d, txq=%d\n",
-		       dev->name, dev->stats.tx_packets, smp_processor_id(), in_interrupt(), pp->port, tx_spec.txp, tx_spec.txq);
+			dev->name, dev->stats.tx_packets, smp_processor_id(), in_interrupt(),
+			pp->port, tx_spec.txp, tx_spec.txq);
 		printk(KERN_ERR "\t skb=%p, head=%p, data=%p, size=%d\n", skb, skb->head, skb->data, skb->len);
 		mv_eth_tx_desc_print(tx_desc);
 		/*mv_eth_skb_print(skb);*/
@@ -1916,7 +1917,7 @@ out:
 #ifndef CONFIG_MV_ETH_TXDONE_ISR
 	if (txq_ctrl) {
 		if (txq_ctrl->txq_count >= mv_ctrl_txdone) {
-			STAT_DIST(u32 tx_done = )mv_eth_txq_done(pp, txq_ctrl);
+			u32 tx_done = mv_eth_txq_done(pp, txq_ctrl);
 
 			STAT_DIST((tx_done < pp->dist_stats.tx_done_dist_size) ? pp->dist_stats.tx_done_dist[tx_done]++ : 0);
 
@@ -3089,9 +3090,10 @@ int mv_eth_resume_network_interfaces(struct eth_port *pp)
 #ifdef CONFIG_MV_ETH_SWITCH
 	if (pp->flags & MV_ETH_F_SWITCH) {
 		/* set this port to be in promiscuous mode. MAC filtering is performed by the Switch */
-		mv_eth_port_promisc_set(pp->port, pp->cpu_config[cpu]->txq);
+		mv_eth_port_promisc_set(pp->port, CONFIG_MV_ETH_RXQ_DEF);
 	}
 #endif /* CONFIG_MV_ETH_SWITCH */
+
 	for (cpu = 0; cpu < CONFIG_NR_CPUS; cpu++) {
 		/* set queue mask per cpu */
 		mvNetaRxqCpuMaskSet(pp->port, pp->cpu_config[cpu]->cpuRxqMask, cpu);
@@ -3121,9 +3123,7 @@ int mv_eth_port_resume(int port)
 		printk(KERN_ERR "%s: port %d is not suspend.\n", __func__, port);
 		return -1;
 	}
-#if !defined(CONFIG_ARCH_ARMADA370)
-	mvNetaPortPowerUp(port, mvBoardIsPortInSgmii(port), !mvBoardIsPortInGmii(port));
-#endif
+	mvNetaPortPowerUp(port, mvBoardIsPortInSgmii(port), mvBoardIsPortInRgmii(port));
 
 	mv_eth_win_init(port);
 
@@ -5388,8 +5388,10 @@ void mv_eth_port_status_print(unsigned int port)
 			cpuCtrl = pp->cpu_config[cpu];
 			if (MV_BIT_CHECK(pp->cpuMask, cpu))
 				printk(KERN_ERR "  %d:   %d   0x%08x   %d    0x%02x    0x%02x    0x%02x    %d\n",
-					cpu, cpuCtrl->txq, cpuCtrl->causeRxTx, test_bit(NAPI_STATE_SCHED, &cpuCtrl->napi->state),
-					cpuCtrl->cpuTxqMask, cpuCtrl->cpuTxqOwner, (unsigned)cpuCtrl->flags, timer_pending(&cpuCtrl->tx_done_timer));
+					cpu, cpuCtrl->txq, cpuCtrl->causeRxTx,
+					test_bit(NAPI_STATE_SCHED, &cpuCtrl->napi->state),
+					cpuCtrl->cpuTxqMask, cpuCtrl->cpuTxqOwner, (unsigned)cpuCtrl->flags,
+					timer_pending(&cpuCtrl->tx_done_timer));
 		}
 	}
 

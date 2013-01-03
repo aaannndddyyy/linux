@@ -3,9 +3,9 @@
 * macAddr.c
 *
 * DESCRIPTION:
-*	This sample will demonstrate how to add/delete a static MAC Address 
+*	This sample will demonstrate how to add/delete a static MAC Address
 *	into/from the QuaterDeck MAC Address Data Base.
-*		
+*
 * DEPENDENCIES:   None.
 *
 * FILE REVISION NUMBER:
@@ -22,7 +22,7 @@ GT_STATUS sampleAddCPUMac(GT_QD_DEV *dev)
 	GT_STATUS status;
 	GT_ATU_ENTRY macEntry;
 
-	/* 
+	/*
 	 *	Assume that Ethernet address for the CPU MAC is
 	 *	00-50-43-00-01-02.
 	*/
@@ -40,18 +40,18 @@ GT_STATUS sampleAddCPUMac(GT_QD_DEV *dev)
 								meaningful only if the device does not support extended priority
 								information such as MAC Queue Priority and MAC Frame Priority */
 
-	macEntry.exPrio.macQPri = 0;	/* If device doesnot support MAC Queue Priority override, 
+	macEntry.exPrio.macQPri = 0;	/* If device doesnot support MAC Queue Priority override,
 									this field is ignored. */
-	macEntry.exPrio.macFPri = 0;	/* If device doesnot support MAC Frame Priority override, 
+	macEntry.exPrio.macFPri = 0;	/* If device doesnot support MAC Frame Priority override,
 									this field is ignored. */
-	macEntry.exPrio.useMacFPri = 0;	/* If device doesnot support MAC Frame Priority override, 
+	macEntry.exPrio.useMacFPri = 0;	/* If device doesnot support MAC Frame Priority override,
 									this field is ignored. */
 
 	macEntry.entryState.ucEntryState = GT_UC_STATIC;
 								/* This address is locked and will not be aged out.
 								Refer to GT_ATU_UC_STATE in msApiDefs.h for other option. */
 
-	/* 
+	/*
 	 *	Add the MAC Address.
 	 */
 	if((status = gfdbAddMacEntry(dev,&macEntry)) != GT_OK)
@@ -73,7 +73,7 @@ GT_STATUS sampleDelCPUMac(GT_QD_DEV *dev)
 	GT_STATUS status;
 	GT_ATU_ENTRY macEntry;
 
-	/* 
+	/*
 	 *	Assume that Ethernet address for the CPU MAC is
 	 *	00-50-43-00-01-02.
 	*/
@@ -84,7 +84,7 @@ GT_STATUS sampleDelCPUMac(GT_QD_DEV *dev)
 	macEntry.macAddr.arEther[4] = 0x01;
 	macEntry.macAddr.arEther[5] = 0x02;
 
-	/* 
+	/*
 	 *	Delete the CPU MAC Address.
 	 */
 	if((status = gfdbDelMacEntry(dev,&macEntry.macAddr)) != GT_OK)
@@ -108,7 +108,7 @@ GT_STATUS sampleAddMulticastAddr(GT_QD_DEV *dev)
 	GT_STATUS status;
 	GT_ATU_ENTRY macEntry;
 
-	/* 
+	/*
 	 *	Assume that we want to add the following multicast address
 	 *	01-50-43-00-01-02.
 	*/
@@ -133,18 +133,18 @@ GT_STATUS sampleAddMulticastAddr(GT_QD_DEV *dev)
 								meaningful only if the device does not support extended priority
 								information such as MAC Queue Priority and MAC Frame Priority */
 
-	macEntry.exPrio.macQPri = 0;	/* If device doesnot support MAC Queue Priority override, 
+	macEntry.exPrio.macQPri = 0;	/* If device doesnot support MAC Queue Priority override,
 									this field is ignored. */
-	macEntry.exPrio.macFPri = 0;	/* If device doesnot support MAC Frame Priority override, 
+	macEntry.exPrio.macFPri = 0;	/* If device doesnot support MAC Frame Priority override,
 									this field is ignored. */
-	macEntry.exPrio.useMacFPri = 0;	/* If device doesnot support MAC Frame Priority override, 
+	macEntry.exPrio.useMacFPri = 0;	/* If device doesnot support MAC Frame Priority override,
 									this field is ignored. */
 
 	macEntry.entryState.ucEntryState = GT_MC_STATIC;
-								/* This address is locked and will not be aged out. 
+								/* This address is locked and will not be aged out.
 								Refer to GT_ATU_MC_STATE in msApiDefs.h for other option.*/
 
-	/* 
+	/*
 	 *	Add the MAC Address.
 	 */
 	if((status = gfdbAddMacEntry(dev,&macEntry)) != GT_OK)
@@ -166,7 +166,7 @@ GT_STATUS sampleDelMulticastAddr(GT_QD_DEV *dev)
 	GT_STATUS status;
 	GT_ATU_ENTRY macEntry;
 
-	/* 
+	/*
 	 *	Assume that Ethernet address for the CPU MAC is
 	 *	01-50-43-00-01-02.
 	*/
@@ -177,7 +177,7 @@ GT_STATUS sampleDelMulticastAddr(GT_QD_DEV *dev)
 	macEntry.macAddr.arEther[4] = 0x01;
 	macEntry.macAddr.arEther[5] = 0x02;
 
-	/* 
+	/*
 	 *	Delete the given Multicast Address.
 	 */
 	if((status = gfdbDelMacEntry(dev,&macEntry.macAddr)) != GT_OK)

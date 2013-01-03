@@ -163,6 +163,12 @@ struct mv_xor_desc {
 	u32 reserved1;
 };
 
+/* Stores certain registers during suspend to RAM */
+struct mv_xor_save_regs {
+	int xor_config;
+	int interrupt_mask;
+};
+
 #define to_mv_sw_desc(addr_hw_desc)		\
 	container_of(addr_hw_desc, struct mv_xor_desc_slot, hw_desc)
 

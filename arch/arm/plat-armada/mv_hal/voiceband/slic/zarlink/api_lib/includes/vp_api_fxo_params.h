@@ -62,6 +62,3 @@ typedef enum
     VP_FXO_ENUM_SIZE = FORCE_STANDARD_C_ENUM_SIZE /* Portability Req.*/
 } vp_fxo_dialingProfileParams;
 #endif
-
-
-

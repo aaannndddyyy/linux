@@ -96,4 +96,3 @@ typedef VpPktDataType* VpPktDataPtrType;
 #define VP_INT32_MAX    ((long)(~0UL>>1))
 #define VP_INT32_MIN    (-VP_INT32_MAX - 1)
 #endif /* VP_API_TYPES_H */
-

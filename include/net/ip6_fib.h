@@ -1,8 +1,8 @@
 /*
- *	Linux INET6 implementation 
+ *	Linux INET6 implementation
  *
  *	Authors:
- *	Pedro Roque		<roque@di.fc.ul.pt>	
+ *	Pedro Roque		<roque@di.fc.ul.pt>
  *
  *	This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -119,6 +119,11 @@ struct rt6_info {
 	unsigned short			rt6i_nfheader_len;
 
 	u8				rt6i_protocol;
+
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	int				rt6i_iifindex;
+	bool 			nfp;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 };
 
 static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)

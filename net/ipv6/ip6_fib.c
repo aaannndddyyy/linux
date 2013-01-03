@@ -18,6 +18,7 @@
  * 				routing table.
  * 	Ville Nuorvala:		Fixed routing subtrees.
  */
+#include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/net.h>
@@ -27,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/mv_nfp.h>
 
 #include <net/ipv6.h>
 #include <net/ndisc.h>
@@ -415,6 +417,56 @@ out:
 	return res;
 }
 
+
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+static int fib6_add_node(struct fib6_walker_t *w)
+{
+	struct rt6_info *rt;
+	for (rt = w->leaf; rt; rt = rt->dst.rt6_next) {
+		if (rt->rt6i_flags & RTF_CACHE) {
+			if (nfp_mgr_p->nfp_hook_fib_rule_add)
+				if (!nfp_mgr_p->nfp_hook_fib_rule_add(AF_INET6, (u8 *)&rt->rt6i_src.addr,
+				(u8 *)&rt->rt6i_dst.addr,
+				(u8 *)&rt->rt6i_gateway,
+				rt->rt6i_iifindex,
+				rt->rt6i_dev->ifindex))
+				rt->nfp = true;
+		}
+	}
+	w->leaf = rt;
+	return 0;
+}
+
+void nfp_fib6_sync(void)
+{
+	struct fib6_table *table;
+	struct hlist_node *node;
+	struct hlist_head *head;
+	unsigned int h;
+	int res;
+	struct net *net = &init_net;
+	struct fib6_walker_t w;
+
+	w.func = fib6_add_node;
+	w.prune = 0;
+	printk(KERN_INFO "%s:\n", __func__);
+	rcu_read_lock();
+	for (h = 0; h < FIB6_TABLE_HASHSZ; h++) {
+		head = &net->ipv6.fib_table_hash[h];
+		hlist_for_each_entry_rcu(table, node, head, tb6_hlist) {
+			write_lock_bh(&table->tb6_lock);
+			w.root = &table->tb6_root;
+			res = fib6_walk(&w);
+			write_unlock_bh(&table->tb6_lock);
+		}
+	}
+	rcu_read_unlock();
+
+}
+EXPORT_SYMBOL(nfp_fib6_sync);
+
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
+
 /*
  *	Routing Table
  *
@@ -668,6 +720,16 @@ static int fib6_add_rt2node(struct fib6_node *fn, struct rt6_info *rt,
 		fn->fn_flags |= RTN_RTINFO;
 	}
 
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	rt->nfp = false;
+	if (rt->rt6i_flags & RTF_CACHE)	{
+		if (nfp_mgr_p->nfp_hook_fib_rule_add)
+			if (!nfp_mgr_p->nfp_hook_fib_rule_add(AF_INET6, (u8 *)&rt->rt6i_src.addr,
+					(u8 *)&rt->rt6i_dst.addr, (u8 *)&rt->rt6i_gateway,
+					rt->rt6i_iifindex, rt->rt6i_dev->ifindex))
+				rt->nfp = true;
+	}
+#endif
 	return 0;
 }
 
@@ -1156,6 +1218,13 @@ static void fib6_del_route(struct fib6_node *fn, struct rt6_info **rtp,
 	}
 
 	inet6_rt_notify(RTM_DELROUTE, rt, info);
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	if (rt->rt6i_flags & RTF_CACHE)
+		if (rt->nfp)
+			if (nfp_mgr_p->nfp_hook_fib_rule_del)
+				nfp_mgr_p->nfp_hook_fib_rule_del(AF_INET6, (u8 *)&rt->rt6i_src.addr, (u8 *)&rt->rt6i_dst.addr,
+							rt->rt6i_iifindex, rt->rt6i_dev->ifindex);
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 	rt6_release(rt);
 }
 
@@ -1456,6 +1525,14 @@ static int fib6_age(struct rt6_info *rt, void *arg)
 				  rt);
 			return -1;
 		}
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+		if (rt->nfp) {
+			if (nfp_mgr_p->nfp_hook_fib_rule_age)
+				if (nfp_mgr_p->nfp_hook_fib_rule_age(AF_INET6, (u8 *)(&rt->rt6i_src.addr), (u8 *)(&rt->rt6i_dst.addr),
+					rt->rt6i_iifindex, rt->rt6i_dev->ifindex))
+				rt->dst.lastuse = now;
+		}
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 		gc_args.more++;
 	}
 
@@ -1601,3 +1678,4 @@ void fib6_gc_cleanup(void)
 	unregister_pernet_subsys(&fib6_net_ops);
 	kmem_cache_destroy(fib6_node_kmem);
 }
+

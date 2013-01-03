@@ -113,6 +113,9 @@ struct neighbour {
 	const struct neigh_ops	*ops;
 	struct rcu_head		rcu;
 	struct net_device	*dev;
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	bool 			nfp;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 	u8			primary_key[0];
 };
 

@@ -302,6 +302,7 @@ enum {
 	MV5_LTMODE		= 0x30,
 	MV5_PHY_CTL		= 0x0C,
 	SATA_IFCFG		= 0x050,
+	LP_PHY_CTL		= 0x058,
 
 	MV_M2_PREAMP_MASK	= 0x7e0,
 
@@ -1348,6 +1349,8 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 
 	if (ofs != 0xffffffffU) {
 		void __iomem *addr = mv_ap_base(link->ap) + ofs;
+		void __iomem *lp_phy_addr = mv_ap_base(link->ap) + LP_PHY_CTL;
+
 		if (sc_reg_in == SCR_CONTROL) {
 			/*
 			 * Workaround for 88SX60x1 FEr SATA#26:
@@ -1364,6 +1367,15 @@ static int mv_scr_write(struct ata_link *link, unsigned int sc_reg_in, u32 val)
 			 */
 			if ((val & 0xf) == 1 || (readl(addr) & 0xf) == 1)
 				val |= 0xf000;
+
+			/*
+			 * Setting PHY speed according to SControl speed
+			 */
+			if ((val & 0xf0) == 0x10)
+				writelfl(0x7, lp_phy_addr);
+			else
+				writelfl(0x227, lp_phy_addr);
+
 		}
 		writelfl(val, addr);
 		return 0;
@@ -2391,10 +2403,19 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 {
 	struct mv_port_priv *pp = ap->private_data;
 	struct ata_queued_cmd *qc;
+	struct ata_link *link = NULL;
 
 	if (pp->pp_flags & MV_PP_FLAG_NCQ_EN)
 		return NULL;
-	qc = ata_qc_from_tag(ap, ap->link.active_tag);
+
+	ata_for_each_link(link, ap, EDGE)
+		if (ata_link_active(link))
+			break;
+
+        if (!link)
+                link = &ap->link;
+
+	qc = ata_qc_from_tag(ap, link->active_tag);
 	if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING))
 		return qc;
 	return NULL;
@@ -2780,6 +2801,7 @@ static void mv_process_crpb_entries(struct ata_port *ap, struct mv_port_priv *pp
 	in_index = (readl(port_mmio + EDMA_RSP_Q_IN_PTR)
 			>> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK;
 
+		dma_io_sync();
 	/* Process new responses from since the last time we looked */
 	while (in_index != pp->resp_idx) {
 		unsigned int tag;

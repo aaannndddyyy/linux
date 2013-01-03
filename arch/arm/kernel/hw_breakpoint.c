@@ -1025,7 +1025,7 @@ static int __init arch_hw_breakpoint_init(void)
 	register_cpu_notifier(&dbg_reset_nb);
 	return 0;
 }
-arch_initcall(arch_hw_breakpoint_init);
+//arch_initcall(arch_hw_breakpoint_init);
 
 void hw_breakpoint_pmu_read(struct perf_event *bp)
 {

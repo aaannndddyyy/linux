@@ -51,6 +51,7 @@
 #include <linux/atomic.h>
 
 #include <linux/nsproxy.h>
+#include <linux/mv_nfp.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -2840,8 +2841,7 @@ ppp_connect_channel(struct channel *pch, int unit)
 	atomic_inc(&ppp->file.refcnt);
 	ppp_unlock(ppp);
 	ret = 0;
-
- outl:
+outl:
 	write_unlock_bh(&pch->upl);
  out:
 	mutex_unlock(&pn->all_ppp_mutex);

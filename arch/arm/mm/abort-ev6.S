@@ -25,6 +25,7 @@ ENTRY(v6_early_abort)
 #endif
 	mrc	p15, 0, r1, c5, c0, 0		@ get FSR
 	mrc	p15, 0, r0, c6, c0, 0		@ get FAR
+#ifndef CONFIG_SMP
 /*
  * Faulty SWP instruction on 1136 doesn't set bit 11 in DFSR.
  */

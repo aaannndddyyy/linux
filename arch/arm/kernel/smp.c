@@ -50,6 +50,7 @@
 struct secondary_data secondary_data;
 
 enum ipi_msg_type {
+	IPI_WAKE = 0,
 	IPI_TIMER = 2,
 	IPI_RESCHEDULE,
 	IPI_CALL_FUNC,
@@ -297,6 +298,13 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu = smp_processor_id();
 
+#ifdef CONFIG_MACH_ARMADA_XP_FPGA
+	unsigned int cpurev;
+
+	__asm__ __volatile__("mrc p15, 1, %0, c0, c0, 7   @ read CPU ID reg\n"
+		: "=r" (cpurev) :: "memory");
+#endif
+
 	/*
 	 * All kernel threads share the same mm context; grab a
 	 * reference and switch to it.
@@ -308,7 +316,11 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	enter_lazy_tlb(mm, current);
 	local_flush_tlb_all();
 
-	printk("CPU%u: Booted secondary processor\n", cpu);
+#ifdef CONFIG_MACH_ARMADA_XP_FPGA
+        printk("CPU%u: FPGA Booted secondary processor (ID 0x%04x)\n", cpu, (cpurev & 0xFFFF));
+#else
+        printk("CPU%u: Booted secondary processor\n", cpu);
+#endif
 
 	cpu_init();
 	preempt_disable();
@@ -468,6 +480,20 @@ u64 smp_irq_stat_cpu(unsigned int cpu)
  */
 static DEFINE_PER_CPU(struct clock_event_device, percpu_clockevent);
 
+#if defined(CONFIG_ARCH_ARMADA_XP) && defined(CONFIG_PERF_EVENTS)
+void show_local_pmu_irqs(struct seq_file *p, int prec)
+{
+	 unsigned int cpu;
+
+	 seq_printf(p, "PMU: ");
+	 
+	 for_each_present_cpu(cpu)
+		seq_printf(p, "%10u ", irq_stat[cpu].local_pmu_irqs);
+	 
+	 seq_putc(p, '\n');
+}
+#endif
+
 static void ipi_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(percpu_clockevent);
@@ -505,7 +531,6 @@ void __cpuinit percpu_timer_setup(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
-
 	evt->cpumask = cpumask_of(cpu);
 	evt->broadcast = smp_timer_broadcast;
 
@@ -564,11 +589,13 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
 	struct pt_regs *old_regs = set_irq_regs(regs);
-
 	if (ipinr >= IPI_TIMER && ipinr < IPI_TIMER + NR_IPI)
 		__inc_irq_stat(cpu, ipi_irqs[ipinr - IPI_TIMER]);
 
 	switch (ipinr) {
+	case IPI_WAKE:
+		break;
+
 	case IPI_TIMER:
 		irq_enter();
 		ipi_timer();
@@ -630,9 +657,31 @@ void smp_send_stop(void)
 		pr_warning("SMP: failed to stop secondary CPUs\n");
 }
 
+#if 0
+
+/*Hacked by Seif M. for now - no need for this in V7 */
 /*
  * not supported here
  */
+static inline void ipi_flush_cache_user_range(void *arg)
+{
+	struct tlb_args *ta = (struct tlb_args *)arg;
+
+	local_flush_cache_user_range(ta->ta_vma, ta->ta_start, ta->ta_end);
+}
+void flush_cache_user_range(struct vm_area_struct *vma,
+			    unsigned long start, unsigned long end)
+{
+	if (tlb_ops_need_broadcast()) {
+		struct tlb_args ta;
+		ta.ta_vma = vma;
+		ta.ta_start = start;
+		ta.ta_end = end;
+		on_each_cpu_mask(ipi_flush_cache_user_range, &ta, 1, mm_cpumask(vma->vm_mm));
+	} else
+		local_flush_cache_user_range(vma, start, end);
+}
+#endif
 int setup_profiling_timer(unsigned int multiplier)
 {
 	return -EINVAL;

@@ -9,6 +9,7 @@
 
 typedef struct {
 	unsigned int __softirq_pending;
+	unsigned int local_pmu_irqs;
 #ifdef CONFIG_SMP
 	unsigned int ipi_irqs[NR_IPI];
 #endif

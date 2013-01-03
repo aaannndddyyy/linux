@@ -91,6 +91,7 @@
 #include <linux/rcupdate.h>
 #include <linux/times.h>
 #include <linux/slab.h>
+#include <linux/mv_nfp.h>
 #include <linux/prefetch.h>
 #include <net/dst.h>
 #include <net/net_namespace.h>
@@ -660,6 +661,12 @@ static inline int ip_rt_proc_init(void)
 
 static inline void rt_free(struct rtable *rt)
 {
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+		if (rt->nfp)
+			if (nfp_mgr_p->nfp_hook_fib_rule_del)
+				nfp_mgr_p->nfp_hook_fib_rule_del(AF_INET, (u8 *)(&rt->rt_src), (u8*)(&rt->rt_dst),
+							rt->rt_iif, rt->dst.dev->ifindex);
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 	call_rcu_bh(&rt->dst.rcu_head, dst_rcu_free);
 }
 
@@ -687,10 +694,16 @@ static int rt_may_expire(struct rtable *rth, unsigned long tmo1, unsigned long t
 {
 	unsigned long age;
 	int ret = 0;
-
 	if (atomic_read(&rth->dst.__refcnt))
 		goto out;
-
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	if (rth->nfp) {
+		if (nfp_mgr_p->nfp_hook_fib_rule_age)
+			if (nfp_mgr_p->nfp_hook_fib_rule_age(AF_INET, (u8 *)(&rth->rt_src), (u8 *)(&rth->rt_dst),
+						rth->rt_iif, rth->dst.dev->ifindex))
+			rth->dst.lastuse = jiffies;
+	}
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 	age = jiffies - rth->dst.lastuse;
 	if ((age <= tmo1 && !rt_fast_clean(rth)) ||
 	    (age <= tmo2 && rt_valuable(rth)))
@@ -804,6 +817,36 @@ static void rt_do_flush(struct net *net, int process_context)
 		}
 	}
 }
+
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+void nfp_fib_sync(void)
+{
+	struct rtable *rt;
+	int h;
+
+	for (h = 0; h <= rt_hash_mask; h++) {
+		if (!rt_hash_table[h].chain)
+			continue;
+
+		rcu_read_lock_bh();
+		for (rt = rcu_dereference_bh(rt_hash_table[h].chain); rt;
+		    rt = rcu_dereference_bh(rt->dst.rt_next)) {
+			if (rt_is_expired(rt))
+				continue;
+
+			rt->nfp = false;
+			if (!(rt->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL | RTCF_REJECT))) {
+				if (nfp_mgr_p->nfp_hook_fib_rule_add)
+					if (!nfp_mgr_p->nfp_hook_fib_rule_add(AF_INET, (u8 *)(&rt->rt_src), (u8 *)(&rt->rt_dst),
+					  (u8 *)(&rt->rt_gateway), rt->rt_iif, rt->dst.dev->ifindex))
+					rt->nfp = true;
+			}
+		}
+		rcu_read_unlock_bh();
+	}
+}
+EXPORT_SYMBOL(nfp_fib_sync);
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 
 /*
  * While freeing expired entries, we compute average chain length
@@ -2052,7 +2095,9 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false);
 	if (!rth)
 		goto e_nobufs;
-
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	rth->nfp = false;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 #ifdef CONFIG_IP_ROUTE_CLASSID
 	rth->dst.tclassid = itag;
 #endif
@@ -2215,6 +2260,15 @@ static int __mkroute_input(struct sk_buff *skb,
 	rth->dst.output = ip_output;
 
 	rt_set_nexthop(rth, NULL, res, res->fi, res->type, itag);
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	rth->nfp = false;
+	if (!(rth->rt_flags & (RTCF_MULTICAST | RTCF_BROADCAST | RTCF_LOCAL | RTCF_REJECT))) {
+		if (nfp_mgr_p->nfp_hook_fib_rule_add)
+			if (!nfp_mgr_p->nfp_hook_fib_rule_add(AF_INET, (u8 *)(&rth->rt_src), (u8 *)(&rth->rt_dst),
+					(u8 *)(&rth->rt_gateway), rth->rt_iif, rth->dst.dev->ifindex))
+			rth->nfp = true;
+	}
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 
 	*result = rth;
 	err = 0;
@@ -2270,11 +2324,11 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	struct flowi4	fl4;
 	unsigned	flags = 0;
 	u32		itag = 0;
-	struct rtable * rth;
+	struct rtable  *rth;
 	unsigned	hash;
 	__be32		spec_dst;
 	int		err = -EINVAL;
-	struct net    * net = dev_net(dev);
+	struct net     *net = dev_net(dev);
 
 	/* IP on this device is disabled. */
 
@@ -2366,7 +2420,9 @@ local_input:
 			   IN_DEV_CONF_GET(in_dev, NOPOLICY), false);
 	if (!rth)
 		goto e_nobufs;
-
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	rth->nfp = false;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 	rth->dst.input= ip_local_deliver;
 	rth->dst.output= ip_rt_bug;
 #ifdef CONFIG_IP_ROUTE_CLASSID
@@ -2577,7 +2633,9 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 			   IN_DEV_CONF_GET(in_dev, NOXFRM));
 	if (!rth)
 		return ERR_PTR(-ENOBUFS);
-
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	rth->nfp = false;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 	rth->dst.output = ip_output;
 
 	rth->rt_key_dst	= orig_daddr;
@@ -2916,7 +2974,9 @@ struct dst_entry *ipv4_blackhole_route(struct net *net, struct dst_entry *dst_or
 		new->dev = ort->dst.dev;
 		if (new->dev)
 			dev_hold(new->dev);
-
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+		rt->nfp = false;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 		rt->rt_key_dst = ort->rt_key_dst;
 		rt->rt_key_src = ort->rt_key_src;
 		rt->rt_key_tos = ort->rt_key_tos;
@@ -3351,9 +3411,9 @@ static struct ctl_table empty[1];
 
 static struct ctl_table ipv4_skeleton[] =
 {
-	{ .procname = "route", 
+	{ .procname = "route",
 	  .mode = 0555, .child = ipv4_route_table},
-	{ .procname = "neigh", 
+	{ .procname = "neigh",
 	  .mode = 0555, .child = empty},
 	{ }
 };

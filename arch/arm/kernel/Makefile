@@ -13,6 +13,10 @@ CFLAGS_REMOVE_return_address.o = -pg
 
 # Object file lists.
 
+ifneq ($(MACHINE),)
+include $(srctree)/$(MACHINE)/config/mvRules.mk
+endif
+
 obj-y		:= elf.o entry-armv.o entry-common.o irq.o \
 		   process.o ptrace.o return_address.o setup.o signal.o \
 		   sys_arm.o stacktrace.o time.o traps.o

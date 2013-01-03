@@ -19,6 +19,11 @@
 #define APOLLO_MOUSE_MINOR	7
 #define PC110PAD_MINOR		9
 /*#define ADB_MOUSE_MINOR	10	FIXME OBSOLETE */
+#define CRYPTODEV_MINOR         70      /* OCF async crypto */
+#define CESADEV_MINOR		71	/* marvell CESA     */
+#define BTNSDEV_MINOR  		72	/* Marvell btns */
+#define SLICDEV_MINOR		73	/* Marvell SLIC control device */
+#define TDMDEV_MINOR		74	/* Marvell TDM test device */
 #define WATCHDOG_MINOR		130	/* Watchdog timer     */
 #define TEMP_MINOR		131	/* Temperature Sensor */
 #define RTC_MINOR		135
@@ -34,13 +39,13 @@
 #define MWAVE_MINOR		219	/* ACP/Mwave Modem */
 #define MPT_MINOR		220
 #define MPT2SAS_MINOR		221
-#define UINPUT_MINOR		223
+#define UINPUT_MINOR           	223
 #define HPET_MINOR		228
 #define FUSE_MINOR		229
 #define KVM_MINOR		232
 #define BTRFS_MINOR		234
 #define AUTOFS_MINOR		235
-#define MAPPER_CTRL_MINOR	236
+#define MAPPER_CTRL_MINOR       236
 #define LOOP_CTRL_MINOR		237
 #define MISC_DYNAMIC_MINOR	255
 

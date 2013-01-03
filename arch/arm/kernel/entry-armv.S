@@ -789,10 +789,34 @@ ENDPROC(__switch_to)
 	.globl	__kuser_helper_start
 __kuser_helper_start:
 
+#ifdef CONFIG_ARMADA_XP_A0_WITH_B0
 /*
- * Due to the length of some sequences, __kuser_cmpxchg64 spans 2 regular
- * kuser "slots", therefore 0xffff0f80 is not used as a valid entry point.
+ * Due to the sheeva arm errata 6075 - DMB must be replaced with DSB when using revision A0 of the Armada-XP
+ * In order to make the revision check on runtime, we added the following functions that implement the custom memory barrier
  */
+__kuser_memory_barrier_errata_6075_1:				@ 0xffff0f20
+	ldr		r3, [pc, #0x1C]
+	teqeq	r3, #0x2								@ MV_78XX0_B0_REV
+	beq		1f
+	dsb
+	b errata_6075_barrier_return
+1:	dmb
+	b errata_6075_barrier_return
+	.word 0
+
+	.align	5
+
+__kuser_memory_barrier_errata_6075_2:				@ 0xffff0f40
+	ldr		r3, [pc, #0x1C]
+	teqeq	r3, #0x2								@ MV_78XX0_B0_REV
+	beq		1f
+	dsb
+	usr_ret	lr
+1:	dmb
+	usr_ret	lr
+	.word 0
+	.align	5
+#endif
 
 __kuser_cmpxchg64:				@ 0xffff0f60
 
@@ -946,15 +970,25 @@ kuser_cmpxchg32_fixup:
 
 #else
 
+#ifdef CONFIG_ARMADA_XP_A0_WITH_B0
+	ALT_SMP(b	__kuser_memory_barrier_errata_6075_1)
+#else
 	smp_dmb	arm
-1:	ldrex	r3, [r2]
+#endif
+
+errata_6075_barrier_return:
+	ldrex	r3, [r2]
 	subs	r3, r3, r0
 	strexeq	r3, r1, [r2]
 	teqeq	r3, #1
-	beq	1b
+	beq errata_6075_barrier_return
 	rsbs	r0, r3, #0
 	/* beware -- each __kuser slot must be 8 instructions max */
+#ifdef CONFIG_ARMADA_XP_A0_WITH_B0
+	ALT_SMP(b	__kuser_memory_barrier_errata_6075_2)
+#else
 	ALT_SMP(b	__kuser_memory_barrier)
+#endif
 	ALT_UP(usr_ret	lr)
 
 #endif

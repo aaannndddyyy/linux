@@ -77,8 +77,11 @@
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/if_arp.h>
 
 #include <linux/nsproxy.h>
+#include <linux/mv_nfp.h>
+
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 #include <net/sock.h>
@@ -348,6 +351,39 @@ static int pppoe_device_event(struct notifier_block *this,
 
 	/* Only look at sockets that are using this specific device. */
 	switch (event) {
+#if defined(CONFIG_MV_ETH_NFP_PPP_LEARN)
+	case NETDEV_UP: {
+		struct net_device *ppp_netdev;
+		struct pppoe_net *pn;
+		int i;
+
+		if (!(dev->type == ARPHRD_PPP))
+			break;
+
+		pn = pppoe_pernet(&init_net);
+		write_lock_bh(&pn->hash_lock);
+		for (i = 0; i < PPPOE_HASH_SIZE; i++) {
+			struct pppox_sock *po = pn->hash_table[i];
+
+			while (po) {
+				if ((ppp_dev_name(&po->chan) != NULL)
+					&& (!strcmp(ppp_dev_name(&po->chan), dev->name))) {
+					ppp_netdev = dev_get_by_name(&init_net, ppp_dev_name(&po->chan));
+					if (nfp_mgr_p->nfp_hook_ppp_add)
+						nfp_mgr_p->nfp_hook_ppp_add(ppp_netdev->ifindex,
+									po->pppoe_dev->ifindex, po->pppoe_pa.sid,
+									po->pppoe_pa.remote);
+					dev_put(ppp_netdev);
+					break;
+				}
+				po = po->next;
+			}
+		}
+		write_unlock_bh(&pn->hash_lock);
+	}
+	break;
+#endif /* CONFIG_MV_ETH_NFP_PPP_LEARN */
+
 	case NETDEV_CHANGEADDR:
 	case NETDEV_CHANGEMTU:
 		/* A change in mtu or address is a bad thing, requiring
@@ -581,6 +617,20 @@ static int pppoe_release(struct socket *sock)
 		po->pppoe_dev = NULL;
 	}
 
+#if defined(CONFIG_MV_ETH_NFP_PPP_LEARN)
+	if (ppp_dev_name(&po->chan)) {
+		struct net_device *ppp_netdev = NULL;
+		int ppp_netdev_ifindex = 0;
+
+		ppp_netdev = dev_get_by_name(&init_net, ppp_dev_name(&po->chan));
+		ppp_netdev_ifindex = ppp_netdev->ifindex;
+		dev_put(ppp_netdev);
+		if (nfp_mgr_p->nfp_hook_ppp_del)
+			nfp_mgr_p->nfp_hook_ppp_del(ppp_netdev_ifindex);
+	}
+
+#endif
+
 	pppox_unbind_sock(sk);
 
 	/* Signal the death of the socket. */
@@ -593,6 +643,7 @@ static int pppoe_release(struct socket *sock)
 	 * protect "po" from concurrent updates
 	 * on pppoe_flush_dev
 	 */
+
 	delete_item(pn, po->pppoe_pa.sid, po->pppoe_pa.remote,
 		    po->pppoe_ifindex);
 
@@ -693,6 +744,7 @@ static int pppoe_connect(struct socket *sock, struct sockaddr *uservaddr,
 		}
 
 		sk->sk_state = PPPOX_CONNECTED;
+
 	}
 
 	po->num = sp->sa_addr.pppoe.sid;
@@ -1130,6 +1182,41 @@ static const struct pppox_proto pppoe_proto = {
 	.ioctl	= pppoe_ioctl,
 	.owner	= THIS_MODULE,
 };
+
+#if defined(CONFIG_MV_ETH_NFP_PPP_LEARN)
+void nfp_ppp_sync(void)
+{
+	int i;
+	struct pppoe_net *pn = pppoe_pernet(&init_net);
+	struct net_device *ppp_netdev = NULL;
+	struct pppox_sock *po = NULL;
+
+	rtnl_lock();
+
+	write_lock_bh(&pn->hash_lock);
+	for (i = 0; i < PPPOE_HASH_SIZE; i++) {
+		po = pn->hash_table[i];
+
+		while (po) {
+			if (ppp_dev_name(&po->chan) != NULL) {
+				ppp_netdev = dev_get_by_name(&init_net, ppp_dev_name(&po->chan));
+				if (nfp_mgr_p->nfp_hook_ppp_add)
+					nfp_mgr_p->nfp_hook_ppp_add(ppp_netdev->ifindex,
+							po->pppoe_dev->ifindex,
+							po->pppoe_pa.sid,
+							po->pppoe_pa.remote);
+				dev_put(ppp_netdev);
+				}
+			po = po->next;
+		}
+	}
+	write_unlock_bh(&pn->hash_lock);
+
+	rtnl_unlock();
+}
+EXPORT_SYMBOL(nfp_ppp_sync);
+
+#endif /* CONFIG_MV_ETH_NFP_PPP_LEARN */
 
 static __net_init int pppoe_init_net(struct net *net)
 {

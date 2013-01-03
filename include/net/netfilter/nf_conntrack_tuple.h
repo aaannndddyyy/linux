@@ -70,6 +70,15 @@ struct nf_conntrack_tuple {
 		/* The direction (for tuplehash) */
 		u_int8_t dir;
 	} dst;
+
+#if defined(CONFIG_MV_ETH_NFP_LEARN) || defined(CONFIG_MV_ETH_NFP_LEARN_MODULE)
+	/* If true, this connection is handled by NFP */
+	bool nfp;
+	int ifindex;
+	bool nfpCapable;
+	bool udpCsum;
+	struct ipt_nfp_info *info;
+#endif /* CONFIG_MV_ETH_NFP_LEARN */
 };
 
 struct nf_conntrack_tuple_mask {
@@ -123,7 +132,7 @@ struct nf_conntrack_tuple_hash {
 
 static inline bool __nf_ct_tuple_src_equal(const struct nf_conntrack_tuple *t1,
 					   const struct nf_conntrack_tuple *t2)
-{ 
+{
 	return (nf_inet_addr_cmp(&t1->src.u3, &t2->src.u3) &&
 		t1->src.u.all == t2->src.u.all &&
 		t1->src.l3num == t2->src.l3num);

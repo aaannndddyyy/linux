@@ -1046,7 +1046,7 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 			 */
 			DEBUG_AUTOCONF("Xscale ");
 			up->port.type = PORT_XSCALE;
-			up->capabilities |= UART_CAP_UUE | UART_CAP_RTOIE;
+			up->capabilities |= UART_CAP_UUE;
 			return;
 		}
 	} else {
@@ -1619,15 +1619,43 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	do {
 		struct uart_8250_port *up;
 		struct uart_port *port;
+		unsigned int iir;
 
 		up = list_entry(l, struct uart_8250_port, list);
 		port = &up->port;
 
+#if !defined(CONFIG_ARCH_ARMADA370)
 		if (port->handle_irq(port)) {
 			handled = 1;
 			end = NULL;
-		} else if (end == NULL)
-			end = l;
+		}
+#endif
+#if defined(CONFIG_ARCH_ARMADA370)
+
+		iir = serial_in(up, UART_IIR);
+		if (!(iir & UART_IIR_NO_INT)) {
+			serial8250_handle_port(up);
+			handled = 1;
+			end = NULL;
+                }
+		else if ((up->port.iotype == UPIO_DWAPB ||
+                            up->port.iotype == UPIO_DWAPB32) &&
+                          (iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+                        /* The DesignWare APB UART has an Busy Detect (0x07)
+                         * interrupt meaning an LCR write attempt occurred while the
+                         * UART was busy. The interrupt must be cleared by reading
+                         * the UART status register (USR) and the LCR re-written. */
+                        unsigned int status;
+                        status = *(volatile u32 *)up->port.private_data;
+                        serial_out(up, UART_LCR, up->lcr);
+
+                        handled = 1;
+                        end = NULL;
+
+                }
+#endif
+		else if (end == NULL)
+                        end = l;
 
 		l = l->next;
 

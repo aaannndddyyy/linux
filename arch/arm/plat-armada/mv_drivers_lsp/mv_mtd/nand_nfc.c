@@ -1174,7 +1174,14 @@ static uint8_t orion_nfc_read_byte(struct mtd_info *mtd)
 
 	if (info->buf_start < info->buf_count)
 		/* Has just send a new command? */
+#ifdef CONFIG_BE8_ON_LE
+	{
+		retval = info->data_buff[info->buf_start ^ 3];
+		info->buf_start++;
+	}
+#else
 		retval = info->data_buff[info->buf_start++];
+#endif
 	return retval;
 }
 

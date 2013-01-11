@@ -1191,7 +1191,11 @@ static u16 orion_nfc_read_word(struct mtd_info *mtd)
 	u16 retval = 0xFFFF;
 
 	if (!(info->buf_start & 0x01) && info->buf_start < info->buf_count) {
+#ifdef CONFIG_BE8_ON_LE
+		retval = *((u16 *)(info->data_buff+(info->buf_start ^ 2)));
+#else
 		retval = *((u16 *)(info->data_buff+info->buf_start));
+#endif
 		info->buf_start += 2;
 	}
 	else

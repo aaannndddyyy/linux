@@ -9,6 +9,14 @@
 #include <linux/init.h>
 #include <asm/memory.h>
 
+#ifdef CONFIG_BE8_ON_LE
+	.macro	reverse	reg
+		rev	\reg, \reg
+	.endm
+#else
+	.macro	reverse reg
+	.endm
+#endif
 
 #define AXP_COHERENCY_FABRIC_CTL_REG 0xD0020200
 #define AXP_COHERENCY_FABRIC_CFG_REG 0xD0020204
@@ -24,6 +32,7 @@ ENTRY(axp_secondary_startup)
         .word 0x100f11ee /* mrc p15, 0, r0, c1, c0 */
         .word 0x800080e3 /* orr r0, r0, #0x80 */
         .word 0x100f01ee /* mcr p15, 0, r0, c1, c0 */
+#error do not try this at home kids
 #endif
 #ifdef CONFIG_BE8_ON_LE
         setend  be
@@ -38,6 +47,8 @@ ENTRY(axp_secondary_startup)
 	add     r2,r2,#24
 	MOV     r3, #1
 	lsl     r3, r3, r2
+
+	reverse	r3
 
 	/* Add CPU to SMP group - Atomic */
 	ldr     r0, = AXP_COHERENCY_FABRIC_CTL_REG

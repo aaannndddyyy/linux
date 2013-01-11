@@ -425,6 +425,14 @@ void cpu_init(void)
 	    : "r14");
 }
 
+static unsigned int read_cpsr(void)
+{
+	unsigned int cpsr;
+
+	__asm__("mrs %0, cpsr" : "=r" (cpsr) : : "cc");
+	return cpsr;
+}
+
 static void __init setup_processor(void)
 {
 	struct proc_info_list *list;
@@ -457,8 +465,10 @@ static void __init setup_processor(void)
 	cpu_cache = *list->cache;
 #endif
 
-	printk("CPU: %s [%08x] revision %d (ARMv%s), cr=%08lx\n",
-	       cpu_name, read_cpuid_id(), read_cpuid_id() & 15,
+	printk("CPU: %s [%08x] [%s,%s] revision %d (ARMv%s), cr=%08lx\n",
+	       cpu_name, read_cpuid_id(),
+	       read_cpsr() & (1 << 9) ? "BE" : "LE", ENDIANNESS,
+	       read_cpuid_id() & 15,
 	       proc_arch[cpu_architecture()], cr_alignment);
 
 	snprintf(init_utsname()->machine, __NEW_UTS_LEN + 1, "%s%c",

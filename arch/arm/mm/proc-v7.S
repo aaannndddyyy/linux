@@ -109,6 +109,7 @@ ENTRY(cpu_v7_do_suspend)
 ENDPROC(cpu_v7_do_suspend)
 
 ENTRY(cpu_v7_do_resume)
+ ARM_BE8(setend	be )			@ ensure we are BE8
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0	@ invalidate TLBs
 	mcr	p15, 0, ip, c7, c5, 0	@ invalidate I cache

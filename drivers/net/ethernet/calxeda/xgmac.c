@@ -1718,9 +1718,6 @@ static int xgmac_probe(struct platform_device *pdev)
 		goto err_io;
 	}
 
-	uid = readl(priv->base + XGMAC_VERSION);
-	netdev_info(ndev, "h/w version is 0x%x\n", uid);
-
 	writel(0, priv->base + XGMAC_DMA_INTR_ENA);
 	ndev->irq = platform_get_irq(pdev, 0);
 	if (ndev->irq == -ENXIO) {
@@ -1773,6 +1770,9 @@ static int xgmac_probe(struct platform_device *pdev)
 	ret = register_netdev(ndev);
 	if (ret)
 		goto err_reg;
+
+	uid = readl(priv->base + XGMAC_VERSION);
+	netdev_info(ndev, "h/w version is 0x%x\n", uid);
 
 	return 0;
 

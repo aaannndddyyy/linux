@@ -1202,7 +1202,8 @@ static int xgmac_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		napi_complete(napi);
-		__raw_writel(DMA_INTR_DEFAULT_MASK, priv->base + XGMAC_DMA_INTR_ENA);
+		__raw_writel(le32_to_cpu((__force __le32)DMA_INTR_DEFAULT_MASK),
+			     priv->base + XGMAC_DMA_INTR_ENA);
 	}
 	return work_done;
 }
@@ -1348,7 +1349,7 @@ static irqreturn_t xgmac_pmt_interrupt(int irq, void *dev_id)
 	void __iomem *ioaddr = priv->base;
 
 	intr_status = __raw_readl(ioaddr + XGMAC_INT_STAT);
-	if (intr_status & XGMAC_INT_STAT_PMT) {
+	if (intr_status & le32_to_cpu((__force __le32)XGMAC_INT_STAT_PMT)) {
 		netdev_dbg(priv->dev, "received Magic frame\n");
 		/* clear the PMT bits 5 and 6 by reading the PMT */
 		readl(ioaddr + XGMAC_PMT);
@@ -1368,6 +1369,8 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 	intr_status = __raw_readl(priv->base + XGMAC_DMA_STATUS);
 	intr_status &= __raw_readl(priv->base + XGMAC_DMA_INTR_ENA);
 	__raw_writel(intr_status, priv->base + XGMAC_DMA_STATUS);
+
+	intr_status = (__force u32)cpu_to_le32(intr_status);
 
 	/* It displays the DMA process states (CSR5 register) */
 	/* ABNORMAL interrupts */
@@ -1403,7 +1406,8 @@ static irqreturn_t xgmac_interrupt(int irq, void *dev_id)
 
 	/* TX/RX NORMAL interrupts */
 	if (intr_status & (DMA_STATUS_RI | DMA_STATUS_TU | DMA_STATUS_TI)) {
-		__raw_writel(DMA_INTR_ABNORMAL, priv->base + XGMAC_DMA_INTR_ENA);
+		__raw_writel(le32_to_cpu((__force __le32)DMA_INTR_ABNORMAL),
+			     priv->base + XGMAC_DMA_INTR_ENA);
 		napi_schedule(&priv->napi);
 	}
 

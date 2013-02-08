@@ -1,0 +1,10 @@
+{
+    "name": "stage2-linux-api-headers",
+    "kind": "chunk",
+    "install-commands": [
+        "make mrproper",
+        "cpu=$(echo $TARGET | cut -d '-' -f 1)\ncase $cpu in\n    \"\") echo \"Invalid target for stage 2: '$TARGET'\"; false ;;\n    i?86) export ARCH=i386 ;;\n    arm*) export ARCH=arm ;;\n    *) export ARCH=\"$cpu\" ;;\nesac\nmake INSTALL_HDR_PATH=dest headers_install\n",
+        "install -d \"$DESTDIR${PREFIX-/usr}/include\"",
+        "cp -r dest/include/* \"$DESTDIR/${PREFIX-/usr}/include\""
+    ]
+}

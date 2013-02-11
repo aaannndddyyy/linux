@@ -314,7 +314,18 @@ __create_page_tables:
 #endif
 #ifdef CONFIG_ARM_LPAE
 	sub	r4, r4, #0x1000		@ point to the PGD table
+#ifdef __ARMEB__
+	add	r3, r4, #0x5000
+	mov	r2, r4
+1:
+	ldr	r0, [r2, #0]
+	ldr	r1, [r2, #4]
+	strd	r0, [r2], #8
+	cmp	r2, r3
+	bcc	1b
 #endif
+#endif
+
 	mov	pc, lr
 ENDPROC(__create_page_tables)
 	.ltorg

@@ -3,6 +3,8 @@
     "kind": "chunk",
     "configure-commands": [
         "make multi_v7_defconfig",
+        "scripts/config -e AUTOFS4_FS",
+        "scripts/config -e CGROUPS",
         "scripts/config -e PACKET",
         "scripts/config -e UNIX",
         "scripts/config -e INET",
@@ -19,10 +21,13 @@
         "scripts/config -e NFS_COMMON",
         "scripts/config -e SUNRPC",
         "scripts/config -e BTRFS_FS",
+        "scripts/config -e DEVTMPFS",
         "scripts/config -e DEVTMPFS_MOUNT",
         "scripts/config --set-str UEVENT_HELPER_PATH ''",
         "scripts/config -e IKCONFIG",
         "scripts/config -e IKCONFIG_PROC",
+        "scripts/config -e TMPFS",
+        "scripts/config -e TMPFS_POSIX_ACL",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

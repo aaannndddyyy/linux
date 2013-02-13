@@ -3,6 +3,9 @@
     "kind": "chunk",
     "configure-commands": [
         "make multi_v7_defconfig",
+        "scripts/config -e PACKET",
+        "scripts/config -e UNIX",
+        "scripts/config -e INET",
         "scripts/config -e IP_MULTICAST",
         "scripts/config -e IP_PNP",
         "scripts/config -e IP_PNP_DHCP",

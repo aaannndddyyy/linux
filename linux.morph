@@ -2,7 +2,7 @@
     "name": "linux",
     "kind": "chunk",
     "configure-commands": [
-        "make highbank_defconfig",
+        "make multi_v7_defconfig",
         "scripts/config -e AUTOFS4_FS",
         "scripts/config -e CGROUPS",
         "scripts/config -e EXT2_FS",

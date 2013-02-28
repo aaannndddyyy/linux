@@ -21,6 +21,8 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 
+#include <asm/assembler.h>
+
 /*
  * At this stage the secondary CPUs don't have acces yet to the MMU, so
  * we have to provide physical addresses

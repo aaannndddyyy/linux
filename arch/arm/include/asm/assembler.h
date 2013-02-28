@@ -54,7 +54,7 @@
 #endif
 
 /* Select code for any configuration running in BE8 mode */
-#ifdef CONFIG_ARM_CPU_ENDIAN_BE8
+#ifdef CONFIG_CPU_ENDIAN_BE8
 #define ARM_BE8(code...) code
 #else
 #define ARM_BE8(code...)

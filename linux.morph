@@ -35,9 +35,8 @@
         "scripts/config -e SYSVIPC",
         "scripts/config -e CONFIG_POSIX_MQUEUE",
         "scripts/config -e CPU_IDLE",
-        "scripts/config -e EXT2_FS",
-        "scripts/config -e EXT3_FS",
         "scripts/config -e EXT4_FS",
+        "scripts/config -e EXT4_USE_FOR_EXT23",
         "scripts/config -e MSDOS_FS",
         "scripts/config -e VFAT_FS",
         "yes '' | make oldconfig"

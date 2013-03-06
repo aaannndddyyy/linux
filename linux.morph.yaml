@@ -15,6 +15,7 @@ configure-commands:
     - scripts/config -e PACKET
     - scripts/config -e UNIX
     - scripts/config -e NET_KEY
+    - scripts/config -e INET
     - scripts/config -e IP_MULTICAST
 
     # Built-in kernel DHCP & BOOTP clients; very useful when bootstrapping
@@ -24,6 +25,7 @@ configure-commands:
 
     # Baserock favourites
     - scripts/config --set-str UEVENT_HELPER_PATH ''
+    - scripts/config -e DEVTMPFS
     - scripts/config -e DEVTMPFS_MOUNT
     - scripts/config -e BLK_DEV_LOOP
     - scripts/config -e BTRFS_FS

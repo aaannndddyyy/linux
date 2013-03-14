@@ -3,7 +3,7 @@
     "kind": "chunk",
     "install-commands": [
         "make mrproper",
-        "make INSTALL_HDR_PATH=dest headers_install",
+        "ARCH=$(./morph-arch) make INSTALL_HDR_PATH=dest headers_install",
         "install -d \"$DESTDIR${PREFIX-/usr}/include\"",
         "cp -r dest/include/* \"$DESTDIR/${PREFIX-/usr}/include\""
     ]

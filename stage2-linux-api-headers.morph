@@ -1,9 +1,9 @@
 {
-    "name": "linux-api-headers",
+    "name": "stage2-linux-api-headers",
     "kind": "chunk",
     "install-commands": [
         "make mrproper",
-        "ARCH=$(./morph-arch) make INSTALL_HDR_PATH=dest headers_install",
+        "export ARCH=$(./morph-arch)\nmake INSTALL_HDR_PATH=dest headers_install\n",
         "install -d \"$DESTDIR${PREFIX-/usr}/include\"",
         "cp -r dest/include/* \"$DESTDIR/${PREFIX-/usr}/include\""
     ]

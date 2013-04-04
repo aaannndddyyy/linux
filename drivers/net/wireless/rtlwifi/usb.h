@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2011  Realtek Corporation. All rights reserved.
+ * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -28,7 +28,6 @@
 #ifndef __RTL_USB_H__
 #define __RTL_USB_H__
 
-#include <linux/usb.h>
 #include <linux/skbuff.h>
 
 #define RTL_RX_DESC_SIZE		24
@@ -157,7 +156,7 @@ struct rtl_usb_priv {
 
 
 
-int __devinit rtl_usb_probe(struct usb_interface *intf,
+int rtl_usb_probe(struct usb_interface *intf,
 			    const struct usb_device_id *id);
 void rtl_usb_disconnect(struct usb_interface *intf);
 int rtl_usb_suspend(struct usb_interface *pusb_intf, pm_message_t message);

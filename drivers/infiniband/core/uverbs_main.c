@@ -541,16 +541,15 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd)
 {
 	struct ib_uverbs_event_file *ev_file = NULL;
-	struct file *filp;
+	struct fd f = fdget(fd);
 
-	filp = fget(fd);
-	if (!filp)
+	if (!f.file)
 		return NULL;
 
-	if (filp->f_op != &uverbs_event_fops)
+	if (f.file->f_op != &uverbs_event_fops)
 		goto out;
 
-	ev_file = filp->private_data;
+	ev_file = f.file->private_data;
 	if (ev_file->is_async) {
 		ev_file = NULL;
 		goto out;
@@ -559,7 +558,7 @@ struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd)
 	kref_get(&ev_file->ref);
 
 out:
-	fput(filp);
+	fdput(f);
 	return ev_file;
 }
 
@@ -846,7 +845,7 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 	kfree(uverbs_dev);
 }
 
-static char *uverbs_devnode(struct device *dev, mode_t *mode)
+static char *uverbs_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode)
 		*mode = 0666;

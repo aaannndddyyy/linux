@@ -1,5 +1,5 @@
 /*
- * linux/drivers/net/ethoc.c
+ * linux/drivers/net/ethernet/ethoc.c
  *
  * Copyright (C) 2007-2008 Avionic Design Development GmbH
  * Copyright (C) 2008-2009 Avionic Design GmbH
@@ -665,7 +665,7 @@ static void ethoc_mdio_poll(struct net_device *dev)
 {
 }
 
-static int __devinit ethoc_mdio_probe(struct net_device *dev)
+static int ethoc_mdio_probe(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	struct phy_device *phy;
@@ -776,9 +776,15 @@ static int ethoc_set_mac_address(struct net_device *dev, void *addr)
 	struct ethoc *priv = netdev_priv(dev);
 	u8 *mac = (u8 *)addr;
 
+	if (!is_valid_ether_addr(mac))
+		return -EADDRNOTAVAIL;
+
 	ethoc_write(priv, MAC_ADDR0, (mac[2] << 24) | (mac[3] << 16) |
 				     (mac[4] <<  8) | (mac[5] <<  0));
 	ethoc_write(priv, MAC_ADDR1, (mac[0] <<  8) | (mac[1] <<  0));
+
+	memcpy(dev->dev_addr, mac, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	return 0;
 }
@@ -896,10 +902,10 @@ static const struct net_device_ops ethoc_netdev_ops = {
 };
 
 /**
- * ethoc_probe() - initialize OpenCores ethernet MAC
+ * ethoc_probe - initialize OpenCores ethernet MAC
  * pdev:	platform device
  */
-static int __devinit ethoc_probe(struct platform_device *pdev)
+static int ethoc_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev = NULL;
 	struct resource *res = NULL;
@@ -909,11 +915,11 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 	unsigned int phy;
 	int num_bd;
 	int ret = 0;
+	bool random_mac = false;
 
 	/* allocate networking device */
 	netdev = alloc_etherdev(sizeof(struct ethoc));
 	if (!netdev) {
-		dev_err(&pdev->dev, "cannot allocate network device\n");
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1050,10 +1056,19 @@ static int __devinit ethoc_probe(struct platform_device *pdev)
 
 	/* Check the MAC again for validity, if it still isn't choose and
 	 * program a random one. */
-	if (!is_valid_ether_addr(netdev->dev_addr))
-		random_ether_addr(netdev->dev_addr);
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		eth_random_addr(netdev->dev_addr);
+		random_mac = true;
+	}
 
-	ethoc_set_mac_address(netdev, netdev->dev_addr);
+	ret = ethoc_set_mac_address(netdev, netdev->dev_addr);
+	if (ret) {
+		dev_err(&netdev->dev, "failed to set MAC address\n");
+		goto error;
+	}
+
+	if (random_mac)
+		netdev->addr_assign_type |= NET_ADDR_RANDOM;
 
 	/* register MII bus */
 	priv->mdio = mdiobus_alloc();
@@ -1125,10 +1140,10 @@ out:
 }
 
 /**
- * ethoc_remove() - shutdown OpenCores ethernet MAC
+ * ethoc_remove - shutdown OpenCores ethernet MAC
  * @pdev:	platform device
  */
-static int __devexit ethoc_remove(struct platform_device *pdev)
+static int ethoc_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev = platform_get_drvdata(pdev);
 	struct ethoc *priv = netdev_priv(netdev);
@@ -1175,7 +1190,7 @@ MODULE_DEVICE_TABLE(of, ethoc_match);
 
 static struct platform_driver ethoc_driver = {
 	.probe   = ethoc_probe,
-	.remove  = __devexit_p(ethoc_remove),
+	.remove  = ethoc_remove,
 	.suspend = ethoc_suspend,
 	.resume  = ethoc_resume,
 	.driver  = {
@@ -1185,18 +1200,7 @@ static struct platform_driver ethoc_driver = {
 	},
 };
 
-static int __init ethoc_init(void)
-{
-	return platform_driver_register(&ethoc_driver);
-}
-
-static void __exit ethoc_exit(void)
-{
-	platform_driver_unregister(&ethoc_driver);
-}
-
-module_init(ethoc_init);
-module_exit(ethoc_exit);
+module_platform_driver(ethoc_driver);
 
 MODULE_AUTHOR("Thierry Reding <thierry.reding@avionic-design.de>");
 MODULE_DESCRIPTION("OpenCores Ethernet MAC driver");

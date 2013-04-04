@@ -6,15 +6,13 @@
 #ifndef __CHAN_USER_H__
 #define __CHAN_USER_H__
 
-#include "init.h"
+#include <init.h>
 
 struct chan_opts {
 	void (*const announce)(char *dev_name, int dev);
 	char *xterm_title;
 	const int raw;
 };
-
-enum chan_init_pri { INIT_STATIC, INIT_ALL, INIT_ONE };
 
 struct chan_ops {
 	char *type;

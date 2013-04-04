@@ -75,7 +75,7 @@ static LIST_HEAD(raw3270_devices);
 static int raw3270_registered;
 
 /* Module parameters */
-static int tubxcorrect = 0;
+static bool tubxcorrect = 0;
 module_param(tubxcorrect, bool, 0);
 
 /*
@@ -1396,7 +1396,7 @@ static struct ccw_driver raw3270_ccw_driver = {
 	.freeze		= &raw3270_pm_stop,
 	.thaw		= &raw3270_pm_start,
 	.restore	= &raw3270_pm_start,
-	.int_class	= IOINT_C70,
+	.int_class	= IRQIO_C70,
 };
 
 static int

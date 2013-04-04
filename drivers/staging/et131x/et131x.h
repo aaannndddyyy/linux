@@ -596,7 +596,7 @@ struct rxdma_regs {					/* Location: */
  * structure for tx test reg in txmac address map
  * located at address 0x3014
  * 31-17: unused
- * 16: reserved1
+ * 16: reserved
  * 15: txtest_en
  * 14-11: unused
  * 10-0: txq test pointer
@@ -1485,7 +1485,7 @@ struct address_map {
  *	3:	reserved
  *	2:	ignore_10g_fr
  *	1:	reserved
- *	0:	preamble_supress_en
+ *	0:	preamble_suppress_en
  */
 
 /* MI Register 22: PHY Configuration Reg(0x16)
@@ -1537,10 +1537,6 @@ struct address_map {
  *	1:	automatic_speed
  *	0:	int_en
  */
-
-#define ET_PHY_INT_MASK_AUTONEGSTAT	0x0100
-#define ET_PHY_INT_MASK_LINKSTAT	0x0004
-#define ET_PHY_INT_MASK_ENABLE		0x0001
 
 /* MI Register 25: Interrupt Status Reg(0x19)
  *	15-10:	reserved

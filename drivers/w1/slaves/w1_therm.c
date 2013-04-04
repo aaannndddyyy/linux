@@ -91,6 +91,11 @@ static struct w1_family w1_therm_family_DS28EA00 = {
 	.fops = &w1_therm_fops,
 };
 
+static struct w1_family w1_therm_family_DS1825 = {
+	.fid = W1_THERM_DS1825,
+	.fops = &w1_therm_fops,
+};
+
 struct w1_therm_family_converter
 {
 	u8			broken;
@@ -120,6 +125,10 @@ static struct w1_therm_family_converter w1_therm_families[] = {
 		.f		= &w1_therm_family_DS28EA00,
 		.convert	= w1_DS18B20_convert_temp
 	},
+	{
+		.f		= &w1_therm_family_DS1825,
+		.convert	= w1_DS18B20_convert_temp
+	}
 };
 
 static inline int w1_DS18B20_convert_temp(u8 rom[9])
@@ -175,11 +184,13 @@ static ssize_t w1_therm_read(struct device *device,
 {
 	struct w1_slave *sl = dev_to_w1_slave(device);
 	struct w1_master *dev = sl->master;
-	u8 rom[9], crc, verdict;
+	u8 rom[9], crc, verdict, external_power;
 	int i, max_trying = 10;
 	ssize_t c = PAGE_SIZE;
 
-	mutex_lock(&dev->mutex);
+	i = mutex_lock_interruptible(&dev->bus_mutex);
+	if (i != 0)
+		return i;
 
 	memset(rom, 0, sizeof(rom));
 
@@ -190,13 +201,37 @@ static ssize_t w1_therm_read(struct device *device,
 		if (!w1_reset_select_slave(sl)) {
 			int count = 0;
 			unsigned int tm = 750;
+			unsigned long sleep_rem;
+
+			w1_write_8(dev, W1_READ_PSUPPLY);
+			external_power = w1_read_8(dev);
+
+			if (w1_reset_select_slave(sl))
+				continue;
 
 			/* 750ms strong pullup (or delay) after the convert */
-			if (w1_strong_pullup)
+			if (!external_power && w1_strong_pullup)
 				w1_next_pullup(dev, tm);
+
 			w1_write_8(dev, W1_CONVERT_TEMP);
-			if (!w1_strong_pullup)
-				msleep(tm);
+
+			if (external_power) {
+				mutex_unlock(&dev->bus_mutex);
+
+				sleep_rem = msleep_interruptible(tm);
+				if (sleep_rem != 0)
+					return -EINTR;
+
+				i = mutex_lock_interruptible(&dev->bus_mutex);
+				if (i != 0)
+					return i;
+			} else if (!w1_strong_pullup) {
+				sleep_rem = msleep_interruptible(tm);
+				if (sleep_rem != 0) {
+					mutex_unlock(&dev->bus_mutex);
+					return -EINTR;
+				}
+			}
 
 			if (!w1_reset_select_slave(sl)) {
 
@@ -232,7 +267,7 @@ static ssize_t w1_therm_read(struct device *device,
 
 	c -= snprintf(buf + PAGE_SIZE - c, c, "t=%d\n",
 		w1_convert_temp(rom, sl->family->fid));
-	mutex_unlock(&dev->mutex);
+	mutex_unlock(&dev->bus_mutex);
 
 	return PAGE_SIZE - c;
 }

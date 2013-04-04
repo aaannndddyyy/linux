@@ -33,7 +33,7 @@
  * The xattrs themselves are protected by the xattr_sem.
  */
 
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>
@@ -43,8 +43,8 @@
 #include <linux/file.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
-#include <linux/reiserfs_xattr.h>
-#include <linux/reiserfs_acl.h>
+#include "xattr.h"
+#include "acl.h"
 #include <asm/uaccess.h>
 #include <net/checksum.h>
 #include <linux/stat.h>
@@ -62,11 +62,11 @@
 static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
-	return dir->i_op->create(dir, dentry, mode, NULL);
+	return dir->i_op->create(dir, dentry, mode, true);
 }
 #endif
 
-static int xattr_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
 	return dir->i_op->mkdir(dir, dentry, mode);
@@ -896,7 +896,7 @@ static int create_privroot(struct dentry *dentry) { return 0; }
 #endif
 
 /* Actual operations that are exported to VFS-land */
-const struct xattr_handler *reiserfs_xattr_handlers[] = {
+static const struct xattr_handler *reiserfs_xattr_handlers[] = {
 #ifdef CONFIG_REISERFS_FS_XATTR
 	&reiserfs_xattr_user_handler,
 	&reiserfs_xattr_trusted_handler,
@@ -942,7 +942,7 @@ int reiserfs_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask);
 }
 
-static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)
+static int xattr_hide_revalidate(struct dentry *dentry, unsigned int flags)
 {
 	return -EPERM;
 }

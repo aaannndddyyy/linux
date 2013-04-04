@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/ehea/ehea_qmr.c
+ *  linux/drivers/net/ethernet/ibm/ehea/ehea_qmr.c
  *
  *  eHEA ethernet device driver for IBM eServer System p
  *
@@ -34,9 +34,7 @@
 #include "ehea_phyp.h"
 #include "ehea_qmr.h"
 
-struct ehea_bmap *ehea_bmap = NULL;
-
-
+static struct ehea_bmap *ehea_bmap;
 
 static void *hw_qpageit_get_inc(struct hw_queue *queue)
 {
@@ -165,7 +163,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			goto out_kill_hwq;
 		}
 
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 		hret = ehea_h_register_rpage(adapter->handle,
 					     0, EHEA_CQ_REGISTER_ORIG,
 					     cq->fw_handle, rpage, 1);
@@ -212,7 +210,7 @@ out_nomem:
 	return NULL;
 }
 
-u64 ehea_destroy_cq_res(struct ehea_cq *cq, u64 force)
+static u64 ehea_destroy_cq_res(struct ehea_cq *cq, u64 force)
 {
 	u64 hret;
 	u64 adapter_handle = cq->adapter->handle;
@@ -292,7 +290,7 @@ struct ehea_eq *ehea_create_eq(struct ehea_adapter *adapter,
 			goto out_kill_hwq;
 		}
 
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 
 		hret = ehea_h_register_rpage(adapter->handle, 0,
 					     EHEA_EQ_REGISTER_ORIG,
@@ -337,7 +335,7 @@ struct ehea_eqe *ehea_poll_eq(struct ehea_eq *eq)
 	return eqe;
 }
 
-u64 ehea_destroy_eq_res(struct ehea_eq *eq, u64 force)
+static u64 ehea_destroy_eq_res(struct ehea_eq *eq, u64 force)
 {
 	u64 hret;
 	unsigned long flags;
@@ -378,10 +376,8 @@ int ehea_destroy_eq(struct ehea_eq *eq)
 	return 0;
 }
 
-/**
- * allocates memory for a queue and registers pages in phyp
- */
-int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
+/* allocates memory for a queue and registers pages in phyp */
+static int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			   int nr_pages, int wqe_size, int act_nr_sges,
 			   struct ehea_adapter *adapter, int h_call_q_selector)
 {
@@ -399,7 +395,7 @@ int ehea_qp_alloc_register(struct ehea_qp *qp, struct hw_queue *hw_queue,
 			pr_err("hw_qpageit_get_inc failed\n");
 			goto out_kill_hwq;
 		}
-		rpage = virt_to_abs(vpage);
+		rpage = __pa(vpage);
 		hret = ehea_h_register_rpage(adapter->handle,
 					     0, h_call_q_selector,
 					     qp->fw_handle, rpage, 1);
@@ -516,7 +512,7 @@ out_freemem:
 	return NULL;
 }
 
-u64 ehea_destroy_qp_res(struct ehea_qp *qp, u64 force)
+static u64 ehea_destroy_qp_res(struct ehea_qp *qp, u64 force)
 {
 	u64 hret;
 	struct ehea_qp_init_attr *qp_attr = &qp->init_attr;
@@ -794,7 +790,7 @@ u64 ehea_map_vaddr(void *caddr)
 	if (!ehea_bmap)
 		return EHEA_INVAL_ADDR;
 
-	index = virt_to_abs(caddr) >> SECTION_SIZE_BITS;
+	index = __pa(caddr) >> SECTION_SIZE_BITS;
 	top = (index >> EHEA_TOP_INDEX_SHIFT) & EHEA_INDEX_MASK;
 	if (!ehea_bmap->top[top])
 		return EHEA_INVAL_ADDR;
@@ -816,7 +812,7 @@ static inline void *ehea_calc_sectbase(int top, int dir, int idx)
 	unsigned long ret = idx;
 	ret |= dir << EHEA_DIR_INDEX_SHIFT;
 	ret |= top << EHEA_TOP_INDEX_SHIFT;
-	return abs_to_virt(ret << SECTION_SIZE_BITS);
+	return __va(ret << SECTION_SIZE_BITS);
 }
 
 static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
@@ -826,7 +822,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 	void *pg;
 	u64 j, m, hret;
 	unsigned long k = 0;
-	u64 pt_abs = virt_to_abs(pt);
+	u64 pt_abs = __pa(pt);
 
 	void *sectbase = ehea_calc_sectbase(top, dir, idx);
 
@@ -834,7 +830,7 @@ static u64 ehea_reg_mr_section(int top, int dir, int idx, u64 *pt,
 
 		for (m = 0; m < EHEA_MAX_RPAGE; m++) {
 			pg = sectbase + ((k++) * EHEA_PAGESIZE);
-			pt[m] = virt_to_abs(pg);
+			pt[m] = __pa(pg);
 		}
 		hret = ehea_h_register_rpage_mr(adapter->handle, mr->handle, 0,
 						0, pt_abs, EHEA_MAX_RPAGE);
@@ -976,7 +972,7 @@ int ehea_gen_smr(struct ehea_adapter *adapter, struct ehea_mr *old_mr,
 	return 0;
 }
 
-void print_error_data(u64 *data)
+static void print_error_data(u64 *data)
 {
 	int length;
 	u64 type = EHEA_BMASK_GET(ERROR_DATA_TYPE, data[2]);

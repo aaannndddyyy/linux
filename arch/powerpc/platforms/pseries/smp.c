@@ -22,7 +22,7 @@
 #include <linux/spinlock.h>
 #include <linux/cache.h>
 #include <linux/err.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/cpu.h>
 
 #include <asm/ptrace.h>
@@ -37,9 +37,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
-#include <asm/system.h>
 #include <asm/rtas.h>
-#include <asm/pSeries_reconfig.h>
 #include <asm/mpic.h>
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
@@ -89,7 +87,7 @@ int smp_query_cpu_stopped(unsigned int pcpu)
  *	0	- failure
  *	1	- success
  */
-static inline int __devinit smp_startup_cpu(unsigned int lcpu)
+static inline int smp_startup_cpu(unsigned int lcpu)
 {
 	int status;
 	unsigned long start_here = __pa((u32)*((unsigned long *)
@@ -135,7 +133,7 @@ out:
 	return 1;
 }
 
-static void __devinit smp_xics_setup_cpu(int cpu)
+static void smp_xics_setup_cpu(int cpu)
 {
 	if (cpu != boot_cpuid)
 		xics_setup_cpu();
@@ -150,7 +148,7 @@ static void __devinit smp_xics_setup_cpu(int cpu)
 #endif
 }
 
-static int __devinit smp_pSeries_kick_cpu(int nr)
+static int smp_pSeries_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
 

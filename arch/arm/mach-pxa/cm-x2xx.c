@@ -22,9 +22,10 @@
 #include <asm/mach/map.h>
 
 #include <mach/pxa25x.h>
+#undef GPIO24_SSP1_SFRM
 #include <mach/pxa27x.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/smemc.h>
 
 #include <asm/hardware/it8152.h>
@@ -58,8 +59,8 @@ extern void cmx270_init(void);
 #define CMX255_GPIO_IT8152_IRQ	(0)
 #define CMX270_GPIO_IT8152_IRQ	(22)
 
-#define CMX255_ETHIRQ		IRQ_GPIO(GPIO22_ETHIRQ)
-#define CMX270_ETHIRQ		IRQ_GPIO(GPIO10_ETHIRQ)
+#define CMX255_ETHIRQ		PXA_GPIO_TO_IRQ(GPIO22_ETHIRQ)
+#define CMX270_ETHIRQ		PXA_GPIO_TO_IRQ(GPIO10_ETHIRQ)
 
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
 static struct resource cmx255_dm9000_resource[] = {
@@ -524,4 +525,5 @@ MACHINE_START(ARMCORE, "Compulab CM-X2XX")
 #ifdef CONFIG_PCI
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= pxa_restart,
 MACHINE_END

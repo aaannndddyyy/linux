@@ -227,7 +227,9 @@ static void lbtf_free_adapter(struct lbtf_private *priv)
 	lbtf_deb_leave(LBTF_DEB_MAIN);
 }
 
-static void lbtf_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void lbtf_op_tx(struct ieee80211_hw *hw,
+		       struct ieee80211_tx_control *control,
+		       struct sk_buff *skb)
 {
 	struct lbtf_private *priv = hw->priv;
 
@@ -719,11 +721,11 @@ void lbtf_bcn_sent(struct lbtf_private *priv)
 		return;
 
 	if (skb_queue_empty(&priv->bc_ps_buf)) {
-		bool tx_buff_bc = 0;
+		bool tx_buff_bc = false;
 
 		while ((skb = ieee80211_get_buffered_bc(priv->hw, priv->vif))) {
 			skb_queue_tail(&priv->bc_ps_buf, skb);
-			tx_buff_bc = 1;
+			tx_buff_bc = true;
 		}
 		if (tx_buff_bc) {
 			ieee80211_stop_queues(priv->hw);

@@ -48,7 +48,7 @@
 #include "carl9170.h"
 #include "cmd.h"
 
-static int modparam_nohwcrypt;
+static bool modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware crypto offload.");
 
@@ -446,7 +446,7 @@ static void carl9170_op_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&ar->mutex);
 	if (IS_ACCEPTING_CMD(ar)) {
-		rcu_assign_pointer(ar->beacon_iter, NULL);
+		RCU_INIT_POINTER(ar->beacon_iter, NULL);
 
 		carl9170_led_set_state(ar, 0);
 
@@ -465,27 +465,26 @@ static void carl9170_restart_work(struct work_struct *work)
 {
 	struct ar9170 *ar = container_of(work, struct ar9170,
 					 restart_work);
-	int err;
+	int err = -EIO;
 
 	ar->usedkeys = 0;
 	ar->filter_state = 0;
 	carl9170_cancel_worker(ar);
 
 	mutex_lock(&ar->mutex);
-	err = carl9170_usb_restart(ar);
-	if (net_ratelimit()) {
-		if (err) {
-			dev_err(&ar->udev->dev, "Failed to restart device "
-				" (%d).\n", err);
-		 } else {
-			dev_info(&ar->udev->dev, "device restarted "
-				 "successfully.\n");
+	if (!ar->force_usb_reset) {
+		err = carl9170_usb_restart(ar);
+		if (net_ratelimit()) {
+			if (err)
+				dev_err(&ar->udev->dev, "Failed to restart device (%d).\n", err);
+			else
+				dev_info(&ar->udev->dev, "device restarted successfully.\n");
 		}
 	}
-
 	carl9170_zap_queues(ar);
 	mutex_unlock(&ar->mutex);
-	if (!err) {
+
+	if (!err && !ar->force_usb_reset) {
 		ar->restart_counter++;
 		atomic_set(&ar->pending_restarts, 0);
 
@@ -526,10 +525,10 @@ void carl9170_restart(struct ar9170 *ar, const enum carl9170_restart_reasons r)
 	if (!ar->registered)
 		return;
 
-	if (IS_ACCEPTING_CMD(ar) && !ar->needs_full_reset)
-		ieee80211_queue_work(ar->hw, &ar->restart_work);
-	else
-		carl9170_usb_reset(ar);
+	if (!IS_ACCEPTING_CMD(ar) || ar->needs_full_reset)
+		ar->force_usb_reset = true;
+
+	ieee80211_queue_work(ar->hw, &ar->restart_work);
 
 	/*
 	 * At this point, the device instance might have vanished/disabled.
@@ -616,10 +615,12 @@ static int carl9170_op_add_interface(struct ieee80211_hw *hw,
 
 			goto unlock;
 
+		case NL80211_IFTYPE_MESH_POINT:
 		case NL80211_IFTYPE_AP:
 			if ((vif->type == NL80211_IFTYPE_STATION) ||
 			    (vif->type == NL80211_IFTYPE_WDS) ||
-			    (vif->type == NL80211_IFTYPE_AP))
+			    (vif->type == NL80211_IFTYPE_AP) ||
+			    (vif->type == NL80211_IFTYPE_MESH_POINT))
 				break;
 
 			err = -EBUSY;
@@ -678,7 +679,7 @@ unlock:
 		vif_priv->active = false;
 		bitmap_release_region(&ar->vif_bitmap, vif_id, 0);
 		ar->vifs--;
-		rcu_assign_pointer(ar->vif_priv[vif_id].vif, NULL);
+		RCU_INIT_POINTER(ar->vif_priv[vif_id].vif, NULL);
 		list_del_rcu(&vif_priv->list);
 		mutex_unlock(&ar->mutex);
 		synchronize_rcu();
@@ -716,7 +717,7 @@ static void carl9170_op_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(vif_priv->enable_beacon);
 	vif_priv->enable_beacon = false;
 	list_del_rcu(&vif_priv->list);
-	rcu_assign_pointer(ar->vif_priv[id].vif, NULL);
+	RCU_INIT_POINTER(ar->vif_priv[id].vif, NULL);
 
 	if (vif == main_vif) {
 		rcu_read_unlock();
@@ -853,11 +854,6 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		/* TODO */
-		err = 0;
-	}
-
 	if (changed & IEEE80211_CONF_CHANGE_SMPS) {
 		/* TODO */
 		err = 0;
@@ -887,6 +883,12 @@ static int carl9170_op_config(struct ieee80211_hw *hw, u32 changed)
 			goto out;
 
 		err = carl9170_set_rts_cts_rate(ar);
+		if (err)
+			goto out;
+	}
+
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		err = carl9170_set_mac_tpc(ar, ar->hw->conf.channel);
 		if (err)
 			goto out;
 	}
@@ -947,6 +949,9 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 
 	if (ar->fw.rx_filter && changed_flags & ar->rx_filter_caps) {
 		u32 rx_filter = 0;
+
+		if (!ar->fw.ba_filter)
+			rx_filter |= CARL9170_RX_FILTER_CTL_OTHER;
 
 		if (!(*new_flags & (FIF_FCSFAIL | FIF_PLCPFAIL)))
 			rx_filter |= CARL9170_RX_FILTER_BAD;
@@ -1143,6 +1148,7 @@ static int carl9170_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
 		ktype = AR9170_ENC_ALG_AESCCMP;
+		key->flags |= IEEE80211_KEY_FLAG_SW_MGMT_TX;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1258,7 +1264,7 @@ static int carl9170_op_sta_add(struct ieee80211_hw *hw,
 		}
 
 		for (i = 0; i < CARL9170_NUM_TID; i++)
-			rcu_assign_pointer(sta_info->agg[i], NULL);
+			RCU_INIT_POINTER(sta_info->agg[i], NULL);
 
 		sta_info->ampdu_max_len = 1 << (3 + sta->ht_cap.ampdu_factor);
 		sta_info->ht_sta = true;
@@ -1285,7 +1291,7 @@ static int carl9170_op_sta_remove(struct ieee80211_hw *hw,
 			struct carl9170_sta_tid *tid_info;
 
 			tid_info = rcu_dereference(sta_info->agg[i]);
-			rcu_assign_pointer(sta_info->agg[i], NULL);
+			RCU_INIT_POINTER(sta_info->agg[i], NULL);
 
 			if (!tid_info)
 				continue;
@@ -1398,7 +1404,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 			spin_unlock_bh(&ar->tx_ampdu_list_lock);
 		}
 
-		rcu_assign_pointer(sta_info->agg[tid], NULL);
+		RCU_INIT_POINTER(sta_info->agg[tid], NULL);
 		rcu_read_unlock();
 
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
@@ -1752,6 +1758,9 @@ void *carl9170_alloc(size_t priv_size)
 	for (i = 0; i < ar->hw->queues; i++) {
 		skb_queue_head_init(&ar->tx_status[i]);
 		skb_queue_head_init(&ar->tx_pending[i]);
+
+		INIT_LIST_HEAD(&ar->bar_list[i]);
+		spin_lock_init(&ar->bar_list_lock[i]);
 	}
 	INIT_WORK(&ar->ps_work, carl9170_ps_work);
 	INIT_WORK(&ar->ping_work, carl9170_ping_work);
@@ -1771,6 +1780,7 @@ void *carl9170_alloc(size_t priv_size)
 	hw->wiphy->interface_modes = 0;
 
 	hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS |
+		     IEEE80211_HW_MFP_CAPABLE |
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
@@ -1796,6 +1806,9 @@ void *carl9170_alloc(size_t priv_size)
 		ar->noise[i] = -95; /* ATH_DEFAULT_NOISE_FLOOR */
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
+
+	/* As IBSS Encryption is software-based, IBSS RSN is supported. */
+	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	return ar;
 
 err_nomem:
@@ -1928,10 +1941,6 @@ int carl9170_register(struct ar9170 *ar)
 
 	/* try to read EEPROM, init MAC addr */
 	err = carl9170_read_eeprom(ar);
-	if (err)
-		return err;
-
-	err = carl9170_fw_fix_eeprom(ar);
 	if (err)
 		return err;
 

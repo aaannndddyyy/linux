@@ -1110,7 +1110,7 @@ static const struct net_device_ops cpmac_netdev_ops = {
 
 static int external_switch;
 
-static int __devinit cpmac_probe(struct platform_device *pdev)
+static int cpmac_probe(struct platform_device *pdev)
 {
 	int rc, phy_id;
 	char mdio_bus_id[MII_BUS_ID_SIZE];
@@ -1122,7 +1122,7 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	pdata = pdev->dev.platform_data;
 
 	if (external_switch || dumb_switch) {
-		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE); /* fixed phys bus */
+		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */
 		phy_id = pdev->id;
 	} else {
 		for (phy_id = 0; phy_id < PHY_MAX_ADDR; phy_id++) {
@@ -1138,16 +1138,13 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	if (phy_id == PHY_MAX_ADDR) {
 		dev_err(&pdev->dev, "no PHY present, falling back "
 					"to switch on MDIO bus 0\n");
-		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE); /* fixed phys bus */
+		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE); /* fixed phys bus */
 		phy_id = pdev->id;
 	}
 
 	dev = alloc_etherdev_mq(sizeof(*priv), CPMAC_QUEUES);
-
-	if (!dev) {
-		printk(KERN_ERR "cpmac: Unable to allocate net_device\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, dev);
 	priv = netdev_priv(dev);
@@ -1207,7 +1204,7 @@ fail:
 	return rc;
 }
 
-static int __devexit cpmac_remove(struct platform_device *pdev)
+static int cpmac_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	unregister_netdev(dev);
@@ -1219,10 +1216,10 @@ static struct platform_driver cpmac_driver = {
 	.driver.name = "cpmac",
 	.driver.owner = THIS_MODULE,
 	.probe = cpmac_probe,
-	.remove = __devexit_p(cpmac_remove),
+	.remove = cpmac_remove,
 };
 
-int __devinit cpmac_init(void)
+int cpmac_init(void)
 {
 	u32 mask;
 	int i, res;
@@ -1269,7 +1266,7 @@ int __devinit cpmac_init(void)
 	}
 
 	cpmac_mii->phy_mask = ~(mask | 0x80000000);
-	snprintf(cpmac_mii->id, MII_BUS_ID_SIZE, "1");
+	snprintf(cpmac_mii->id, MII_BUS_ID_SIZE, "cpmac-1");
 
 	res = mdiobus_register(cpmac_mii);
 	if (res)
@@ -1293,7 +1290,7 @@ fail_alloc:
 	return res;
 }
 
-void __devexit cpmac_exit(void)
+void cpmac_exit(void)
 {
 	platform_driver_unregister(&cpmac_driver);
 	mdiobus_unregister(cpmac_mii);

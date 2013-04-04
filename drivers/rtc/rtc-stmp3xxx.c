@@ -25,6 +25,7 @@
 #include <linux/interrupt.h>
 #include <linux/rtc.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 
 #include <mach/common.h>
 
@@ -265,6 +266,12 @@ static int stmp3xxx_rtc_resume(struct platform_device *dev)
 #define stmp3xxx_rtc_resume	NULL
 #endif
 
+static const struct of_device_id rtc_dt_ids[] = {
+	{ .compatible = "fsl,stmp3xxx-rtc", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, rtc_dt_ids);
+
 static struct platform_driver stmp3xxx_rtcdrv = {
 	.probe		= stmp3xxx_rtc_probe,
 	.remove		= stmp3xxx_rtc_remove,
@@ -273,21 +280,11 @@ static struct platform_driver stmp3xxx_rtcdrv = {
 	.driver		= {
 		.name	= "stmp3xxx-rtc",
 		.owner	= THIS_MODULE,
+		.of_match_table = rtc_dt_ids,
 	},
 };
 
-static int __init stmp3xxx_rtc_init(void)
-{
-	return platform_driver_register(&stmp3xxx_rtcdrv);
-}
-
-static void __exit stmp3xxx_rtc_exit(void)
-{
-	platform_driver_unregister(&stmp3xxx_rtcdrv);
-}
-
-module_init(stmp3xxx_rtc_init);
-module_exit(stmp3xxx_rtc_exit);
+module_platform_driver(stmp3xxx_rtcdrv);
 
 MODULE_DESCRIPTION("STMP3xxx RTC Driver");
 MODULE_AUTHOR("dmitry pervushin <dpervushin@embeddedalley.com> and "

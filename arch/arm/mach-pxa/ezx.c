@@ -29,11 +29,11 @@
 #include <asm/mach/arch.h>
 
 #include <mach/pxa27x.h>
-#include <mach/pxafb.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/hardware.h>
-#include <plat/pxa27x_keypad.h>
-#include <mach/camera.h>
+#include <linux/platform_data/keypad-pxa27x.h>
+#include <linux/platform_data/camera-pxa.h>
 
 #include "devices.h"
 #include "generic.h"
@@ -804,6 +804,7 @@ MACHINE_START(EZX_A780, "Motorola EZX A780")
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a780_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -870,6 +871,7 @@ MACHINE_START(EZX_E680, "Motorola EZX E680")
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e680_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -936,6 +938,7 @@ MACHINE_START(EZX_A1200, "Motorola EZX A1200")
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a1200_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -1127,6 +1130,7 @@ MACHINE_START(EZX_A910, "Motorola EZX A910")
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = a910_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -1193,6 +1197,7 @@ MACHINE_START(EZX_E6, "Motorola EZX E6")
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e6_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -1233,5 +1238,6 @@ MACHINE_START(EZX_E2, "Motorola EZX E2")
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = e2_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif

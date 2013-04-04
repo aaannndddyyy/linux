@@ -35,6 +35,8 @@
 #include <linux/pci.h>
 #include <linux/lockdep.h>
 #include <linux/memblock.h>
+#include <linux/hugetlb.h>
+
 #include <asm/io.h>
 #include <asm/kdump.h>
 #include <asm/prom.h>
@@ -50,7 +52,6 @@
 #include <asm/btext.h>
 #include <asm/nvram.h>
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/rtas.h>
 #include <asm/iommu.h>
 #include <asm/serial.h>
@@ -64,6 +65,7 @@
 #include <asm/mmu_context.h>
 #include <asm/code-patching.h>
 #include <asm/kvm_ppc.h>
+#include <asm/hugetlb.h>
 
 #include "setup.h"
 
@@ -206,6 +208,8 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;
+	/* Allow percpu accesses to "work" until we setup percpu data */
+	get_paca()->data_offset = 0;
 
 	/* Probe the machine type */
 	probe_machine();
@@ -216,6 +220,13 @@ void __init early_setup(unsigned long dt_ptr)
 
 	/* Initialize the hash table or TLB handling */
 	early_init_mmu();
+
+	/*
+	 * Reserve any gigantic pages requested on the command line.
+	 * memblock needs to have been initialized by the time this is
+	 * called since this will reserve memory.
+	 */
+	reserve_hugetlb_gpages();
 
 	DBG(" <- early_setup()\n");
 }
@@ -588,7 +599,12 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize the MMU context management stuff */
 	mmu_context_init();
 
-	kvm_rma_init();
+	kvm_linear_init();
+
+	/* Interrupt code needs to be 64K-aligned */
+	if ((unsigned long)_stext & 0xffff)
+		panic("Kernelbase not 64K-aligned (0x%lx)!\n",
+		      (unsigned long)_stext);
 
 	ppc64_boot_msg(0x15, "Setup Done");
 }

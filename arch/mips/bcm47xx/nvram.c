@@ -43,8 +43,8 @@ static void early_nvram_init(void)
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		mcore_ssb = &bcm47xx_bus.ssb.mipscore;
-		base = mcore_ssb->flash_window;
-		lim = mcore_ssb->flash_window_size;
+		base = mcore_ssb->pflash.window;
+		lim = mcore_ssb->pflash.window_size;
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA
@@ -107,8 +107,7 @@ int nvram_getenv(char *name, char *val, size_t val_len)
 		value = eq + 1;
 		if ((eq - var) == strlen(name) &&
 			strncmp(var, name, (eq - var)) == 0) {
-			snprintf(val, val_len, "%s", value);
-			return 0;
+			return snprintf(val, val_len, "%s", value);
 		}
 	}
 	return NVRAM_ERR_ENVNOTFOUND;

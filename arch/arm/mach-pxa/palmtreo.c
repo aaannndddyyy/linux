@@ -35,15 +35,15 @@
 #include <mach/pxa27x-udc.h>
 #include <mach/audio.h>
 #include <mach/palmtreo.h>
-#include <mach/mmc.h>
-#include <mach/pxafb.h>
-#include <mach/irda.h>
-#include <plat/pxa27x_keypad.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/irda-pxaficp.h>
+#include <linux/platform_data/keypad-pxa27x.h>
 #include <mach/udc.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/palmasoc.h>
-#include <mach/camera.h>
+#include <linux/platform_data/asoc-palm27x.h>
+#include <linux/platform_data/camera-pxa.h>
 #include <mach/palm27x.h>
 
 #include <sound/pxa2xx-lib.h>
@@ -448,10 +448,12 @@ MACHINE_START(TREO680, "Palm Treo 680")
 	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.reserve	= treo_reserve,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine   = treo680_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif
 
@@ -460,9 +462,11 @@ MACHINE_START(CENTRO, "Palm Centro 685")
 	.atag_offset    = 0x100,
 	.map_io         = pxa27x_map_io,
 	.reserve	= treo_reserve,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
 	.timer          = &pxa_timer,
 	.init_machine	= centro_init,
+	.restart	= pxa_restart,
 MACHINE_END
 #endif

@@ -25,7 +25,6 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/firmware.h>
-#include <asm/system.h>
 #include <asm/rtas.h>
 #include <asm/vdso_datapage.h>
 #include <asm/cputhreads.h>
@@ -63,7 +62,7 @@ static int pnv_smp_cpu_bootable(unsigned int nr)
 	return 1;
 }
 
-int __devinit pnv_smp_kick_cpu(int nr)
+int pnv_smp_kick_cpu(int nr)
 {
 	unsigned int pcpu = get_hard_smp_processor_id(nr);
 	unsigned long start_here = __pa(*((unsigned long *)
@@ -75,7 +74,7 @@ int __devinit pnv_smp_kick_cpu(int nr)
 	/* On OPAL v2 the CPU are still spinning inside OPAL itself,
 	 * get them back now
 	 */
-	if (firmware_has_feature(FW_FEATURE_OPALv2)) {
+	if (!paca[nr].cpu_start && firmware_has_feature(FW_FEATURE_OPALv2)) {
 		pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n", nr, pcpu);
 		rc = opal_start_cpu(pcpu, start_here);
 		if (rc != OPAL_SUCCESS)
@@ -107,14 +106,6 @@ static void pnv_smp_cpu_kill_self(void)
 {
 	unsigned int cpu;
 
-	/* If powersave_nap is enabled, use NAP mode, else just
-	 * spin aimlessly
-	 */
-	if (!powersave_nap) {
-		generic_mach_cpu_die();
-		return;
-	}
-
 	/* Standard hot unplug procedure */
 	local_irq_disable();
 	idle_task_exit();
@@ -129,7 +120,7 @@ static void pnv_smp_cpu_kill_self(void)
 	 */
 	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
 	while (!generic_check_cpu_restart(cpu)) {
-		power7_idle();
+		power7_nap();
 		if (!generic_check_cpu_restart(cpu)) {
 			DBG("CPU%d Unexpected exit while offline !\n", cpu);
 			/* We may be getting an IPI, so we re-enable

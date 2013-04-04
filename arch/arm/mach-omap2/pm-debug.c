@@ -27,13 +27,12 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <plat/clock.h>
-#include <plat/board.h>
+#include "clock.h"
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/dmtimer.h>
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 
+#include "soc.h"
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #include "pm.h"
@@ -169,7 +168,7 @@ static int pm_dbg_open(struct inode *inode, struct file *file)
 	default:
 		return single_open(file, pm_dbg_show_timers,
 			&inode->i_private);
-	};
+	}
 }
 
 static const struct file_operations debug_fops = {
@@ -220,8 +219,8 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *dir)
 		return 0;
 
 	d = debugfs_create_dir(pwrdm->name, (struct dentry *)dir);
-
-	(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
+	if (!(IS_ERR_OR_NULL(d)))
+		(void) debugfs_create_file("suspend", S_IRUGO|S_IWUSR, d,
 			(void *)pwrdm, &pwrdm_suspend_fops);
 
 	return 0;
@@ -264,7 +263,7 @@ static int __init pm_dbg_init(void)
 		return 0;
 
 	d = debugfs_create_dir("pm_debug", NULL);
-	if (IS_ERR(d))
+	if (IS_ERR_OR_NULL(d))
 		return PTR_ERR(d);
 
 	(void) debugfs_create_file("count", S_IRUGO,

@@ -4,14 +4,22 @@
  */
 
 #include <asm-generic/vmlinux.lds.h>
+#include <asm/cache.h>
 #include <asm/thread_info.h>
 #include <asm/memory.h>
 #include <asm/page.h>
 	
 #define PROC_INFO							\
+	. = ALIGN(4);							\
 	VMLINUX_SYMBOL(__proc_info_begin) = .;				\
 	*(.proc.info.init)						\
 	VMLINUX_SYMBOL(__proc_info_end) = .;
+
+#define IDMAP_TEXT							\
+	ALIGN_FUNCTION();						\
+	VMLINUX_SYMBOL(__idmap_text_start) = .;				\
+	*(.idmap.text)							\
+	VMLINUX_SYMBOL(__idmap_text_end) = .;
 
 #ifdef CONFIG_HOTPLUG_CPU
 #define ARM_CPU_DISCARD(x)
@@ -92,6 +100,7 @@ SECTIONS
 			SCHED_TEXT
 			LOCK_TEXT
 			KPROBES_TEXT
+			IDMAP_TEXT
 #ifdef CONFIG_MMU
 			*(.fixup)
 #endif
@@ -104,6 +113,15 @@ SECTIONS
 	}
 
 	RO_DATA(PAGE_SIZE)
+
+	. = ALIGN(4);
+	__ex_table : AT(ADDR(__ex_table) - LOAD_OFFSET) {
+		__start___ex_table = .;
+#ifdef CONFIG_MMU
+		*(__ex_table)
+#endif
+		__stop___ex_table = .;
+	}
 
 #ifdef CONFIG_ARM_UNWIND
 	/*
@@ -121,6 +139,8 @@ SECTIONS
 		__stop_unwind_tab = .;
 	}
 #endif
+
+	NOTES
 
 	_etext = .;			/* End of text and rodata section */
 
@@ -174,7 +194,9 @@ SECTIONS
 	}
 #endif
 
-	PERCPU_SECTION(32)
+#ifdef CONFIG_SMP
+	PERCPU_SECTION(L1_CACHE_BYTES)
+#endif
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
@@ -205,18 +227,8 @@ SECTIONS
 #endif
 
 		NOSAVE_DATA
-		CACHELINE_ALIGNED_DATA(32)
-		READ_MOSTLY_DATA(32)
-
-		/*
-		 * The exception fixup table (might need resorting at runtime)
-		 */
-		. = ALIGN(32);
-		__start___ex_table = .;
-#ifdef CONFIG_MMU
-		*(__ex_table)
-#endif
-		__stop___ex_table = .;
+		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
+		READ_MOSTLY_DATA(L1_CACHE_BYTES)
 
 		/*
 		 * and the usual data section
@@ -284,8 +296,6 @@ SECTIONS
 		__tcm_end = .;
 	}
 #endif
-
-	NOTES
 
 	BSS_SECTION(0, 0, 0)
 	_end = .;

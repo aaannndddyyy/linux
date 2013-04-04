@@ -105,11 +105,10 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
 	struct xen_blkif *blkif;
 
-	blkif = kmem_cache_alloc(xen_blkif_cachep, GFP_KERNEL);
+	blkif = kmem_cache_zalloc(xen_blkif_cachep, GFP_KERNEL);
 	if (!blkif)
 		return ERR_PTR(-ENOMEM);
 
-	memset(blkif, 0, sizeof(*blkif));
 	blkif->domid = domid;
 	spin_lock_init(&blkif->blk_ring_lock);
 	atomic_set(&blkif->refcnt, 1);
@@ -118,6 +117,7 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	atomic_set(&blkif->drain, 0);
 	blkif->st_print = jiffies;
 	init_waitqueue_head(&blkif->waiting_to_free);
+	blkif->persistent_gnts.rb_node = NULL;
 
 	return blkif;
 }
@@ -196,7 +196,7 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 	}
 }
 
-void xen_blkif_free(struct xen_blkif *blkif)
+static void xen_blkif_free(struct xen_blkif *blkif)
 {
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
@@ -257,7 +257,7 @@ static struct attribute_group xen_vbdstat_group = {
 VBD_SHOW(physical_device, "%x:%x\n", be->major, be->minor);
 VBD_SHOW(mode, "%s\n", be->mode);
 
-int xenvbd_sysfs_addif(struct xenbus_device *dev)
+static int xenvbd_sysfs_addif(struct xenbus_device *dev)
 {
 	int error;
 
@@ -281,7 +281,7 @@ fail1:	device_remove_file(&dev->dev, &dev_attr_physical_device);
 	return error;
 }
 
-void xenvbd_sysfs_delif(struct xenbus_device *dev)
+static void xenvbd_sysfs_delif(struct xenbus_device *dev)
 {
 	sysfs_remove_group(&dev->dev.kobj, &xen_vbdstat_group);
 	device_remove_file(&dev->dev, &dev_attr_mode);
@@ -338,6 +338,9 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	if (q && q->flush_flags)
 		vbd->flush_support = true;
 
+	if (q && blk_queue_secdiscard(q))
+		vbd->discard_secure = true;
+
 	DPRINTK("Successful creation of handle=%04x (dom=%u)\n",
 		handle, blkif->domid);
 	return 0;
@@ -378,63 +381,49 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 	err = xenbus_printf(xbt, dev->nodename, "feature-flush-cache",
 			    "%d", state);
 	if (err)
-		xenbus_dev_fatal(dev, err, "writing feature-flush-cache");
+		dev_warn(&dev->dev, "writing feature-flush-cache (%d)", err);
 
 	return err;
 }
 
-int xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info *be)
+static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info *be)
 {
 	struct xenbus_device *dev = be->dev;
 	struct xen_blkif *blkif = be->blkif;
-	char *type;
 	int err;
 	int state = 0;
+	struct block_device *bdev = be->blkif->vbd.bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
 
-	type = xenbus_read(XBT_NIL, dev->nodename, "type", NULL);
-	if (!IS_ERR(type)) {
-		if (strncmp(type, "file", 4) == 0) {
-			state = 1;
-			blkif->blk_backend_type = BLKIF_BACKEND_FILE;
+	if (blk_queue_discard(q)) {
+		err = xenbus_printf(xbt, dev->nodename,
+			"discard-granularity", "%u",
+			q->limits.discard_granularity);
+		if (err) {
+			dev_warn(&dev->dev, "writing discard-granularity (%d)", err);
+			return;
 		}
-		if (strncmp(type, "phy", 3) == 0) {
-			struct block_device *bdev = be->blkif->vbd.bdev;
-			struct request_queue *q = bdev_get_queue(bdev);
-			if (blk_queue_discard(q)) {
-				err = xenbus_printf(xbt, dev->nodename,
-					"discard-granularity", "%u",
-					q->limits.discard_granularity);
-				if (err) {
-					xenbus_dev_fatal(dev, err,
-						"writing discard-granularity");
-					goto kfree;
-				}
-				err = xenbus_printf(xbt, dev->nodename,
-					"discard-alignment", "%u",
-					q->limits.discard_alignment);
-				if (err) {
-					xenbus_dev_fatal(dev, err,
-						"writing discard-alignment");
-					goto kfree;
-				}
-				state = 1;
-				blkif->blk_backend_type = BLKIF_BACKEND_PHY;
-			}
+		err = xenbus_printf(xbt, dev->nodename,
+			"discard-alignment", "%u",
+			q->limits.discard_alignment);
+		if (err) {
+			dev_warn(&dev->dev, "writing discard-alignment (%d)", err);
+			return;
 		}
-	} else {
-		err = PTR_ERR(type);
-		xenbus_dev_fatal(dev, err, "reading type");
-		goto out;
+		state = 1;
+		/* Optional. */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "discard-secure", "%d",
+				    blkif->vbd.discard_secure);
+		if (err) {
+			dev_warn(&dev->dev, "writing discard-secure (%d)", err);
+			return;
+		}
 	}
-
 	err = xenbus_printf(xbt, dev->nodename, "feature-discard",
 			    "%d", state);
 	if (err)
-		xenbus_dev_fatal(dev, err, "writing feature-discard");
-kfree:
-	kfree(type);
-out:
-	return err;
+		dev_warn(&dev->dev, "writing feature-discard (%d)", err);
 }
 int xen_blkbk_barrier(struct xenbus_transaction xbt,
 		      struct backend_info *be, int state)
@@ -445,7 +434,7 @@ int xen_blkbk_barrier(struct xenbus_transaction xbt,
 	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
 			    "%d", state);
 	if (err)
-		xenbus_dev_fatal(dev, err, "writing feature-barrier");
+		dev_warn(&dev->dev, "writing feature-barrier (%d)", err);
 
 	return err;
 }
@@ -613,7 +602,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 		/*
 		 * Ensure we connect even when two watches fire in
-		 * close successsion and we miss the intermediate value
+		 * close succession and we miss the intermediate value
 		 * of frontend_state.
 		 */
 		if (dev->state == XenbusStateConnected)
@@ -677,14 +666,19 @@ again:
 		return;
 	}
 
-	err = xen_blkbk_flush_diskcache(xbt, be, be->blkif->vbd.flush_support);
-	if (err)
-		goto abort;
-
-	err = xen_blkbk_discard(xbt, be);
-
 	/* If we can't advertise it is OK. */
-	err = xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
+	xen_blkbk_flush_diskcache(xbt, be, be->blkif->vbd.flush_support);
+
+	xen_blkbk_discard(xbt, be);
+
+	xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
+
+	err = xenbus_printf(xbt, dev->nodename, "feature-persistent", "%u", 1);
+	if (err) {
+		xenbus_dev_fatal(dev, err, "writing %s/feature-persistent",
+				 dev->nodename);
+		goto abort;
+	}
 
 	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));
@@ -734,6 +728,7 @@ static int connect_ring(struct backend_info *be)
 	struct xenbus_device *dev = be->dev;
 	unsigned long ring_ref;
 	unsigned int evtchn;
+	unsigned int pers_grants;
 	char protocol[64] = "";
 	int err;
 
@@ -763,8 +758,18 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -1;
 	}
-	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s)\n",
-		ring_ref, evtchn, be->blkif->blk_protocol, protocol);
+	err = xenbus_gather(XBT_NIL, dev->otherend,
+			    "feature-persistent", "%u",
+			    &pers_grants, NULL);
+	if (err)
+		pers_grants = 0;
+
+	be->blkif->vbd.feature_gnt_persistent = pers_grants;
+	be->blkif->vbd.overflow_max_grants = 0;
+
+	pr_info(DRV_PFX "ring-ref %ld, event-channel %d, protocol %d (%s) %s\n",
+		ring_ref, evtchn, be->blkif->blk_protocol, protocol,
+		pers_grants ? "persistent grants" : "");
 
 	/* Map the shared frame, irq etc. */
 	err = xen_blkif_map(be->blkif, ring_ref, evtchn);
@@ -787,17 +792,14 @@ static const struct xenbus_device_id xen_blkbk_ids[] = {
 };
 
 
-static struct xenbus_driver xen_blkbk = {
-	.name = "vbd",
-	.owner = THIS_MODULE,
-	.ids = xen_blkbk_ids,
+static DEFINE_XENBUS_DRIVER(xen_blkbk, ,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
-};
+);
 
 
 int xen_blkif_xenbus_init(void)
 {
-	return xenbus_register_backend(&xen_blkbk);
+	return xenbus_register_backend(&xen_blkbk_driver);
 }

@@ -74,7 +74,7 @@ static struct ccw_driver ur_driver = {
 	.set_online	= ur_set_online,
 	.set_offline	= ur_set_offline,
 	.freeze		= ur_pm_suspend,
-	.int_class	= IOINT_VMR,
+	.int_class	= IRQIO_VMR,
 };
 
 static DEFINE_MUTEX(vmur_mutex);
@@ -903,7 +903,7 @@ static int ur_set_online(struct ccw_device *cdev)
 		goto fail_urdev_put;
 	}
 
-	cdev_init(urd->char_device, &ur_fops);
+	urd->char_device->ops = &ur_fops;
 	urd->char_device->dev = MKDEV(major, minor);
 	urd->char_device->owner = ur_fops.owner;
 

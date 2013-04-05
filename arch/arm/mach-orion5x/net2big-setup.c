@@ -25,6 +25,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/orion5x.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -426,5 +427,6 @@ MACHINE_START(NET2BIG, "LaCie 2Big Network")
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END
 

@@ -119,7 +119,7 @@ static struct net *get_proc_task_net(struct inode *dir)
 }
 
 static struct dentry *proc_tgid_net_lookup(struct inode *dir,
-		struct dentry *dentry, struct nameidata *nd)
+		struct dentry *dentry, unsigned int flags)
 {
 	struct dentry *de;
 	struct net *net;
@@ -179,7 +179,7 @@ const struct file_operations proc_net_operations = {
 
 
 struct proc_dir_entry *proc_net_fops_create(struct net *net,
-	const char *name, mode_t mode, const struct file_operations *fops)
+	const char *name, umode_t mode, const struct file_operations *fops)
 {
 	return proc_create(name, mode, net->proc_net, fops);
 }

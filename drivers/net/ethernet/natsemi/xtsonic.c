@@ -205,6 +205,7 @@ static int __init sonic_probe1(struct net_device *dev)
 	if (lp->descriptors == NULL) {
 		printk(KERN_ERR "%s: couldn't alloc DMA memory for "
 				" descriptors.\n", dev_name(lp->device));
+		err = -ENOMEM;
 		goto out;
 	}
 
@@ -248,7 +249,7 @@ out:
  * Actually probing is superfluous but we're paranoid.
  */
 
-int __devinit xtsonic_probe(struct platform_device *pdev)
+int xtsonic_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -296,7 +297,7 @@ MODULE_PARM_DESC(sonic_debug, "xtsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit xtsonic_device_remove (struct platform_device *pdev)
+static int xtsonic_device_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sonic_local *lp = netdev_priv(dev);
@@ -313,21 +314,10 @@ static int __devexit xtsonic_device_remove (struct platform_device *pdev)
 
 static struct platform_driver xtsonic_driver = {
 	.probe = xtsonic_probe,
-	.remove = __devexit_p(xtsonic_device_remove),
+	.remove = xtsonic_device_remove,
 	.driver = {
 		.name = xtsonic_string,
 	},
 };
 
-static int __init xtsonic_init(void)
-{
-	return platform_driver_register(&xtsonic_driver);
-}
-
-static void __exit xtsonic_cleanup(void)
-{
-	platform_driver_unregister(&xtsonic_driver);
-}
-
-module_init(xtsonic_init);
-module_exit(xtsonic_cleanup);
+module_platform_driver(xtsonic_driver);

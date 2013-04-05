@@ -39,7 +39,6 @@
 #include <linux/mm.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "8390.h"
 
@@ -82,7 +81,7 @@ static void ne3210_block_output(struct net_device *dev, int count, const unsigne
 
 static unsigned char irq_map[] __initdata = {15, 12, 11, 10, 9, 7, 5, 3};
 static unsigned int shmem_map[] __initdata = {0xff0, 0xfe0, 0xfff0, 0xd8, 0xffe0, 0xffc0, 0xd0, 0x0};
-static const char *ifmap[] __initdata = {"UTP", "?", "BNC", "AUI"};
+static const char * const ifmap[] __initconst = {"UTP", "?", "BNC", "AUI"};
 static int ifmap_val[] __initdata = {
 		IF_PORT_10BASET,
 		IF_PORT_UNKNOWN,
@@ -125,7 +124,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 #endif
 
 	port_index = inb(ioaddr + NE3210_CFG2) >> 6;
-	for(i = 0; i < ETHER_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		dev->dev_addr[i] = inb(ioaddr + NE3210_SA_PROM + i);
 	printk("ne3210.c: NE3210 in EISA slot %d, media: %s, addr: %pM.\n",
 		edev->slot, ifmap[port_index], dev->dev_addr);
@@ -223,7 +222,7 @@ static int __init ne3210_eisa_probe (struct device *device)
 	return retval;
 }
 
-static int __devexit ne3210_eisa_remove (struct device *device)
+static int ne3210_eisa_remove(struct device *device)
 {
 	struct net_device  *dev    = dev_get_drvdata(device);
 	unsigned long       ioaddr = to_eisa_device (device)->base_addr;
@@ -325,7 +324,7 @@ static struct eisa_driver ne3210_eisa_driver = {
 	.driver   = {
 		.name   = "ne3210",
 		.probe  = ne3210_eisa_probe,
-		.remove = __devexit_p (ne3210_eisa_remove),
+		.remove = ne3210_eisa_remove,
 	},
 };
 

@@ -434,10 +434,10 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct adapter *adapter = dev->ml_priv;
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
-	strcpy(info->bus_info, pci_name(adapter->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(adapter->pdev),
+		sizeof(info->bus_info));
 }
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -849,7 +849,8 @@ static int t1_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-static u32 t1_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t t1_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -863,9 +864,9 @@ static u32 t1_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int t1_set_features(struct net_device *dev, u32 features)
+static int t1_set_features(struct net_device *dev, netdev_features_t features)
 {
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	struct adapter *adapter = dev->ml_priv;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
@@ -973,8 +974,7 @@ static const struct net_device_ops cxgb_netdev_ops = {
 #endif
 };
 
-static int __devinit init_one(struct pci_dev *pdev,
-			      const struct pci_device_id *ent)
+static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int version_printed;
 
@@ -1331,7 +1331,7 @@ static inline void t1_sw_reset(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, A_PCICFG_PM_CSR, 0);
 }
 
-static void __devexit remove_one(struct pci_dev *pdev)
+static void remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct adapter *adapter = dev->ml_priv;
@@ -1360,7 +1360,7 @@ static struct pci_driver driver = {
 	.name     = DRV_NAME,
 	.id_table = t1_pci_tbl,
 	.probe    = init_one,
-	.remove   = __devexit_p(remove_one),
+	.remove   = remove_one,
 };
 
 static int __init t1_init_module(void)

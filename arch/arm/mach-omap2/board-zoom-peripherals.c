@@ -19,21 +19,22 @@
 #include <linux/regulator/fixed.h>
 #include <linux/wl12xx.h>
 #include <linux/mmc/host.h>
+#include <linux/platform_data/gpio-omap.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/common.h>
-#include <plat/usb.h>
+#include "common.h"
 
-#include <mach/board-zoom.h>
+#include "board-zoom.h"
 
 #include "mux.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
 
 #define OMAP_ZOOM_WLAN_PMENA_GPIO	(101)
+#define ZOOM2_HEADSET_EXTMUTE_GPIO	(153)
 #define OMAP_ZOOM_WLAN_IRQ_GPIO		(162)
 
 #define LCD_PANEL_ENABLE_GPIO		(7 + OMAP_MAX_GPIO_LINES)
@@ -193,9 +194,7 @@ static struct platform_device omap_vwlan_device = {
 };
 
 static struct wl12xx_platform_data omap_zoom_wlan_data __initdata = {
-	.irq = OMAP_GPIO_IRQ(OMAP_ZOOM_WLAN_IRQ_GPIO),
-	/* ZOOM ref clock is 26 MHz */
-	.board_ref_clock = 1,
+	.board_ref_clock = WL12XX_REFCLOCK_26, /* 26 MHz */
 };
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -205,6 +204,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_wp	= -EINVAL,
 		.power_saving	= true,
+		.deferred	= true,
 	},
 	{
 		.name		= "internal",
@@ -233,7 +233,7 @@ static int zoom_twl_gpio_setup(struct device *dev,
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	ret = gpio_request_one(LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
 			       "lcd enable");
@@ -244,16 +244,7 @@ static int zoom_twl_gpio_setup(struct device *dev,
 	return ret;
 }
 
-/* EXTMUTE callback function */
-static void zoom2_set_hs_extmute(int mute)
-{
-	gpio_set_value(ZOOM2_HEADSET_EXTMUTE_GPIO, mute);
-}
-
 static struct twl4030_gpio_platform_data zoom_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.setup		= zoom_twl_gpio_setup,
 };
 
@@ -279,9 +270,9 @@ static int __init omap_i2c_init(void)
 
 		codec_data->ramp_delay_value = 3;	/* 161 ms */
 		codec_data->hs_extmute = 1;
-		codec_data->set_hs_extmute = zoom2_set_hs_extmute;
+		codec_data->hs_extmute_gpio = ZOOM2_HEADSET_EXTMUTE_GPIO;
 	}
-	omap_pmic_init(1, 2400, "twl5030", INT_34XX_SYS_NIRQ, &zoom_twldata);
+	omap_pmic_init(1, 2400, "twl5030", 7 + OMAP_INTC_START, &zoom_twldata);
 	omap_register_i2c_bus(2, 400, NULL, 0);
 	omap_register_i2c_bus(3, 400, NULL, 0);
 	return 0;
@@ -296,9 +287,15 @@ static void enable_board_wakeup_source(void)
 
 void __init zoom_peripherals_init(void)
 {
-	if (wl12xx_set_platform_data(&omap_zoom_wlan_data))
-		pr_err("error setting wl12xx data\n");
+	int ret;
 
+	omap_zoom_wlan_data.irq = gpio_to_irq(OMAP_ZOOM_WLAN_IRQ_GPIO);
+	ret = wl12xx_set_platform_data(&omap_zoom_wlan_data);
+
+	if (ret)
+		pr_err("error setting wl12xx data: %d\n", ret);
+
+	omap_hsmmc_init(mmc);
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);
 	usb_musb_init(NULL);

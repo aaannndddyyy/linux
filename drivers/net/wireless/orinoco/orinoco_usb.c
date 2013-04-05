@@ -865,7 +865,7 @@ static int ezusb_firmware_download(struct ezusb_priv *upriv,
 static int ezusb_access_ltv(struct ezusb_priv *upriv,
 			    struct request_context *ctx,
 			    u16 length, const void *data, u16 frame_type,
-			    void *ans_buff, int ans_size, u16 *ans_length)
+			    void *ans_buff, unsigned ans_size, u16 *ans_length)
 {
 	int req_size;
 	int retval = 0;
@@ -933,7 +933,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 	}
 	if (ctx->in_rid) {
 		struct ezusb_packet *ans = ctx->buf;
-		int exp_len;
+		unsigned exp_len;
 
 		if (ans->hermes_len != 0)
 			exp_len = le16_to_cpu(ans->hermes_len) * 2 + 12;
@@ -949,8 +949,7 @@ static int ezusb_access_ltv(struct ezusb_priv *upriv,
 		}
 
 		if (ans_buff)
-			memcpy(ans_buff, ans->data,
-			       min_t(int, exp_len, ans_size));
+			memcpy(ans_buff, ans->data, min(exp_len, ans_size));
 		if (ans_length)
 			*ans_length = le16_to_cpu(ans->hermes_len);
 	}
@@ -995,7 +994,7 @@ static int ezusb_read_ltv(struct hermes *hw, int bap, u16 rid,
 	struct ezusb_priv *upriv = hw->priv;
 	struct request_context *ctx;
 
-	if ((bufsize < 0) || (bufsize % 2))
+	if (bufsize % 2)
 		return -EINVAL;
 
 	ctx = ezusb_alloc_ctx(upriv, rid, rid);
@@ -1752,39 +1751,10 @@ static struct usb_driver orinoco_driver = {
 	.probe = ezusb_probe,
 	.disconnect = ezusb_disconnect,
 	.id_table = ezusb_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
-/* Can't be declared "const" or the whole __initdata section will
- * become const */
-static char version[] __initdata = DRIVER_NAME " " DRIVER_VERSION
-	" (Manuel Estrada Sainz)";
-
-static int __init ezusb_module_init(void)
-{
-	int err;
-
-	printk(KERN_DEBUG "%s\n", version);
-
-	/* register this driver with the USB subsystem */
-	err = usb_register(&orinoco_driver);
-	if (err < 0) {
-		printk(KERN_ERR PFX "usb_register failed, error %d\n",
-		       err);
-		return err;
-	}
-
-	return 0;
-}
-
-static void __exit ezusb_module_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&orinoco_driver);
-}
-
-
-module_init(ezusb_module_init);
-module_exit(ezusb_module_exit);
+module_usb_driver(orinoco_driver);
 
 MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Driver for Orinoco wireless LAN cards using EZUSB bridge");

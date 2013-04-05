@@ -797,7 +797,7 @@ static int bcm_enet_open(struct net_device *dev)
 	if (priv->has_phy) {
 		/* connect to PHY */
 		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
-			 priv->mac_id ? "1" : "0", priv->phy_id);
+			 priv->mii_bus->id, priv->phy_id);
 
 		phydev = phy_connect(dev, phy_id, bcm_enet_adjust_phy_link, 0,
 				     PHY_INTERFACE_MODE_MII);
@@ -1469,7 +1469,7 @@ static int bcm_enet_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
-static struct ethtool_ops bcm_enet_ethtool_ops = {
+static const struct ethtool_ops bcm_enet_ethtool_ops = {
 	.get_strings		= bcm_enet_get_strings,
 	.get_sset_count		= bcm_enet_get_sset_count,
 	.get_ethtool_stats      = bcm_enet_get_ethtool_stats,
@@ -1612,7 +1612,7 @@ static const struct net_device_ops bcm_enet_ops = {
 /*
  * allocate netdevice, request register memory and register device.
  */
-static int __devinit bcm_enet_probe(struct platform_device *pdev)
+static int bcm_enet_probe(struct platform_device *pdev)
 {
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
@@ -1727,7 +1727,7 @@ static int __devinit bcm_enet_probe(struct platform_device *pdev)
 		bus->priv = priv;
 		bus->read = bcm_enet_mdio_read_phylib;
 		bus->write = bcm_enet_mdio_write_phylib;
-		sprintf(bus->id, "%d", priv->mac_id);
+		sprintf(bus->id, "%s-%d", pdev->name, priv->mac_id);
 
 		/* only probe bus where we think the PHY is, because
 		 * the mdio read operation return 0 instead of 0xffff
@@ -1830,7 +1830,7 @@ out:
 /*
  * exit func, stops hardware and unregisters netdevice
  */
-static int __devexit bcm_enet_remove(struct platform_device *pdev)
+static int bcm_enet_remove(struct platform_device *pdev)
 {
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
@@ -1877,7 +1877,7 @@ static int __devexit bcm_enet_remove(struct platform_device *pdev)
 
 struct platform_driver bcm63xx_enet_driver = {
 	.probe	= bcm_enet_probe,
-	.remove	= __devexit_p(bcm_enet_remove),
+	.remove	= bcm_enet_remove,
 	.driver	= {
 		.name	= "bcm63xx_enet",
 		.owner  = THIS_MODULE,
@@ -1887,7 +1887,7 @@ struct platform_driver bcm63xx_enet_driver = {
 /*
  * reserve & remap memory space shared between all macs
  */
-static int __devinit bcm_enet_shared_probe(struct platform_device *pdev)
+static int bcm_enet_shared_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	unsigned int iomem_size;
@@ -1908,7 +1908,7 @@ static int __devinit bcm_enet_shared_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bcm_enet_shared_remove(struct platform_device *pdev)
+static int bcm_enet_shared_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 
@@ -1924,7 +1924,7 @@ static int __devexit bcm_enet_shared_remove(struct platform_device *pdev)
  */
 struct platform_driver bcm63xx_enet_shared_driver = {
 	.probe	= bcm_enet_shared_probe,
-	.remove	= __devexit_p(bcm_enet_shared_remove),
+	.remove	= bcm_enet_shared_remove,
 	.driver	= {
 		.name	= "bcm63xx_enet_shared",
 		.owner  = THIS_MODULE,

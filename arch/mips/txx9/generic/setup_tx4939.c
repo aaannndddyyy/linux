@@ -15,7 +15,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/notifier.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/ethtool.h>
 #include <linux/param.h>
 #include <linux/ptrace.h>
@@ -317,7 +317,7 @@ void __init tx4939_sio_init(unsigned int sclk, unsigned int cts_mask)
 	}
 }
 
-#if defined(CONFIG_TC35815) || defined(CONFIG_TC35815_MODULE)
+#if IS_ENABLED(CONFIG_TC35815)
 static u32 tx4939_get_eth_speed(struct net_device *dev)
 {
 	struct ethtool_cmd cmd;

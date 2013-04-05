@@ -100,7 +100,7 @@ struct paca_struct {
 	/* SLB related definitions */
 	u16 vmalloc_sllp;
 	u16 slb_cache_ptr;
-	u16 slb_cache[SLB_CACHE_ENTRIES];
+	u32 slb_cache[SLB_CACHE_ENTRIES];
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 #ifdef CONFIG_PPC_BOOK3E
@@ -132,9 +132,11 @@ struct paca_struct {
 	u64 saved_msr;			/* MSR saved here by enter_rtas */
 	u16 trap_save;			/* Used when bad stack is encountered */
 	u8 soft_enabled;		/* irq soft-enable flag */
-	u8 hard_enabled;		/* set if irqs are enabled in MSR */
+	u8 irq_happened;		/* irq happened while soft-disabled */
 	u8 io_sync;			/* writel() needs spin_unlock sync */
 	u8 irq_work_pending;		/* IRQ_WORK interrupt while soft-disable */
+	u8 nap_state_lost;		/* NV GPR values lost in power7_idle */
+	u64 sprg3;			/* Saved user-visible sprg */
 
 #ifdef CONFIG_PPC_POWERNV
 	/* Pointer to OPAL machine check event structure set by the

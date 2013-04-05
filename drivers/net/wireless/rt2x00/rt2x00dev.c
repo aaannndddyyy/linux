@@ -88,6 +88,8 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00queue_start_queues(rt2x00dev);
 	rt2x00link_start_tuner(rt2x00dev);
 	rt2x00link_start_agc(rt2x00dev);
+	if (test_bit(CAPABILITY_VCO_RECALIBRATION, &rt2x00dev->cap_flags))
+		rt2x00link_start_vcocal(rt2x00dev);
 
 	/*
 	 * Start watchdog monitoring.
@@ -111,6 +113,8 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 * Stop all queues
 	 */
 	rt2x00link_stop_agc(rt2x00dev);
+	if (test_bit(CAPABILITY_VCO_RECALIBRATION, &rt2x00dev->cap_flags))
+		rt2x00link_stop_vcocal(rt2x00dev);
 	rt2x00link_stop_tuner(rt2x00dev);
 	rt2x00queue_stop_queues(rt2x00dev);
 	rt2x00queue_flush_queues(rt2x00dev, true);
@@ -153,6 +157,7 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 	 * requested configurations.
 	 */
 	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    rt2x00lib_intf_scheduled_iter,
 					    rt2x00dev);
 }
@@ -190,7 +195,7 @@ static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 	 */
 	skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	while (skb) {
-		rt2x00mac_tx(rt2x00dev->hw, skb);
+		rt2x00mac_tx(rt2x00dev->hw, NULL, skb);
 		skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
 	}
 }
@@ -221,9 +226,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* send buffered bc/mc frames out for every bssid */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_bc_buffer_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_bc_buffer_iter, rt2x00dev);
 	/*
 	 * Devices with pre tbtt interrupt don't need to update the beacon
 	 * here as they will fetch the next beacon directly prior to
@@ -233,9 +238,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beaconupdate_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_beaconupdate_iter, rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -245,9 +250,9 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beaconupdate_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_beaconupdate_iter, rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
@@ -426,10 +431,14 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * If the data queue was below the threshold before the txdone
 	 * handler we must make sure the packet queue in the mac80211 stack
-	 * is reenabled when the txdone handler has finished.
+	 * is reenabled when the txdone handler has finished. This has to be
+	 * serialized with rt2x00mac_tx(), otherwise we can wake up queue
+	 * before it was stopped.
 	 */
+	spin_lock_bh(&entry->queue->tx_lock);
 	if (!rt2x00queue_threshold(entry->queue))
 		rt2x00queue_unpause_queue(entry->queue);
+	spin_unlock_bh(&entry->queue->tx_lock);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_txdone);
 
@@ -579,7 +588,7 @@ static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-void rt2x00lib_rxdone(struct queue_entry *entry)
+void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct rxdone_entry_desc rxdesc;
@@ -599,7 +608,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
 	 * received frame and reuse the existing buffer.
 	 */
-	skb = rt2x00queue_alloc_rxskb(entry);
+	skb = rt2x00queue_alloc_rxskb(entry, gfp);
 	if (!skb)
 		goto submit_entry;
 
@@ -620,7 +629,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	 */
 	if (unlikely(rxdesc.size == 0 ||
 		     rxdesc.size > entry->queue->data_size)) {
-		WARNING(rt2x00dev, "Wrong frame size %d max %d.\n",
+		ERROR(rt2x00dev, "Wrong frame size %d max %d.\n",
 			rxdesc.size, entry->queue->data_size);
 		dev_kfree_skb(entry->skb);
 		goto renew_skb;
@@ -676,6 +685,14 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	 * to mac80211.
 	 */
 	rx_status = IEEE80211_SKB_RXCB(entry->skb);
+
+	/* Ensure that all fields of rx_status are initialized
+	 * properly. The skb->cb array was used for driver
+	 * specific informations, so rx_status might contain
+	 * garbage.
+	 */
+	memset(rx_status, 0, sizeof(*rx_status));
+
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->band = rt2x00dev->curr_band;
 	rx_status->freq = rt2x00dev->curr_freq;
@@ -831,11 +848,11 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	if (spec->supported_rates & SUPPORT_RATE_OFDM)
 		num_rates += 8;
 
-	channels = kzalloc(sizeof(*channels) * spec->num_channels, GFP_KERNEL);
+	channels = kcalloc(spec->num_channels, sizeof(*channels), GFP_KERNEL);
 	if (!channels)
 		return -ENOMEM;
 
-	rates = kzalloc(sizeof(*rates) * num_rates, GFP_KERNEL);
+	rates = kcalloc(num_rates, sizeof(*rates), GFP_KERNEL);
 	if (!rates)
 		goto exit_free_channels;
 
@@ -1054,11 +1071,6 @@ static int rt2x00lib_initialize(struct rt2x00_dev *rt2x00dev)
 
 	set_bit(DEVICE_STATE_INITIALIZED, &rt2x00dev->flags);
 
-	/*
-	 * Register the extra components.
-	 */
-	rt2x00rfkill_register(rt2x00dev);
-
 	return 0;
 }
 
@@ -1114,12 +1126,60 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->intf_associated = 0;
 }
 
+static inline void rt2x00lib_set_if_combinations(struct rt2x00_dev *rt2x00dev)
+{
+	struct ieee80211_iface_limit *if_limit;
+	struct ieee80211_iface_combination *if_combination;
+
+	if (rt2x00dev->ops->max_ap_intf < 2)
+		return;
+
+	/*
+	 * Build up AP interface limits structure.
+	 */
+	if_limit = &rt2x00dev->if_limits_ap;
+	if_limit->max = rt2x00dev->ops->max_ap_intf;
+	if_limit->types = BIT(NL80211_IFTYPE_AP);
+
+	/*
+	 * Build up AP interface combinations structure.
+	 */
+	if_combination = &rt2x00dev->if_combinations[IF_COMB_AP];
+	if_combination->limits = if_limit;
+	if_combination->n_limits = 1;
+	if_combination->max_interfaces = if_limit->max;
+	if_combination->num_different_channels = 1;
+
+	/*
+	 * Finally, specify the possible combinations to mac80211.
+	 */
+	rt2x00dev->hw->wiphy->iface_combinations = rt2x00dev->if_combinations;
+	rt2x00dev->hw->wiphy->n_iface_combinations = 1;
+}
+
 /*
  * driver allocation handlers.
  */
 int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 {
 	int retval = -ENOMEM;
+
+	/*
+	 * Set possible interface combinations.
+	 */
+	rt2x00lib_set_if_combinations(rt2x00dev);
+
+	/*
+	 * Allocate the driver data memory, if necessary.
+	 */
+	if (rt2x00dev->ops->drv_data_size > 0) {
+		rt2x00dev->drv_data = kzalloc(rt2x00dev->ops->drv_data_size,
+			                      GFP_KERNEL);
+		if (!rt2x00dev->drv_data) {
+			retval = -ENOMEM;
+			goto exit;
+		}
+	}
 
 	spin_lock_init(&rt2x00dev->irqmask_lock);
 	mutex_init(&rt2x00dev->csr_mutex);
@@ -1133,6 +1193,13 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->vif_data_size = sizeof(struct rt2x00_intf);
 
 	/*
+	 * rt2x00 devices can only use the last n bits of the MAC address
+	 * for virtual interfaces.
+	 */
+	rt2x00dev->hw->wiphy->addr_mask[ETH_ALEN - 1] =
+		(rt2x00dev->ops->max_ap_intf - 1);
+
+	/*
 	 * Determine which operating modes are supported, all modes
 	 * which require beaconing, depend on the availability of
 	 * beacon entries.
@@ -1144,6 +1211,8 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_AP) |
 		    BIT(NL80211_IFTYPE_MESH_POINT) |
 		    BIT(NL80211_IFTYPE_WDS);
+
+	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
 	/*
 	 * Initialize work.
@@ -1190,6 +1259,7 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00link_register(rt2x00dev);
 	rt2x00leds_register(rt2x00dev);
 	rt2x00debug_register(rt2x00dev);
+	rt2x00rfkill_register(rt2x00dev);
 
 	return 0;
 
@@ -1216,11 +1286,12 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	cancel_delayed_work_sync(&rt2x00dev->autowakeup_work);
 	cancel_work_sync(&rt2x00dev->sleep_work);
 	if (rt2x00_is_usb(rt2x00dev)) {
-		del_timer_sync(&rt2x00dev->txstatus_timer);
+		hrtimer_cancel(&rt2x00dev->txstatus_timer);
 		cancel_work_sync(&rt2x00dev->rxdone_work);
 		cancel_work_sync(&rt2x00dev->txdone_work);
 	}
-	destroy_workqueue(rt2x00dev->workqueue);
+	if (rt2x00dev->workqueue)
+		destroy_workqueue(rt2x00dev->workqueue);
 
 	/*
 	 * Free the tx status fifo.
@@ -1261,6 +1332,12 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 * Free queue structures.
 	 */
 	rt2x00queue_free(rt2x00dev);
+
+	/*
+	 * Free the driver data.
+	 */
+	if (rt2x00dev->drv_data)
+		kfree(rt2x00dev->drv_data);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 

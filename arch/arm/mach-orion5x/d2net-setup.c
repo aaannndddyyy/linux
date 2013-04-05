@@ -27,6 +27,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>
+#include <plat/orion-gpio.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -343,6 +344,7 @@ MACHINE_START(D2NET, "LaCie d2 Network")
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END
 #endif
 
@@ -355,6 +357,7 @@ MACHINE_START(BIGDISK, "LaCie Big Disk Network")
 	.init_irq	= orion5x_init_irq,
 	.timer		= &orion5x_timer,
 	.fixup		= tag_fixup_mem32,
+	.restart	= orion5x_restart,
 MACHINE_END
 #endif
 

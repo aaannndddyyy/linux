@@ -2,7 +2,7 @@
  *  smdk_wm8580.c
  *
  *  Copyright (c) 2009 Samsung Electronics Co. Ltd
- *  Author: Jaswinder Singh <jassi.brar@samsung.com>
+ *  Author: Jaswinder Singh <jassisinghbrar@gmail.com>
  *
  *  This program is free software; you can redistribute  it and/or modify it
  *  under  the terms of  the GNU General  Public License as published by the
@@ -176,7 +176,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Playback",
 		.cpu_dai_name = "samsung-i2s.0",
 		.codec_dai_name = "wm8580-hifi-playback",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8580.0-001b",
 		.ops = &smdk_ops,
 	},
@@ -185,7 +185,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Capture",
 		.cpu_dai_name = "samsung-i2s.0",
 		.codec_dai_name = "wm8580-hifi-capture",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.0",
 		.codec_name = "wm8580.0-001b",
 		.init = smdk_wm8580_init_paiftx,
 		.ops = &smdk_ops,
@@ -195,7 +195,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 		.stream_name = "Playback",
 		.cpu_dai_name = "samsung-i2s.x",
 		.codec_dai_name = "wm8580-hifi-playback",
-		.platform_name = "samsung-audio",
+		.platform_name = "samsung-i2s.x",
 		.codec_name = "wm8580.0-001b",
 		.ops = &smdk_ops,
 	},
@@ -203,6 +203,7 @@ static struct snd_soc_dai_link smdk_dai[] = {
 
 static struct snd_soc_card smdk = {
 	.name = "SMDK-I2S",
+	.owner = THIS_MODULE,
 	.dai_link = smdk_dai,
 	.num_links = 2,
 
@@ -252,6 +253,6 @@ static void __exit smdk_audio_exit(void)
 }
 module_exit(smdk_audio_exit);
 
-MODULE_AUTHOR("Jaswinder Singh, jassi.brar@samsung.com");
+MODULE_AUTHOR("Jaswinder Singh, jassisinghbrar@gmail.com");
 MODULE_DESCRIPTION("ALSA SoC SMDK WM8580");
 MODULE_LICENSE("GPL");

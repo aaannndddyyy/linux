@@ -1,8 +1,7 @@
 /*
-*  arch/s390/kernel/compat_wrapper.S
 *    wrapper for 31 bit compatible system calls.
 *
-*    Copyright (C) IBM Corp. 2000,2006
+*    Copyright IBM Corp. 2000, 2006
 *    Author(s): Gerhard Tonn (ton@de.ibm.com),
 *		Thomas Spatzier (tspat@de.ibm.com)
 */
@@ -29,7 +28,7 @@ ENTRY(sys32_open_wrapper)
 	llgtr	%r2,%r2			# const char *
 	lgfr	%r3,%r3			# int
 	lgfr	%r4,%r4			# int
-	jg	sys_open		# branch to system call
+	jg	compat_sys_open		# branch to system call
 
 ENTRY(sys32_close_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -662,7 +661,7 @@ ENTRY(sys32_getresuid16_wrapper)
 ENTRY(sys32_poll_wrapper)
 	llgtr	%r2,%r2			# struct pollfd *
 	llgfr	%r3,%r3			# unsigned int
-	lgfr	%r4,%r4			# long
+	lgfr	%r4,%r4			# int
 	jg	sys_poll		# branch to system call
 
 ENTRY(sys32_setresgid16_wrapper)
@@ -1577,7 +1576,7 @@ ENTRY(sys32_execve_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
-	jg	sys32_execve		# branch to system call
+	jg	compat_sys_execve	# branch to system call
 
 ENTRY(sys_fanotify_init_wrapper)
 	llgfr	%r2,%r2			# unsigned int
@@ -1636,7 +1635,7 @@ ENTRY(compat_sys_process_vm_readv_wrapper)
 	llgfr	%r6,%r6			# unsigned long
 	llgf	%r0,164(%r15)		# unsigned long
 	stg	%r0,160(%r15)
-	jg	sys_process_vm_readv
+	jg	compat_sys_process_vm_readv
 
 ENTRY(compat_sys_process_vm_writev_wrapper)
 	lgfr	%r2,%r2			# compat_pid_t
@@ -1646,4 +1645,23 @@ ENTRY(compat_sys_process_vm_writev_wrapper)
 	llgfr	%r6,%r6			# unsigned long
 	llgf	%r0,164(%r15)		# unsigned long
 	stg	%r0,160(%r15)
-	jg	sys_process_vm_writev
+	jg	compat_sys_process_vm_writev
+
+ENTRY(sys_s390_runtime_instr_wrapper)
+	lgfr	%r2,%r2			# int
+	lgfr	%r3,%r3			# int
+	jg	sys_s390_runtime_instr
+
+ENTRY(sys_kcmp_wrapper)
+	lgfr	%r2,%r2			# pid_t
+	lgfr	%r3,%r3			# pid_t
+	lgfr	%r4,%r4			# int
+	llgfr	%r5,%r5			# unsigned long
+	llgfr	%r6,%r6			# unsigned long
+	jg	sys_kcmp
+
+ENTRY(sys_finit_module_wrapper)
+	lgfr	%r2,%r2			# int
+	llgtr	%r3,%r3			# const char __user *
+	lgfr	%r4,%r4			# int
+	jg	sys_finit_module

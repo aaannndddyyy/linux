@@ -43,7 +43,6 @@
 #include <linux/interrupt.h>
 #include <linux/types.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/cacheflush.h>
 #include <linux/pxa168_eth.h>
 
@@ -220,7 +219,6 @@ struct pxa168_eth_private {
 	u8 work_todo;
 	int skb_size;
 
-	struct net_device_stats stats;
 	/* Size of Tx Ring per queue */
 	int tx_ring_size;
 	/* Number of tx descriptors in use */
@@ -350,7 +348,7 @@ static void rxq_refill(struct net_device *dev)
 	while (pep->rx_desc_count < pep->rx_ring_size) {
 		int size;
 
-		skb = dev_alloc_skb(pep->skb_size);
+		skb = netdev_alloc_skb(dev, pep->skb_size);
 		if (!skb)
 			break;
 		if (SKB_DMA_REALIGN)
@@ -627,8 +625,9 @@ static int pxa168_eth_set_mac_address(struct net_device *dev, void *addr)
 	unsigned char oldMac[ETH_ALEN];
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 	memcpy(oldMac, dev->dev_addr, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 	netif_addr_lock_bh(dev);
 	update_hash_table_mac_address(pep, oldMac, dev->dev_addr);
@@ -1017,10 +1016,9 @@ static int rxq_init(struct net_device *dev)
 	/* Allocate RX skb rings */
 	pep->rx_skb = kmalloc(sizeof(*pep->rx_skb) * pep->rx_ring_size,
 			     GFP_KERNEL);
-	if (!pep->rx_skb) {
-		printk(KERN_ERR "%s: Cannot alloc RX skb ring\n", dev->name);
+	if (!pep->rx_skb)
 		return -ENOMEM;
-	}
+
 	/* Allocate RX ring */
 	pep->rx_desc_count = 0;
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
@@ -1034,7 +1032,7 @@ static int rxq_init(struct net_device *dev)
 	}
 	memset((void *)pep->p_rx_desc_area, 0, size);
 	/* initialize the next_desc_ptr links in the Rx descriptors ring */
-	p_rx_desc = (struct rx_desc *)pep->p_rx_desc_area;
+	p_rx_desc = pep->p_rx_desc_area;
 	for (i = 0; i < rx_desc_num; i++) {
 		p_rx_desc[i].next_desc_ptr = pep->rx_desc_dma +
 		    ((i + 1) % rx_desc_num) * sizeof(struct rx_desc);
@@ -1081,10 +1079,9 @@ static int txq_init(struct net_device *dev)
 
 	pep->tx_skb = kmalloc(sizeof(*pep->tx_skb) * pep->tx_ring_size,
 			     GFP_KERNEL);
-	if (!pep->tx_skb) {
-		printk(KERN_ERR "%s: Cannot alloc TX skb ring\n", dev->name);
+	if (!pep->tx_skb)
 		return -ENOMEM;
-	}
+
 	/* Allocate TX ring */
 	pep->tx_desc_count = 0;
 	size = pep->tx_ring_size * sizeof(struct tx_desc);
@@ -1098,7 +1095,7 @@ static int txq_init(struct net_device *dev)
 	}
 	memset((void *)pep->p_tx_desc_area, 0, pep->tx_desc_area_size);
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
-	p_tx_desc = (struct tx_desc *)pep->p_tx_desc_area;
+	p_tx_desc = pep->p_tx_desc_area;
 	for (i = 0; i < tx_desc_num; i++) {
 		p_tx_desc[i].next_desc_ptr = pep->tx_desc_dma +
 		    ((i + 1) % tx_desc_num) * sizeof(struct tx_desc);
@@ -1134,7 +1131,7 @@ static int pxa168_eth_open(struct net_device *dev)
 	err = request_irq(dev->irq, pxa168_eth_int_handler,
 			  IRQF_DISABLED, dev->name, dev);
 	if (err) {
-		dev_printk(KERN_ERR, &dev->dev, "can't assign irq\n");
+		dev_err(&dev->dev, "can't assign irq\n");
 		return -EAGAIN;
 	}
 	pep->rx_resource_err = 0;
@@ -1204,9 +1201,8 @@ static int pxa168_eth_change_mtu(struct net_device *dev, int mtu)
 	 */
 	pxa168_eth_stop(dev);
 	if (pxa168_eth_open(dev)) {
-		dev_printk(KERN_ERR, &dev->dev,
-			   "fatal error on re-opening device after "
-			   "MTU change\n");
+		dev_err(&dev->dev,
+			"fatal error on re-opening device after MTU change\n");
 	}
 
 	return 0;
@@ -1459,6 +1455,7 @@ static const struct ethtool_ops pxa168_ethtool_ops = {
 	.set_settings = pxa168_set_settings,
 	.get_drvinfo = pxa168_get_drvinfo,
 	.get_link = ethtool_op_get_link,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static const struct net_device_ops pxa168_eth_netdev_ops = {
@@ -1522,7 +1519,7 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	INIT_WORK(&pep->tx_timeout_task, pxa168_eth_tx_timeout_task);
 
 	printk(KERN_INFO "%s:Using random mac address\n", DRIVER_NAME);
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 
 	pep->pd = pdev->dev.platform_data;
 	pep->rx_ring_size = NUM_RX_DESCS;
@@ -1552,7 +1549,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	pep->smi_bus->name = "pxa168_eth smi";
 	pep->smi_bus->read = pxa168_smi_read;
 	pep->smi_bus->write = pxa168_smi_write;
-	snprintf(pep->smi_bus->id, MII_BUS_ID_SIZE, "%d", pdev->id);
+	snprintf(pep->smi_bus->id, MII_BUS_ID_SIZE, "%s-%d",
+		pdev->name, pdev->id);
 	pep->smi_bus->parent = &pdev->dev;
 	pep->smi_bus->phy_mask = 0xffffffff;
 	err = mdiobus_register(pep->smi_bus);
@@ -1645,18 +1643,7 @@ static struct platform_driver pxa168_eth_driver = {
 		   },
 };
 
-static int __init pxa168_init_module(void)
-{
-	return platform_driver_register(&pxa168_eth_driver);
-}
-
-static void __exit pxa168_cleanup_module(void)
-{
-	platform_driver_unregister(&pxa168_eth_driver);
-}
-
-module_init(pxa168_init_module);
-module_exit(pxa168_cleanup_module);
+module_platform_driver(pxa168_eth_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Ethernet driver for Marvell PXA168");

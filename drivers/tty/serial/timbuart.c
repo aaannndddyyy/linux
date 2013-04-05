@@ -426,7 +426,7 @@ static struct uart_driver timbuart_driver = {
 	.nr = 1
 };
 
-static int __devinit timbuart_probe(struct platform_device *dev)
+static int timbuart_probe(struct platform_device *dev)
 {
 	int err, irq;
 	struct timbuart_port *uart;
@@ -492,7 +492,7 @@ err_mem:
 	return err;
 }
 
-static int __devexit timbuart_remove(struct platform_device *dev)
+static int timbuart_remove(struct platform_device *dev)
 {
 	struct timbuart_port *uart = platform_get_drvdata(dev);
 
@@ -510,23 +510,10 @@ static struct platform_driver timbuart_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= timbuart_probe,
-	.remove		= __devexit_p(timbuart_remove),
+	.remove		= timbuart_remove,
 };
 
-/*--------------------------------------------------------------------------*/
-
-static int __init timbuart_init(void)
-{
-	return platform_driver_register(&timbuart_platform_driver);
-}
-
-static void __exit timbuart_exit(void)
-{
-	platform_driver_unregister(&timbuart_platform_driver);
-}
-
-module_init(timbuart_init);
-module_exit(timbuart_exit);
+module_platform_driver(timbuart_platform_driver);
 
 MODULE_DESCRIPTION("Timberdale UART driver");
 MODULE_LICENSE("GPL v2");

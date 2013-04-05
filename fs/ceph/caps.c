@@ -236,8 +236,10 @@ static struct ceph_cap *get_cap(struct ceph_mds_client *mdsc,
 	if (!ctx) {
 		cap = kmem_cache_alloc(ceph_cap_cachep, GFP_NOFS);
 		if (cap) {
+			spin_lock(&mdsc->caps_list_lock);
 			mdsc->caps_use_count++;
 			mdsc->caps_total_count++;
+			spin_unlock(&mdsc->caps_list_lock);
 		}
 		return cap;
 	}
@@ -641,10 +643,10 @@ static int __cap_is_valid(struct ceph_cap *cap)
 	unsigned long ttl;
 	u32 gen;
 
-	spin_lock(&cap->session->s_cap_lock);
+	spin_lock(&cap->session->s_gen_ttl_lock);
 	gen = cap->session->s_cap_gen;
 	ttl = cap->session->s_cap_ttl;
-	spin_unlock(&cap->session->s_cap_lock);
+	spin_unlock(&cap->session->s_gen_ttl_lock);
 
 	if (cap->cap_gen < gen || time_after_eq(jiffies, ttl)) {
 		dout("__cap_is_valid %p cap %p issued %s "
@@ -928,7 +930,7 @@ static int send_cap_msg(struct ceph_mds_session *session,
 			u64 size, u64 max_size,
 			struct timespec *mtime, struct timespec *atime,
 			u64 time_warp_seq,
-			uid_t uid, gid_t gid, mode_t mode,
+			uid_t uid, gid_t gid, umode_t mode,
 			u64 xattr_version,
 			struct ceph_buffer *xattrs_buf,
 			u64 follows)
@@ -1005,7 +1007,7 @@ static void __queue_cap_release(struct ceph_mds_session *session,
 
 	BUG_ON(msg->front.iov_len + sizeof(*item) > PAGE_CACHE_SIZE);
 	head = msg->front.iov_base;
-	head->num = cpu_to_le32(le32_to_cpu(head->num) + 1);
+	le32_add_cpu(&head->num, 1);
 	item = msg->front.iov_base + msg->front.iov_len;
 	item->ino = cpu_to_le64(ino);
 	item->cap_id = cpu_to_le64(cap_id);
@@ -1078,7 +1080,7 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	u64 size, max_size;
 	struct timespec mtime, atime;
 	int wake = 0;
-	mode_t mode;
+	umode_t mode;
 	uid_t uid;
 	gid_t gid;
 	struct ceph_mds_session *session;
@@ -1349,11 +1351,15 @@ int __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 		if (!ci->i_head_snapc)
 			ci->i_head_snapc = ceph_get_snap_context(
 				ci->i_snap_realm->cached_context);
-		dout(" inode %p now dirty snapc %p\n", &ci->vfs_inode,
-			ci->i_head_snapc);
+		dout(" inode %p now dirty snapc %p auth cap %p\n",
+		     &ci->vfs_inode, ci->i_head_snapc, ci->i_auth_cap);
 		BUG_ON(!list_empty(&ci->i_dirty_item));
 		spin_lock(&mdsc->cap_dirty_lock);
-		list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
+		if (ci->i_auth_cap)
+			list_add(&ci->i_dirty_item, &mdsc->cap_dirty);
+		else
+			list_add(&ci->i_dirty_item,
+				 &mdsc->cap_dirty_migrating);
 		spin_unlock(&mdsc->cap_dirty_lock);
 		if (ci->i_flushing_caps == 0) {
 			ihold(inode);
@@ -2388,7 +2394,7 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 			    &atime);
 
 	/* max size increase? */
-	if (max_size != ci->i_max_size) {
+	if (ci->i_auth_cap == cap && max_size != ci->i_max_size) {
 		dout("max_size %lld -> %llu\n", ci->i_max_size, max_size);
 		ci->i_max_size = max_size;
 		if (max_size >= ci->i_wanted_max_size) {
@@ -2745,6 +2751,7 @@ static void handle_cap_import(struct ceph_mds_client *mdsc,
 
 	/* make sure we re-request max_size, if necessary */
 	spin_lock(&ci->i_ceph_lock);
+	ci->i_wanted_max_size = 0;  /* reset */
 	ci->i_requested_max_size = 0;
 	spin_unlock(&ci->i_ceph_lock);
 }
@@ -2840,8 +2847,6 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_IMPORT:
 		handle_cap_import(mdsc, inode, h, session,
 				  snaptrace, snaptrace_len);
-		ceph_check_caps(ceph_inode(inode), 0, session);
-		goto done_unlocked;
 	}
 
 	/* the rest require a cap */
@@ -2858,6 +2863,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	switch (op) {
 	case CEPH_CAP_OP_REVOKE:
 	case CEPH_CAP_OP_GRANT:
+	case CEPH_CAP_OP_IMPORT:
 		handle_cap_grant(inode, h, session, cap, msg->middle);
 		goto done_unlocked;
 

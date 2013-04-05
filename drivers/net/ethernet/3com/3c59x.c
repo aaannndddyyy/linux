@@ -102,7 +102,7 @@ static int vortex_debug = 1;
 #include <linux/delay.h>
 
 
-static const char version[] __devinitconst =
+static const char version[] =
 	DRV_NAME ": Donald Becker and others.\n";
 
 MODULE_AUTHOR("Donald Becker <becker@scyld.com>");
@@ -277,7 +277,7 @@ static struct vortex_chip_info {
 	int flags;
 	int drv_flags;
 	int io_size;
-} vortex_info_tbl[] __devinitdata = {
+} vortex_info_tbl[] = {
 	{"3c590 Vortex 10Mbps",
 	 PCI_USES_MASTER, IS_VORTEX, 32, },
 	{"3c592 EISA 10Mbps Demon/Vortex",					/* AKPM: from Don's 3c59x_cb.c 0.49H */
@@ -931,7 +931,7 @@ static int __init vortex_eisa_probe(struct device *device)
 	return 0;
 }
 
-static int __devexit vortex_eisa_remove(struct device *device)
+static int vortex_eisa_remove(struct device *device)
 {
 	struct eisa_device *edev;
 	struct net_device *dev;
@@ -962,7 +962,7 @@ static struct eisa_driver vortex_eisa_driver = {
 	.driver   = {
 		.name    = "3c59x",
 		.probe   = vortex_eisa_probe,
-		.remove  = __devexit_p(vortex_eisa_remove)
+		.remove  = vortex_eisa_remove
 	}
 };
 
@@ -1000,8 +1000,8 @@ static int __init vortex_eisa_init(void)
 }
 
 /* returns count (>= 0), or negative on error */
-static int __devinit vortex_init_one(struct pci_dev *pdev,
-				      const struct pci_device_id *ent)
+static int vortex_init_one(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	int rc, unit, pci_bar;
 	struct vortex_chip_info *vci;
@@ -1088,9 +1088,8 @@ static const struct net_device_ops vortex_netdev_ops = {
  *
  * NOTE: pdev can be NULL, for the case of a Compaq device
  */
-static int __devinit vortex_probe1(struct device *gendev,
-				   void __iomem *ioaddr, int irq,
-				   int chip_idx, int card_idx)
+static int vortex_probe1(struct device *gendev, void __iomem *ioaddr, int irq,
+			 int chip_idx, int card_idx)
 {
 	struct vortex_private *vp;
 	int option;
@@ -1121,10 +1120,9 @@ static int __devinit vortex_probe1(struct device *gendev,
 
 	dev = alloc_etherdev(sizeof(*vp));
 	retval = -ENOMEM;
-	if (!dev) {
-		pr_err(PFX "unable to allocate etherdev, aborting\n");
+	if (!dev)
 		goto out;
-	}
+
 	SET_NETDEV_DEV(dev, gendev);
 	vp = netdev_priv(dev);
 
@@ -1842,7 +1840,7 @@ vortex_timer(unsigned long data)
 		ok = 1;
 	}
 
-	if (!netif_carrier_ok(dev))
+	if (dev->flags & IFF_SLAVE || !netif_carrier_ok(dev))
 		next_tick = 5*HZ;
 
 	if (vp->medialock)
@@ -2500,7 +2498,7 @@ static int vortex_rx(struct net_device *dev)
 			int pkt_len = rx_status & 0x1fff;
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len + 5);
+			skb = netdev_alloc_skb(dev, pkt_len + 5);
 			if (vortex_debug > 4)
 				pr_debug("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
@@ -2579,7 +2577,8 @@ boomerang_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
-			if (pkt_len < rx_copybreak && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */
@@ -2929,15 +2928,17 @@ static void vortex_get_drvinfo(struct net_device *dev,
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
 	if (VORTEX_PCI(vp)) {
-		strcpy(info->bus_info, pci_name(VORTEX_PCI(vp)));
+		strlcpy(info->bus_info, pci_name(VORTEX_PCI(vp)),
+			sizeof(info->bus_info));
 	} else {
 		if (VORTEX_EISA(vp))
-			strcpy(info->bus_info, dev_name(vp->gendev));
+			strlcpy(info->bus_info, dev_name(vp->gendev),
+				sizeof(info->bus_info));
 		else
-			sprintf(info->bus_info, "EISA 0x%lx %d",
-					dev->base_addr, dev->irq);
+			snprintf(info->bus_info, sizeof(info->bus_info),
+				"EISA 0x%lx %d", dev->base_addr, dev->irq);
 	}
 }
 
@@ -3220,7 +3221,7 @@ static void acpi_set_WOL(struct net_device *dev)
 }
 
 
-static void __devexit vortex_remove_one(struct pci_dev *pdev)
+static void vortex_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct vortex_private *vp;
@@ -3263,7 +3264,7 @@ static void __devexit vortex_remove_one(struct pci_dev *pdev)
 static struct pci_driver vortex_driver = {
 	.name		= "3c59x",
 	.probe		= vortex_init_one,
-	.remove		= __devexit_p(vortex_remove_one),
+	.remove		= vortex_remove_one,
 	.id_table	= vortex_pci_tbl,
 	.driver.pm	= VORTEX_PM_OPS,
 };

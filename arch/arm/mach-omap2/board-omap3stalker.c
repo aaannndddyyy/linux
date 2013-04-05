@@ -24,31 +24,29 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 
+#include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 #include <linux/mmc/host.h>
-
-#include <mach/hardware.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/flash.h>
-
-#include <plat/board.h>
-#include <plat/common.h>
-#include <plat/gpmc.h>
-#include <plat/nand.h>
-#include <plat/usb.h>
-#include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-dvi.h>
-
-#include <plat/mcspi.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/smsc911x.h>
 #include <linux/i2c/at24.h>
+
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
+#include <asm/mach/map.h>
+#include <asm/mach/flash.h>
+
+#include "common.h"
+#include "gpmc.h"
+#include <linux/platform_data/mtd-nand-omap2.h>
+#include <video/omapdss.h>
+#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-tfp410.h>
+
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"
@@ -56,7 +54,7 @@
 #include "common-board-devices.h"
 
 #if defined(CONFIG_SMSC911X) || defined(CONFIG_SMSC911X_MODULE)
-#include <plat/gpmc-smsc911x.h>
+#include "gpmc-smsc911x.h"
 
 #define OMAP3STALKER_ETHR_START	0x2c000000
 #define OMAP3STALKER_ETHR_SIZE	1024
@@ -72,15 +70,6 @@ static struct omap_smsc911x_platform_data smsc911x_cfg = {
 
 static inline void __init omap3stalker_init_eth(void)
 {
-	struct clk *l3ck;
-	unsigned int rate;
-
-	l3ck = clk_get(NULL, "l3_ck");
-	if (IS_ERR(l3ck))
-		rate = 100000000;
-	else
-		rate = clk_get_rate(l3ck);
-
 	omap_mux_init_gpio(19, OMAP_PIN_INPUT_PULLUP);
 	gpmc_smsc911x_init(&smsc911x_cfg);
 }
@@ -99,9 +88,6 @@ static inline void __init omap3stalker_init_eth(void)
 #define DSS_ENABLE_GPIO	199
 #define LCD_PANEL_BKLIGHT_GPIO	210
 #define ENABLE_VPLL2_DEV_GRP	0xE0
-
-static int lcd_enabled;
-static int dvi_enabled;
 
 static void __init omap3_stalker_display_init(void)
 {
@@ -130,32 +116,15 @@ static struct omap_dss_device omap3_stalker_tv_device = {
 	.platform_disable	= omap3_stalker_disable_tv,
 };
 
-static int omap3_stalker_enable_dvi(struct omap_dss_device *dssdev)
-{
-	if (lcd_enabled) {
-		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
-		return -EINVAL;
-	}
-	gpio_set_value(DSS_ENABLE_GPIO, 1);
-	dvi_enabled = 1;
-	return 0;
-}
-
-static void omap3_stalker_disable_dvi(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(DSS_ENABLE_GPIO, 0);
-	dvi_enabled = 0;
-}
-
-static struct panel_dvi_platform_data dvi_panel = {
-	.platform_enable	= omap3_stalker_enable_dvi,
-	.platform_disable	= omap3_stalker_disable_dvi,
+static struct tfp410_platform_data dvi_panel = {
+	.power_down_gpio	= DSS_ENABLE_GPIO,
+	.i2c_bus_num		= -1,
 };
 
 static struct omap_dss_device omap3_stalker_dvi_device = {
 	.name			= "dvi",
 	.type			= OMAP_DISPLAY_TYPE_DPI,
-	.driver_name		= "dvi",
+	.driver_name		= "tfp410",
 	.data			= &dvi_panel,
 	.phy.dpi.data_lines	= 24,
 };
@@ -209,10 +178,11 @@ static struct regulator_init_data omap3stalker_vsim = {
 
 static struct omap2_hsmmc_info mmc[] = {
 	{
-	 .mmc		= 1,
-	 .caps		= MMC_CAP_4_BIT_DATA,
-	 .gpio_cd	= -EINVAL,
-	 .gpio_wp	= 23,
+		.mmc		= 1,
+		.caps		= MMC_CAP_4_BIT_DATA,
+		.gpio_cd	= -EINVAL,
+		.gpio_wp	= 23,
+		.deferred	= true,
 	 },
 	{}			/* Terminator */
 };
@@ -282,9 +252,8 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 			    unsigned gpio, unsigned ngpio)
 {
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	omap_mux_init_gpio(23, OMAP_PIN_INPUT);
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	/*
 	 * Most GPIOs are for USB OTG.  Some are mostly sent to
@@ -308,9 +277,6 @@ omap3stalker_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data omap3stalker_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.setup		= omap3stalker_twl_gpio_setup,
 };
@@ -391,9 +357,6 @@ static int __init omap3_stalker_i2c_init(void)
 
 #define OMAP3_STALKER_TS_GPIO	175
 
-static struct omap_board_config_kernel omap3_stalker_config[] __initdata = {
-};
-
 static struct platform_device *omap3_stalker_devices[] __initdata = {
 	&keys_gpio,
 };
@@ -419,11 +382,18 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
 static void __init omap3_stalker_init(void)
 {
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CUS);
-	omap_board_config = omap3_stalker_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_stalker_config);
+
+	omap_mux_init_gpio(23, OMAP_PIN_INPUT);
+	omap_hsmmc_init(mmc);
 
 	omap3_stalker_i2c_init();
 
@@ -454,6 +424,9 @@ MACHINE_START(SBC3530, "OMAP3 STALKER")
 	.map_io			= omap3_map_io,
 	.init_early		= omap35xx_init_early,
 	.init_irq		= omap3_init_irq,
+	.handle_irq		= omap3_intc_handle_irq,
 	.init_machine		= omap3_stalker_init,
+	.init_late		= omap35xx_init_late,
 	.timer			= &omap3_secure_timer,
+	.restart		= omap3xxx_restart,
 MACHINE_END

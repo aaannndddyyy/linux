@@ -53,7 +53,7 @@ static unsigned char do_get_bits(void);
 
 #define DRIVER_NAME "lirc_bt829"
 
-static int debug;
+static bool debug;
 #define dprintk(fmt, args...)						 \
 	do {								 \
 		if (debug)						 \
@@ -171,7 +171,7 @@ static void cycle_delay(int cycle)
 }
 
 
-static int poll_main()
+static int poll_main(void)
 {
 	unsigned char status_high, status_low;
 

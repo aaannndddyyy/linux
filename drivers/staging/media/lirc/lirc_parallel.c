@@ -63,8 +63,8 @@
 
 /*** Global Variables ***/
 
-static int debug;
-static int check_pselecd;
+static bool debug;
+static bool check_pselecd;
 
 unsigned int irq = LIRC_IRQ;
 unsigned int io = LIRC_PORT;
@@ -583,12 +583,12 @@ static struct lirc_driver driver = {
 
 static struct platform_device *lirc_parallel_dev;
 
-static int __devinit lirc_parallel_probe(struct platform_device *dev)
+static int lirc_parallel_probe(struct platform_device *dev)
 {
 	return 0;
 }
 
-static int __devexit lirc_parallel_remove(struct platform_device *dev)
+static int lirc_parallel_remove(struct platform_device *dev)
 {
 	return 0;
 }
@@ -606,7 +606,7 @@ static int lirc_parallel_resume(struct platform_device *dev)
 
 static struct platform_driver lirc_parallel_driver = {
 	.probe	= lirc_parallel_probe,
-	.remove	= __devexit_p(lirc_parallel_remove),
+	.remove	= lirc_parallel_remove,
 	.suspend	= lirc_parallel_suspend,
 	.resume	= lirc_parallel_resume,
 	.driver	= {
@@ -752,4 +752,4 @@ module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging messages");
 
 module_param(check_pselecd, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Check for printer (default: 0)");
+MODULE_PARM_DESC(check_pselecd, "Check for printer (default: 0)");

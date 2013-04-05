@@ -418,7 +418,7 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		 * restart a TX Ethernet Queue which was stopped for lack of
 		 * free TX Queue Descriptors ...
 		 */
-		const struct cpl_sge_egr_update *p = (void *)cpl;
+		const struct cpl_sge_egr_update *p = cpl;
 		unsigned int qid = EGR_QID(be32_to_cpu(p->opcode_qid));
 		struct sge *s = &adapter->sge;
 		struct sge_txq *tq;
@@ -1092,7 +1092,8 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
-static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t cxgb4vf_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -1106,10 +1107,11 @@ static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int cxgb4vf_set_features(struct net_device *dev, u32 features)
+static int cxgb4vf_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct port_info *pi = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,
@@ -1128,7 +1130,7 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	struct port_info *pi = netdev_priv(dev);
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	ret = t4vf_change_mac(pi->adapter, pi->viid, pi->xact_addr_filt,
 			      addr->sa_data, true);
@@ -1203,9 +1205,10 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 {
 	struct adapter *adapter = netdev2adap(dev);
 
-	strcpy(drvinfo->driver, KBUILD_MODNAME);
-	strcpy(drvinfo->version, DRV_VERSION);
-	strcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)));
+	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
+		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u.%u, TP %u.%u.%u.%u",
 		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.fwrev),
@@ -1561,7 +1564,7 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
-static struct ethtool_ops cxgb4vf_ethtool_ops = {
+static const struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_settings		= cxgb4vf_get_settings,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
 	.get_msglevel		= cxgb4vf_get_msglevel,
@@ -2000,7 +2003,7 @@ static const struct file_operations interfaces_proc_fops = {
  */
 struct cxgb4vf_debugfs_entry {
 	const char *name;		/* name of debugfs node */
-	mode_t mode;			/* file system mode */
+	umode_t mode;			/* file system mode */
 	const struct file_operations *fops;
 };
 
@@ -2020,7 +2023,7 @@ static struct cxgb4vf_debugfs_entry debugfs_files[] = {
  * Set up out /sys/kernel/debug/cxgb4vf sub-nodes.  We assume that the
  * directory (debugfs_root) has already been set up.
  */
-static int __devinit setup_debugfs(struct adapter *adapter)
+static int setup_debugfs(struct adapter *adapter)
 {
 	int i;
 
@@ -2061,7 +2064,7 @@ static void cleanup_debugfs(struct adapter *adapter)
  * adapter parameters we're going to be using and initialize basic adapter
  * hardware support.
  */
-static int __devinit adap_init0(struct adapter *adapter)
+static int adap_init0(struct adapter *adapter)
 {
 	struct vf_resources *vfres = &adapter->params.vfres;
 	struct sge_params *sge_params = &adapter->params.sge;
@@ -2263,7 +2266,7 @@ static inline void init_rspq(struct sge_rspq *rspq, u8 timer_idx,
  * be modified by the admin via ethtool and cxgbtool prior to the adapter
  * being brought up for the first time.
  */
-static void __devinit cfg_queues(struct adapter *adapter)
+static void cfg_queues(struct adapter *adapter)
 {
 	struct sge *s = &adapter->sge;
 	int q10g, n10g, qidx, pidx, qs;
@@ -2358,7 +2361,7 @@ static void __devinit cfg_queues(struct adapter *adapter)
  * Reduce the number of Ethernet queues across all ports to at most n.
  * n provides at least one queue per port.
  */
-static void __devinit reduce_ethqs(struct adapter *adapter, int n)
+static void reduce_ethqs(struct adapter *adapter, int n)
 {
 	int i;
 	struct port_info *pi;
@@ -2397,7 +2400,7 @@ static void __devinit reduce_ethqs(struct adapter *adapter, int n)
  * for our "extras".  Note that this process may lower the maximum number of
  * allowed Queue Sets ...
  */
-static int __devinit enable_msix(struct adapter *adapter)
+static int enable_msix(struct adapter *adapter)
 {
 	int i, err, want, need;
 	struct msix_entry entries[MSIX_ENTRIES];
@@ -2459,8 +2462,8 @@ static const struct net_device_ops cxgb4vf_netdev_ops	= {
  * state needed to manage the device.  This routine is called "init_one" in
  * the PF Driver ...
  */
-static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int cxgb4vf_pci_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	static int version_printed;
 
@@ -2593,8 +2596,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_PORT_QSETS);
 		if (netdev == NULL) {
-			dev_err(&pdev->dev, "cannot allocate netdev for"
-				" port %d\n", port_id);
 			t4vf_free_vi(adapter, viid);
 			err = -ENOMEM;
 			goto err_free_dev;
@@ -2768,7 +2769,7 @@ err_disable_device:
  * "probe" routine and quiesce the device (disable interrupts, etc.).  (Note
  * that this is called "remove_one" in the PF Driver.)
  */
-static void __devexit cxgb4vf_pci_remove(struct pci_dev *pdev)
+static void cxgb4vf_pci_remove(struct pci_dev *pdev)
 {
 	struct adapter *adapter = pci_get_drvdata(pdev);
 
@@ -2834,7 +2835,7 @@ static void __devexit cxgb4vf_pci_remove(struct pci_dev *pdev)
  * "Shutdown" quiesce the device, stopping Ingress Packet and Interrupt
  * delivery.
  */
-static void __devexit cxgb4vf_pci_shutdown(struct pci_dev *pdev)
+static void cxgb4vf_pci_shutdown(struct pci_dev *pdev)
 {
 	struct adapter *adapter;
 	int pidx;
@@ -2889,6 +2890,8 @@ static struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x4808, 0),	/* T420-cx */
 	CH_DEVICE(0x4809, 0),	/* T420-bt */
 	CH_DEVICE(0x480a, 0),   /* T404-bt */
+	CH_DEVICE(0x480d, 0),   /* T480-cr */
+	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
 	{ 0, }
 };
 
@@ -2902,8 +2905,8 @@ static struct pci_driver cxgb4vf_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= cxgb4vf_pci_tbl,
 	.probe		= cxgb4vf_pci_probe,
-	.remove		= __devexit_p(cxgb4vf_pci_remove),
-	.shutdown	= __devexit_p(cxgb4vf_pci_shutdown),
+	.remove		= cxgb4vf_pci_remove,
+	.shutdown	= cxgb4vf_pci_shutdown,
 };
 
 /*

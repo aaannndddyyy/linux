@@ -255,7 +255,7 @@ static int omfs_remove(struct inode *dir, struct dentry *dentry)
 	return 0;
 }
 
-static int omfs_add_node(struct inode *dir, struct dentry *dentry, int mode)
+static int omfs_add_node(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int err;
 	struct inode *inode = omfs_new_inode(dir, mode);
@@ -279,19 +279,19 @@ out_free_inode:
 	return err;
 }
 
-static int omfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int omfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	return omfs_add_node(dir, dentry, mode | S_IFDIR);
 }
 
-static int omfs_create(struct inode *dir, struct dentry *dentry, int mode,
-		struct nameidata *nd)
+static int omfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
+		bool excl)
 {
 	return omfs_add_node(dir, dentry, mode | S_IFREG);
 }
 
 static struct dentry *omfs_lookup(struct inode *dir, struct dentry *dentry,
-				  struct nameidata *nd)
+				  unsigned int flags)
 {
 	struct buffer_head *bh;
 	struct inode *inode = NULL;

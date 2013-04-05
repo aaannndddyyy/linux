@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 
 struct opp;
+struct device;
 
 enum opp_event {
 	OPP_EVENT_ADD, OPP_EVENT_ENABLE, OPP_EVENT_DISABLE,
@@ -47,6 +48,14 @@ int opp_disable(struct device *dev, unsigned long freq);
 
 struct srcu_notifier_head *opp_get_notifier(struct device *dev);
 
+#ifdef CONFIG_OF
+int of_init_opp_table(struct device *dev);
+#else
+static inline int of_init_opp_table(struct device *dev)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_OF */
 #else
 static inline unsigned long opp_get_voltage(struct opp *opp)
 {

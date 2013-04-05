@@ -34,6 +34,7 @@
 #include <linux/completion.h>
 #include <linux/hyperv.h>
 #include <asm/hyperv.h>
+#include <asm/hypervisor.h>
 #include "hyperv_vmbus.h"
 
 
@@ -61,6 +62,14 @@ struct hv_device_info {
 	struct hv_dev_port_info inbound;
 	struct hv_dev_port_info outbound;
 };
+
+static int vmbus_exists(void)
+{
+	if (hv_acpi_dev == NULL)
+		return -ENODEV;
+
+	return 0;
+}
 
 
 static void get_channel_info(struct hv_device *device,
@@ -138,43 +147,9 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
 	get_channel_info(hv_dev, device_info);
 
 	if (!strcmp(dev_attr->attr.name, "class_id")) {
-		ret = sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-			       "%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			       device_info->chn_type.b[3],
-			       device_info->chn_type.b[2],
-			       device_info->chn_type.b[1],
-			       device_info->chn_type.b[0],
-			       device_info->chn_type.b[5],
-			       device_info->chn_type.b[4],
-			       device_info->chn_type.b[7],
-			       device_info->chn_type.b[6],
-			       device_info->chn_type.b[8],
-			       device_info->chn_type.b[9],
-			       device_info->chn_type.b[10],
-			       device_info->chn_type.b[11],
-			       device_info->chn_type.b[12],
-			       device_info->chn_type.b[13],
-			       device_info->chn_type.b[14],
-			       device_info->chn_type.b[15]);
+		ret = sprintf(buf, "{%pUl}\n", device_info->chn_type.b);
 	} else if (!strcmp(dev_attr->attr.name, "device_id")) {
-		ret = sprintf(buf, "{%02x%02x%02x%02x-%02x%02x-%02x%02x-"
-			       "%02x%02x%02x%02x%02x%02x%02x%02x}\n",
-			       device_info->chn_instance.b[3],
-			       device_info->chn_instance.b[2],
-			       device_info->chn_instance.b[1],
-			       device_info->chn_instance.b[0],
-			       device_info->chn_instance.b[5],
-			       device_info->chn_instance.b[4],
-			       device_info->chn_instance.b[7],
-			       device_info->chn_instance.b[6],
-			       device_info->chn_instance.b[8],
-			       device_info->chn_instance.b[9],
-			       device_info->chn_instance.b[10],
-			       device_info->chn_instance.b[11],
-			       device_info->chn_instance.b[12],
-			       device_info->chn_instance.b[13],
-			       device_info->chn_instance.b[14],
-			       device_info->chn_instance.b[15]);
+		ret = sprintf(buf, "{%pUl}\n", device_info->chn_instance.b);
 	} else if (!strcmp(dev_attr->attr.name, "modalias")) {
 		print_alias_name(hv_dev, alias_name);
 		ret = sprintf(buf, "vmbus:%s\n", alias_name);
@@ -537,8 +512,7 @@ static int vmbus_bus_init(int irq)
 	if (ret)
 		goto err_cleanup;
 
-	ret = request_irq(irq, vmbus_isr, IRQF_SAMPLE_RANDOM,
-			driver_name, hv_acpi_dev);
+	ret = request_irq(irq, vmbus_isr, 0, driver_name, hv_acpi_dev);
 
 	if (ret != 0) {
 		pr_err("Unable to request IRQ %d\n",
@@ -590,6 +564,10 @@ int __vmbus_driver_register(struct hv_driver *hv_driver, struct module *owner, c
 
 	pr_info("registering driver %s\n", hv_driver->name);
 
+	ret = vmbus_exists();
+	if (ret < 0)
+		return ret;
+
 	hv_driver->driver.name = hv_driver->name;
 	hv_driver->driver.owner = owner;
 	hv_driver->driver.mod_name = mod_name;
@@ -614,8 +592,8 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver)
 {
 	pr_info("unregistering driver %s\n", hv_driver->name);
 
-	driver_unregister(&hv_driver->driver);
-
+	if (!vmbus_exists())
+		driver_unregister(&hv_driver->driver);
 }
 EXPORT_SYMBOL_GPL(vmbus_driver_unregister);
 
@@ -746,6 +724,9 @@ static int __init hv_acpi_init(void)
 {
 	int ret, t;
 
+	if (x86_hyper != &x86_hyper_ms_hyperv)
+		return -ENODEV;
+
 	init_completion(&probe_event);
 
 	/*
@@ -776,11 +757,23 @@ static int __init hv_acpi_init(void)
 
 cleanup:
 	acpi_bus_unregister_driver(&vmbus_acpi_driver);
+	hv_acpi_dev = NULL;
 	return ret;
+}
+
+static void __exit vmbus_exit(void)
+{
+
+	free_irq(irq, hv_acpi_dev);
+	vmbus_free_channels();
+	bus_unregister(&hv_bus);
+	hv_cleanup();
+	acpi_bus_unregister_driver(&vmbus_acpi_driver);
 }
 
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
 
-module_init(hv_acpi_init);
+subsys_initcall(hv_acpi_init);
+module_exit(vmbus_exit);

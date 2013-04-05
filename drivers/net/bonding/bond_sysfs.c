@@ -26,7 +26,6 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/sched.h>
-#include <linux/sysdev.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/string.h>
@@ -514,6 +513,8 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
 
+	if (!rtnl_trylock())
+		return restart_syscall();
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no arp_interval value specified.\n",
 		       bond->dev->name);
@@ -540,10 +541,6 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		pr_info("%s: ARP monitoring cannot be used with MII monitoring. %s Disabling MII monitoring.\n",
 			bond->dev->name, bond->dev->name);
 		bond->params.miimon = 0;
-		if (delayed_work_pending(&bond->mii_work)) {
-			cancel_delayed_work(&bond->mii_work);
-			flush_workqueue(bond->wq);
-		}
 	}
 	if (!bond->params.arp_targets[0]) {
 		pr_info("%s: ARP monitoring has been set up, but no ARP targets have been specified.\n",
@@ -555,19 +552,12 @@ static ssize_t bonding_store_arp_interval(struct device *d,
 		 * timer will get fired off when the open function
 		 * is called.
 		 */
-		if (!delayed_work_pending(&bond->arp_work)) {
-			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP)
-				INIT_DELAYED_WORK(&bond->arp_work,
-						  bond_activebackup_arp_mon);
-			else
-				INIT_DELAYED_WORK(&bond->arp_work,
-						  bond_loadbalance_arp_mon);
-
-			queue_delayed_work(bond->wq, &bond->arp_work, 0);
-		}
+		cancel_delayed_work_sync(&bond->mii_work);
+		queue_delayed_work(bond->wq, &bond->arp_work, 0);
 	}
 
 out:
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(arp_interval, S_IRUGO | S_IWUSR,
@@ -963,6 +953,8 @@ static ssize_t bonding_store_miimon(struct device *d,
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
 
+	if (!rtnl_trylock())
+		return restart_syscall();
 	if (sscanf(buf, "%d", &new_value) != 1) {
 		pr_err("%s: no miimon value specified.\n",
 		       bond->dev->name);
@@ -994,10 +986,6 @@ static ssize_t bonding_store_miimon(struct device *d,
 				bond->params.arp_validate =
 					BOND_ARP_VALIDATE_NONE;
 			}
-			if (delayed_work_pending(&bond->arp_work)) {
-				cancel_delayed_work(&bond->arp_work);
-				flush_workqueue(bond->wq);
-			}
 		}
 
 		if (bond->dev->flags & IFF_UP) {
@@ -1006,15 +994,12 @@ static ssize_t bonding_store_miimon(struct device *d,
 			 * timer will get fired off when the open function
 			 * is called.
 			 */
-			if (!delayed_work_pending(&bond->mii_work)) {
-				INIT_DELAYED_WORK(&bond->mii_work,
-						  bond_mii_monitor);
-				queue_delayed_work(bond->wq,
-						   &bond->mii_work, 0);
-			}
+			cancel_delayed_work_sync(&bond->arp_work);
+			queue_delayed_work(bond->wq, &bond->mii_work, 0);
 		}
 	}
 out:
+	rtnl_unlock();
 	return ret;
 }
 static DEVICE_ATTR(miimon, S_IRUGO | S_IWUSR,
@@ -1061,13 +1046,14 @@ static ssize_t bonding_store_primary(struct device *d,
 		goto out;
 	}
 
-	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
+	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
 
 	/* check to see if we are clearing primary */
 	if (!strlen(ifname) || buf[0] == '\n') {
 		pr_info("%s: Setting primary slave to None.\n",
 			bond->dev->name);
 		bond->primary_slave = NULL;
+		memset(bond->params.primary, 0, sizeof(bond->params.primary));
 		bond_select_active_slave(bond);
 		goto out;
 	}
@@ -1083,8 +1069,12 @@ static ssize_t bonding_store_primary(struct device *d,
 		}
 	}
 
-	pr_info("%s: Unable to set %.*s as primary slave.\n",
-		bond->dev->name, (int)strlen(buf) - 1, buf);
+	strncpy(bond->params.primary, ifname, IFNAMSIZ);
+	bond->params.primary[IFNAMSIZ - 1] = 0;
+
+	pr_info("%s: Recording %s as primary, "
+		"but it has not been enslaved to %s yet.\n",
+		bond->dev->name, ifname, bond->dev->name);
 out:
 	write_unlock_bh(&bond->curr_slave_lock);
 	read_unlock(&bond->lock);
@@ -1234,7 +1224,7 @@ static ssize_t bonding_store_active_slave(struct device *d,
 		goto out;
 	}
 
-	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
+	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
 
 	/* check to see if we are clearing active */
 	if (!strlen(ifname) || buf[0] == '\n') {
@@ -1492,7 +1482,7 @@ static ssize_t bonding_store_queue_id(struct device *d,
 	/* Check buffer length, valid ifname and queue id */
 	if (strlen(buffer) > IFNAMSIZ ||
 	    !dev_valid_name(buffer) ||
-	    qid > bond->params.tx_queues)
+	    qid > bond->dev->real_num_tx_queues)
 		goto err_no_cmd;
 
 	/* Get the pointer to that interface if it exists */
@@ -1579,6 +1569,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 		goto out;
 	}
 
+	read_lock(&bond->lock);
 	bond_for_each_slave(bond, slave, i) {
 		if (!bond_is_active_slave(slave)) {
 			if (new_value)
@@ -1587,6 +1578,7 @@ static ssize_t bonding_store_slaves_active(struct device *d,
 				slave->inactive = 1;
 		}
 	}
+	read_unlock(&bond->lock);
 out:
 	return ret;
 }

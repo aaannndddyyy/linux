@@ -17,10 +17,6 @@
 	model = "Freescale i.MX53 Evaluation Kit";
 	compatible = "fsl,imx53-evk", "fsl,imx53";
 
-	chosen {
-		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
-	};
-
 	memory {
 		reg = <0x70000000 0x80000000>;
 	};
@@ -29,15 +25,18 @@
 		aips@50000000 { /* AIPS1 */
 			spba@50000000 {
 				esdhc@50004000 { /* ESDHC1 */
-					cd-gpios = <&gpio2 13 0>; /* GPIO3_13 */
-					wp-gpios = <&gpio2 14 0>; /* GPIO3_14 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc1_1>;
+					cd-gpios = <&gpio3 13 0>;
+					wp-gpios = <&gpio3 14 0>;
 					status = "okay";
 				};
 
 				ecspi@50010000 { /* ECSPI1 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_ecspi1_1>;
 					fsl,spi-num-chipselects = <2>;
-					cs-gpios = <&gpio1 30 0>, /* GPIO2_30 */
-						   <&gpio2 19 0>; /* GPIO3_19 */
+					cs-gpios = <&gpio2 30 0>, <&gpio3 19 0>;
 					status = "okay";
 
 					flash: at45db321d@1 {
@@ -61,32 +60,45 @@
 				};
 
 				esdhc@50020000 { /* ESDHC3 */
-					cd-gpios = <&gpio2 11 0>; /* GPIO3_11 */
-					wp-gpios = <&gpio2 12 0>; /* GPIO3_12 */
+					pinctrl-names = "default";
+					pinctrl-0 = <&pinctrl_esdhc3_1>;
+					cd-gpios = <&gpio3 11 0>;
+					wp-gpios = <&gpio3 12 0>;
 					status = "okay";
 				};
 			};
 
-			wdog@53f98000 { /* WDOG1 */
-				status = "okay";
-			};
-
 			iomuxc@53fa8000 {
-				compatible = "fsl,imx53-iomuxc-evk";
-				reg = <0x53fa8000 0x4000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_hog>;
+
+				hog {
+					pinctrl_hog: hoggrp {
+						fsl,pins = <
+							424  0x80000000	/* MX53_PAD_EIM_EB2__GPIO2_30 */
+							449  0x80000000	/* MX53_PAD_EIM_D19__GPIO3_19 */
+							693  0x80000000	/* MX53_PAD_EIM_DA11__GPIO3_11 */
+							697  0x80000000	/* MX53_PAD_EIM_DA12__GPIO3_12 */
+							701  0x80000000	/* MX53_PAD_EIM_DA13__GPIO3_13 */
+							705  0x80000000	/* MX53_PAD_EIM_DA14__GPIO3_14 */
+							868  0x80000000	/* MX53_PAD_PATA_DA_0__GPIO7_6 */
+							873  0x80000000	/* MX53_PAD_PATA_DA_1__GPIO7_7 */
+						>;
+					};
+				};
 			};
 
-			uart0: uart@53fbc000 { /* UART1 */
+			uart1: serial@53fbc000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_uart1_1>;
 				status = "okay";
 			};
 		};
 
 		aips@60000000 {	/* AIPS2 */
-			sdma@63fb0000 {
-				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
-			};
-
 			i2c@63fc4000 { /* I2C2 */
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c2_1>;
 				status = "okay";
 
 				pmic: mc13892@08 {
@@ -100,9 +112,11 @@
 				};
 			};
 
-			fec@63fec000 {
+			ethernet@63fec000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_fec_1>;
 				phy-mode = "rmii";
-				phy-reset-gpios = <&gpio6 6 0>; /* GPIO7_6 */
+				phy-reset-gpios = <&gpio7 6 0>;
 				status = "okay";
 			};
 		};
@@ -113,7 +127,7 @@
 
 		green {
 			label = "Heartbeat";
-			gpios = <&gpio6 7 0>; /* GPIO7_7 */
+			gpios = <&gpio7 7 0>;
 			linux,default-trigger = "heartbeat";
 		};
 	};

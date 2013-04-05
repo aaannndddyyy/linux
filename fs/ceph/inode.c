@@ -384,7 +384,6 @@ static void ceph_i_callback(struct rcu_head *head)
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ceph_inode_cachep, ci);
 }
 
@@ -678,18 +677,19 @@ static int fill_inode(struct inode *inode,
 	case S_IFLNK:
 		inode->i_op = &ceph_symlink_iops;
 		if (!ci->i_symlink) {
-			int symlen = iinfo->symlink_len;
+			u32 symlen = iinfo->symlink_len;
 			char *sym;
 
-			BUG_ON(symlen != inode->i_size);
 			spin_unlock(&ci->i_ceph_lock);
 
+			err = -EINVAL;
+			if (WARN_ON(symlen != inode->i_size))
+				goto out;
+
 			err = -ENOMEM;
-			sym = kmalloc(symlen+1, GFP_NOFS);
+			sym = kstrndup(iinfo->symlink, symlen, GFP_NOFS);
 			if (!sym)
 				goto out;
-			memcpy(sym, iinfo->symlink, symlen);
-			sym[symlen] = 0;
 
 			spin_lock(&ci->i_ceph_lock);
 			if (!ci->i_symlink)
@@ -851,11 +851,12 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 {
 	struct dentry *dir = dn->d_parent;
 	struct inode *inode = dir->d_inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_inode_info *ci;
 	struct ceph_dentry_info *di;
 
 	BUG_ON(!inode);
 
+	ci = ceph_inode(inode);
 	di = ceph_dentry(dn);
 
 	spin_lock(&ci->i_ceph_lock);
@@ -991,11 +992,15 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	if (rinfo->head->is_dentry) {
 		struct inode *dir = req->r_locked_dir;
 
-		err = fill_inode(dir, &rinfo->diri, rinfo->dirfrag,
-				 session, req->r_request_started, -1,
-				 &req->r_caps_reservation);
-		if (err < 0)
-			return err;
+		if (dir) {
+			err = fill_inode(dir, &rinfo->diri, rinfo->dirfrag,
+					 session, req->r_request_started, -1,
+					 &req->r_caps_reservation);
+			if (err < 0)
+				return err;
+		} else {
+			WARN_ON_ONCE(1);
+		}
 	}
 
 	/*
@@ -1003,6 +1008,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 	 * will have trouble splicing in the virtual snapdir later
 	 */
 	if (rinfo->head->is_dentry && !req->r_aborted &&
+	    req->r_locked_dir &&
 	    (rinfo->head->is_target || strncmp(req->r_dentry->d_name.name,
 					       fsc->mount_options->snapdir_name,
 					       req->r_dentry->d_name.len))) {
@@ -1098,7 +1104,7 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				pr_err("fill_trace bad get_inode "
 				       "%llx.%llx\n", vino.ino, vino.snap);
 				err = PTR_ERR(in);
-				d_delete(dn);
+				d_drop(dn);
 				goto done;
 			}
 			dn = splice_dentry(dn, in, &have_lease, true);
@@ -1271,7 +1277,7 @@ retry_lookup:
 			in = ceph_get_inode(parent->d_sb, vino);
 			if (IS_ERR(in)) {
 				dout("new_inode badness\n");
-				d_delete(dn);
+				d_drop(dn);
 				dput(dn);
 				err = PTR_ERR(in);
 				goto out;
@@ -1460,7 +1466,7 @@ void __ceph_do_pending_vmtruncate(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 to;
-	int wrbuffer_refs, wake = 0;
+	int wrbuffer_refs, finish = 0;
 
 retry:
 	spin_lock(&ci->i_ceph_lock);
@@ -1492,15 +1498,18 @@ retry:
 	truncate_inode_pages(inode->i_mapping, to);
 
 	spin_lock(&ci->i_ceph_lock);
-	ci->i_truncate_pending--;
-	if (ci->i_truncate_pending == 0)
-		wake = 1;
+	if (to == ci->i_truncate_size) {
+		ci->i_truncate_pending = 0;
+		finish = 1;
+	}
 	spin_unlock(&ci->i_ceph_lock);
+	if (!finish)
+		goto retry;
 
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
-	if (wake)
-		wake_up_all(&ci->i_cap_wq);
+
+	wake_up_all(&ci->i_cap_wq);
 }
 
 

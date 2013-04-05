@@ -27,14 +27,10 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/freezer.h>
 
 #include "tpm.h"
-
-enum tpm_const {
-	TPM_MINOR = 224,	/* officially assigned */
-	TPM_BUFSIZE = 4096,
-	TPM_NUM_DEVICES = 256,
-};
+#include "tpm_eventlog.h"
 
 enum tpm_duration {
 	TPM_SHORT = 0,
@@ -440,7 +436,6 @@ out:
 }
 
 #define TPM_DIGEST_SIZE 20
-#define TPM_ERROR_SIZE 10
 #define TPM_RET_CODE_IDX 6
 
 enum tpm_capabilities {
@@ -469,17 +464,20 @@ static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
 	len = tpm_transmit(chip,(u8 *) cmd, len);
 	if (len <  0)
 		return len;
-	if (len == TPM_ERROR_SIZE) {
-		err = be32_to_cpu(cmd->header.out.return_code);
-		dev_dbg(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
-		return err;
-	}
-	return 0;
+	else if (len < TPM_HEADER_SIZE)
+		return -EFAULT;
+
+	err = be32_to_cpu(cmd->header.out.return_code);
+	if (err != 0)
+		dev_err(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
+
+	return err;
 }
 
 #define TPM_INTERNAL_RESULT_SIZE 200
 #define TPM_TAG_RQU_COMMAND cpu_to_be16(193)
 #define TPM_ORD_GET_CAP cpu_to_be32(101)
+#define TPM_ORD_GET_RANDOM cpu_to_be32(70)
 
 static const struct tpm_input_header tpm_getcap_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
@@ -530,7 +528,7 @@ void tpm_gen_interrupt(struct tpm_chip *chip)
 }
 EXPORT_SYMBOL_GPL(tpm_gen_interrupt);
 
-void tpm_get_timeouts(struct tpm_chip *chip)
+int tpm_get_timeouts(struct tpm_chip *chip)
 {
 	struct tpm_cmd_t tpm_cmd;
 	struct timeout_t *timeout_cap;
@@ -552,7 +550,7 @@ void tpm_get_timeouts(struct tpm_chip *chip)
 	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
 	    be32_to_cpu(tpm_cmd.header.out.length)
 	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 4 * sizeof(u32))
-		return;
+		return -EINVAL;
 
 	timeout_cap = &tpm_cmd.params.getcap_out.cap.timeout;
 	/* Don't overwrite default if value is 0 */
@@ -583,12 +581,12 @@ duration:
 	rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
 			"attempting to determine the durations");
 	if (rc)
-		return;
+		return rc;
 
 	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
 	    be32_to_cpu(tpm_cmd.header.out.length)
 	    != sizeof(tpm_cmd.header.out) + sizeof(u32) + 3 * sizeof(u32))
-		return;
+		return -EINVAL;
 
 	duration_cap = &tpm_cmd.params.getcap_out.cap.duration;
 	chip->vendor.duration[TPM_SHORT] =
@@ -610,20 +608,36 @@ duration:
 		chip->vendor.duration_adjusted = true;
 		dev_info(chip->dev, "Adjusting TPM timeout parameters.");
 	}
+	return 0;
 }
 EXPORT_SYMBOL_GPL(tpm_get_timeouts);
 
-void tpm_continue_selftest(struct tpm_chip *chip)
-{
-	u8 data[] = {
-		0, 193,			/* TPM_TAG_RQU_COMMAND */
-		0, 0, 0, 10,		/* length */
-		0, 0, 0, 83,		/* TPM_ORD_ContinueSelfTest */
-	};
+#define TPM_ORD_CONTINUE_SELFTEST 83
+#define CONTINUE_SELFTEST_RESULT_SIZE 10
 
-	tpm_transmit(chip, data, sizeof(data));
+static struct tpm_input_header continue_selftest_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(10),
+	.ordinal = cpu_to_be32(TPM_ORD_CONTINUE_SELFTEST),
+};
+
+/**
+ * tpm_continue_selftest -- run TPM's selftest
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
+ * a TPM error code.
+ */
+static int tpm_continue_selftest(struct tpm_chip *chip)
+{
+	int rc;
+	struct tpm_cmd_t cmd;
+
+	cmd.header.in = continue_selftest_header;
+	rc = transmit_cmd(chip, &cmd, CONTINUE_SELFTEST_RESULT_SIZE,
+			  "continue selftest");
+	return rc;
 }
-EXPORT_SYMBOL_GPL(tpm_continue_selftest);
 
 ssize_t tpm_show_enabled(struct device * dev, struct device_attribute * attr,
 			char *buf)
@@ -718,7 +732,7 @@ static struct tpm_input_header pcrread_header = {
 	.ordinal = TPM_ORDINAL_PCRREAD
 };
 
-int __tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+static int __tpm_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
 {
 	int rc;
 	struct tpm_cmd_t cmd;
@@ -798,6 +812,62 @@ int tpm_pcr_extend(u32 chip_num, int pcr_idx, const u8 *hash)
 }
 EXPORT_SYMBOL_GPL(tpm_pcr_extend);
 
+/**
+ * tpm_do_selftest - have the TPM continue its selftest and wait until it
+ *                   can receive further commands
+ * @chip: TPM chip to use
+ *
+ * Returns 0 on success, < 0 in case of fatal error or a value > 0 representing
+ * a TPM error code.
+ */
+int tpm_do_selftest(struct tpm_chip *chip)
+{
+	int rc;
+	unsigned int loops;
+	unsigned int delay_msec = 1000;
+	unsigned long duration;
+	struct tpm_cmd_t cmd;
+
+	duration = tpm_calc_ordinal_duration(chip,
+	                                     TPM_ORD_CONTINUE_SELFTEST);
+
+	loops = jiffies_to_msecs(duration) / delay_msec;
+
+	rc = tpm_continue_selftest(chip);
+	/* This may fail if there was no TPM driver during a suspend/resume
+	 * cycle; some may return 10 (BAD_ORDINAL), others 28 (FAILEDSELFTEST)
+	 */
+	if (rc)
+		return rc;
+
+	do {
+		/* Attempt to read a PCR value */
+		cmd.header.in = pcrread_header;
+		cmd.params.pcrread_in.pcr_idx = cpu_to_be32(0);
+		rc = tpm_transmit(chip, (u8 *) &cmd, READ_PCR_RESULT_SIZE);
+
+		if (rc < TPM_HEADER_SIZE)
+			return -EFAULT;
+
+		rc = be32_to_cpu(cmd.header.out.return_code);
+		if (rc == TPM_ERR_DISABLED || rc == TPM_ERR_DEACTIVATED) {
+			dev_info(chip->dev,
+				 "TPM is disabled/deactivated (0x%X)\n", rc);
+			/* TPM is disabled and/or deactivated; driver can
+			 * proceed and TPM does handle commands for
+			 * suspend/resume correctly
+			 */
+			return 0;
+		}
+		if (rc != TPM_WARN_DOING_SELFTEST)
+			return rc;
+		msleep(delay_msec);
+	} while (--loops > 0);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(tpm_do_selftest);
+
 int tpm_send(u32 chip_num, void *cmd, size_t buflen)
 {
 	struct tpm_chip *chip;
@@ -845,7 +915,7 @@ EXPORT_SYMBOL_GPL(tpm_show_pcrs);
 
 #define  READ_PUBEK_RESULT_SIZE 314
 #define TPM_ORD_READPUBEK cpu_to_be32(124)
-struct tpm_input_header tpm_readpubek_header = {
+static struct tpm_input_header tpm_readpubek_header = {
 	.tag = TPM_TAG_RQU_COMMAND,
 	.length = cpu_to_be32(30),
 	.ordinal = TPM_ORD_READPUBEK
@@ -1005,6 +1075,46 @@ ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 }
 EXPORT_SYMBOL_GPL(tpm_store_cancel);
 
+int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
+			 wait_queue_head_t *queue)
+{
+	unsigned long stop;
+	long rc;
+	u8 status;
+
+	/* check current status */
+	status = chip->vendor.status(chip);
+	if ((status & mask) == mask)
+		return 0;
+
+	stop = jiffies + timeout;
+
+	if (chip->vendor.irq) {
+again:
+		timeout = stop - jiffies;
+		if ((long)timeout <= 0)
+			return -ETIME;
+		rc = wait_event_interruptible_timeout(*queue,
+						      ((chip->vendor.status(chip)
+						      & mask) == mask),
+						      timeout);
+		if (rc > 0)
+			return 0;
+		if (rc == -ERESTARTSYS && freezing(current)) {
+			clear_thread_flag(TIF_SIGPENDING);
+			goto again;
+		}
+	} else {
+		do {
+			msleep(TPM_TIMEOUT);
+			status = chip->vendor.status(chip);
+			if ((status & mask) == mask)
+				return 0;
+		} while (time_before(jiffies, stop));
+	}
+	return -ETIME;
+}
+EXPORT_SYMBOL_GPL(wait_for_tpm_stat);
 /*
  * Device file system interface to the TPM
  *
@@ -1058,10 +1168,10 @@ int tpm_release(struct inode *inode, struct file *file)
 	struct tpm_chip *chip = file->private_data;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_work_sync(&chip->work);
+	flush_work(&chip->work);
 	file->private_data = NULL;
 	atomic_set(&chip->data_pending, 0);
-	kfree(chip->data_buffer);
+	kzfree(chip->data_buffer);
 	clear_bit(0, &chip->is_open);
 	put_device(chip->dev);
 	return 0;
@@ -1072,17 +1182,20 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 		  size_t size, loff_t *off)
 {
 	struct tpm_chip *chip = file->private_data;
-	size_t in_size = size, out_size;
+	size_t in_size = size;
+	ssize_t out_size;
 
 	/* cannot perform a write until the read has cleared
-	   either via tpm_read or a user_read_timer timeout */
-	while (atomic_read(&chip->data_pending) != 0)
-		msleep(TPM_TIMEOUT);
-
-	mutex_lock(&chip->buffer_mutex);
+	   either via tpm_read or a user_read_timer timeout.
+	   This also prevents splitted buffered writes from blocking here.
+	*/
+	if (atomic_read(&chip->data_pending) != 0)
+		return -EBUSY;
 
 	if (in_size > TPM_BUFSIZE)
-		in_size = TPM_BUFSIZE;
+		return -E2BIG;
+
+	mutex_lock(&chip->buffer_mutex);
 
 	if (copy_from_user
 	    (chip->data_buffer, (void __user *) buf, in_size)) {
@@ -1092,6 +1205,10 @@ ssize_t tpm_write(struct file *file, const char __user *buf,
 
 	/* atomic tpm command send and result receive */
 	out_size = tpm_transmit(chip, chip->data_buffer, TPM_BUFSIZE);
+	if (out_size < 0) {
+		mutex_unlock(&chip->buffer_mutex);
+		return out_size;
+	}
 
 	atomic_set(&chip->data_pending, out_size);
 	mutex_unlock(&chip->buffer_mutex);
@@ -1111,21 +1228,23 @@ ssize_t tpm_read(struct file *file, char __user *buf,
 	int rc;
 
 	del_singleshot_timer_sync(&chip->user_read_timer);
-	flush_work_sync(&chip->work);
+	flush_work(&chip->work);
 	ret_size = atomic_read(&chip->data_pending);
-	atomic_set(&chip->data_pending, 0);
 	if (ret_size > 0) {	/* relay data */
+		ssize_t orig_ret_size = ret_size;
 		if (size < ret_size)
 			ret_size = size;
 
 		mutex_lock(&chip->buffer_mutex);
 		rc = copy_to_user(buf, chip->data_buffer, ret_size);
-		memset(chip->data_buffer, 0, ret_size);
+		memset(chip->data_buffer, 0, orig_ret_size);
 		if (rc)
 			ret_size = -EFAULT;
 
 		mutex_unlock(&chip->buffer_mutex);
 	}
+
+	atomic_set(&chip->data_pending, 0);
 
 	return ret_size;
 }
@@ -1147,6 +1266,7 @@ void tpm_remove_hardware(struct device *dev)
 
 	misc_deregister(&chip->vendor.miscdev);
 	sysfs_remove_group(&dev->kobj, chip->vendor.attr_group);
+	tpm_remove_ppi(&dev->kobj);
 	tpm_bios_log_teardown(chip->bios_dir);
 
 	/* write it this way to be explicit (chip->dev == dev) */
@@ -1167,7 +1287,7 @@ static struct tpm_input_header savestate_header = {
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
  */
-int tpm_pm_suspend(struct device *dev, pm_message_t pm_state)
+int tpm_pm_suspend(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct tpm_cmd_t cmd;
@@ -1211,10 +1331,65 @@ int tpm_pm_resume(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(tpm_pm_resume);
 
+#define TPM_GETRANDOM_RESULT_SIZE	18
+static struct tpm_input_header tpm_getrandom_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(14),
+	.ordinal = TPM_ORD_GET_RANDOM
+};
+
+/**
+ * tpm_get_random() - Get random bytes from the tpm's RNG
+ * @chip_num: A specific chip number for the request or TPM_ANY_NUM
+ * @out: destination buffer for the random bytes
+ * @max: the max number of bytes to write to @out
+ *
+ * Returns < 0 on error and the number of bytes read on success
+ */
+int tpm_get_random(u32 chip_num, u8 *out, size_t max)
+{
+	struct tpm_chip *chip;
+	struct tpm_cmd_t tpm_cmd;
+	u32 recd, num_bytes = min_t(u32, max, TPM_MAX_RNG_DATA);
+	int err, total = 0, retries = 5;
+	u8 *dest = out;
+
+	chip = tpm_chip_find_get(chip_num);
+	if (chip == NULL)
+		return -ENODEV;
+
+	if (!out || !num_bytes || max > TPM_MAX_RNG_DATA)
+		return -EINVAL;
+
+	do {
+		tpm_cmd.header.in = tpm_getrandom_header;
+		tpm_cmd.params.getrandom_in.num_bytes = cpu_to_be32(num_bytes);
+
+		err = transmit_cmd(chip, &tpm_cmd,
+				   TPM_GETRANDOM_RESULT_SIZE + num_bytes,
+				   "attempting get random");
+		if (err)
+			break;
+
+		recd = be32_to_cpu(tpm_cmd.params.getrandom_out.rng_data_len);
+		memcpy(dest, tpm_cmd.params.getrandom_out.rng_data, recd);
+
+		dest += recd;
+		total += recd;
+		num_bytes -= recd;
+	} while (retries-- && total < max);
+
+	return total ? total : -EIO;
+}
+EXPORT_SYMBOL_GPL(tpm_get_random);
+
 /* In case vendor provided release function, call it too.*/
 
 void tpm_dev_vendor_release(struct tpm_chip *chip)
 {
+	if (!chip)
+		return;
+
 	if (chip->vendor.release)
 		chip->vendor.release(chip->dev);
 
@@ -1228,9 +1403,12 @@ EXPORT_SYMBOL_GPL(tpm_dev_vendor_release);
  * Once all references to platform device are down to 0,
  * release all allocated structures.
  */
-void tpm_dev_release(struct device *dev)
+static void tpm_dev_release(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
+
+	if (!chip)
+		return;
 
 	tpm_dev_vendor_release(chip);
 
@@ -1298,15 +1476,17 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 			"unable to misc_register %s, minor %d\n",
 			chip->vendor.miscdev.name,
 			chip->vendor.miscdev.minor);
-		put_device(chip->dev);
-		return NULL;
+		goto put_device;
 	}
 
 	if (sysfs_create_group(&dev->kobj, chip->vendor.attr_group)) {
 		misc_deregister(&chip->vendor.miscdev);
-		put_device(chip->dev);
+		goto put_device;
+	}
 
-		return NULL;
+	if (tpm_add_ppi(&dev->kobj)) {
+		misc_deregister(&chip->vendor.miscdev);
+		goto put_device;
 	}
 
 	chip->bios_dir = tpm_bios_log_setup(devname);
@@ -1318,6 +1498,8 @@ struct tpm_chip *tpm_register_hardware(struct device *dev,
 
 	return chip;
 
+put_device:
+	put_device(chip->dev);
 out_free:
 	kfree(chip);
 	kfree(devname);

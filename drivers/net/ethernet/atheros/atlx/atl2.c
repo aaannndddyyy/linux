@@ -75,7 +75,7 @@ static void atl2_set_ethtool_ops(struct net_device *netdev);
 
 static void atl2_check_options(struct atl2_adapter *adapter);
 
-/*
+/**
  * atl2_sw_init - Initialize general software structures (struct atl2_adapter)
  * @adapter: board private structure to initialize
  *
@@ -83,7 +83,7 @@ static void atl2_check_options(struct atl2_adapter *adapter);
  * Fields are initialized based on PCI device information and
  * OS network device settings (MTU size).
  */
-static int __devinit atl2_sw_init(struct atl2_adapter *adapter)
+static int atl2_sw_init(struct atl2_adapter *adapter)
 {
 	struct atl2_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
@@ -123,7 +123,7 @@ static int __devinit atl2_sw_init(struct atl2_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl2_set_multi - Multicast and Promiscuous mode set
  * @netdev: network interface device structure
  *
@@ -177,7 +177,7 @@ static void init_ring_ptrs(struct atl2_adapter *adapter)
 	adapter->txs_next_clear = 0;
 }
 
-/*
+/**
  * atl2_configure - Configure Transmit&Receive Unit after Reset
  * @adapter: board private structure
  *
@@ -283,7 +283,7 @@ static int atl2_configure(struct atl2_adapter *adapter)
 	return value;
 }
 
-/*
+/**
  * atl2_setup_ring_resources - allocate Tx / RX descriptor resources
  * @adapter: board private structure
  *
@@ -340,7 +340,7 @@ static s32 atl2_setup_ring_resources(struct atl2_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl2_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
  */
@@ -350,7 +350,7 @@ static inline void atl2_irq_enable(struct atl2_adapter *adapter)
 	ATL2_WRITE_FLUSH(&adapter->hw);
 }
 
-/*
+/**
  * atl2_irq_disable - Mask off interrupt generation on the NIC
  * @adapter: board private structure
  */
@@ -361,7 +361,7 @@ static inline void atl2_irq_disable(struct atl2_adapter *adapter)
     synchronize_irq(adapter->pdev->irq);
 }
 
-static void __atl2_vlan_mode(u32 features, u32 *ctrl)
+static void __atl2_vlan_mode(netdev_features_t features, u32 *ctrl)
 {
 	if (features & NETIF_F_HW_VLAN_RX) {
 		/* enable VLAN tag insert/strip */
@@ -372,7 +372,8 @@ static void __atl2_vlan_mode(u32 features, u32 *ctrl)
 	}
 }
 
-static void atl2_vlan_mode(struct net_device *netdev, u32 features)
+static void atl2_vlan_mode(struct net_device *netdev,
+	netdev_features_t features)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 	u32 ctrl;
@@ -391,7 +392,8 @@ static void atl2_restore_vlan(struct atl2_adapter *adapter)
 	atl2_vlan_mode(adapter->netdev, adapter->netdev->features);
 }
 
-static u32 atl2_fix_features(struct net_device *netdev, u32 features)
+static netdev_features_t atl2_fix_features(struct net_device *netdev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -405,9 +407,10 @@ static u32 atl2_fix_features(struct net_device *netdev, u32 features)
 	return features;
 }
 
-static int atl2_set_features(struct net_device *netdev, u32 features)
+static int atl2_set_features(struct net_device *netdev,
+	netdev_features_t features)
 {
-	u32 changed = netdev->features ^ features;
+	netdev_features_t changed = netdev->features ^ features;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		atl2_vlan_mode(netdev, features);
@@ -596,11 +599,10 @@ static inline void atl2_clear_phy_int(struct atl2_adapter *adapter)
 	spin_unlock(&adapter->stats_lock);
 }
 
-/*
+/**
  * atl2_intr - Interrupt Handler
  * @irq: interrupt number
  * @data: pointer to a network interface device structure
- * @pt_regs: CPU registers structure
  */
 static irqreturn_t atl2_intr(int irq, void *data)
 {
@@ -676,7 +678,7 @@ static int atl2_request_irq(struct atl2_adapter *adapter)
 		netdev);
 }
 
-/*
+/**
  * atl2_free_ring_resources - Free Tx / RX descriptor Resources
  * @adapter: board private structure
  *
@@ -689,7 +691,7 @@ static void atl2_free_ring_resources(struct atl2_adapter *adapter)
 		adapter->ring_dma);
 }
 
-/*
+/**
  * atl2_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -795,7 +797,7 @@ static void atl2_free_irq(struct atl2_adapter *adapter)
 #endif
 }
 
-/*
+/**
  * atl2_close - Disables a network interface
  * @netdev: network interface device structure
  *
@@ -915,7 +917,7 @@ static netdev_tx_t atl2_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-/*
+/**
  * atl2_change_mtu - Change the Maximum Transfer Unit
  * @netdev: network interface device structure
  * @new_mtu: new value for maximum frame size
@@ -940,7 +942,7 @@ static int atl2_change_mtu(struct net_device *netdev, int new_mtu)
 	return 0;
 }
 
-/*
+/**
  * atl2_set_mac - Change the Ethernet Address of the NIC
  * @netdev: network interface device structure
  * @p: pointer to an address structure
@@ -966,12 +968,6 @@ static int atl2_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-/*
- * atl2_mii_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
@@ -1008,12 +1004,6 @@ static int atl2_mii_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-/*
- * atl2_ioctl -
- * @netdev:
- * @ifreq:
- * @cmd:
- */
 static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 {
 	switch (cmd) {
@@ -1030,7 +1020,7 @@ static int atl2_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	}
 }
 
-/*
+/**
  * atl2_tx_timeout - Respond to a Tx Hang
  * @netdev: network interface device structure
  */
@@ -1042,7 +1032,7 @@ static void atl2_tx_timeout(struct net_device *netdev)
 	schedule_work(&adapter->reset_task);
 }
 
-/*
+/**
  * atl2_watchdog - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -1067,7 +1057,7 @@ static void atl2_watchdog(unsigned long data)
 	}
 }
 
-/*
+/**
  * atl2_phy_config - Timer Call-back
  * @data: pointer to netdev cast into an unsigned long
  */
@@ -1271,9 +1261,8 @@ static int atl2_check_link(struct atl2_adapter *adapter)
 	return 0;
 }
 
-/*
+/**
  * atl2_link_chg_task - deal with link change event Out of interrupt context
- * @netdev: network interface device structure
  */
 static void atl2_link_chg_task(struct work_struct *work)
 {
@@ -1338,7 +1327,7 @@ static const struct net_device_ops atl2_netdev_ops = {
 #endif
 };
 
-/*
+/**
  * atl2_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in atl2_pci_tbl
@@ -1349,8 +1338,7 @@ static const struct net_device_ops atl2_netdev_ops = {
  * The OS initialization, configuring of the adapter private structure,
  * and a hardware reset occur.
  */
-static int __devinit atl2_probe(struct pci_dev *pdev,
-	const struct pci_device_id *ent)
+static int atl2_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
 	struct atl2_adapter *adapter;
@@ -1498,7 +1486,7 @@ err_dma:
 	return err;
 }
 
-/*
+/**
  * atl2_remove - Device Removal Routine
  * @pdev: PCI device information struct
  *
@@ -1509,7 +1497,7 @@ err_dma:
  */
 /* FIXME: write the original MAC address back in case it was changed from a
  * BIOS-set value, as in atl1 -- CHS */
-static void __devexit atl2_remove(struct pci_dev *pdev)
+static void atl2_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl2_adapter *adapter = netdev_priv(netdev);
@@ -1716,7 +1704,7 @@ static struct pci_driver atl2_driver = {
 	.name     = atl2_driver_name,
 	.id_table = atl2_pci_tbl,
 	.probe    = atl2_probe,
-	.remove   = __devexit_p(atl2_remove),
+	.remove   = atl2_remove,
 	/* Power Management Hooks */
 	.suspend  = atl2_suspend,
 #ifdef CONFIG_PM
@@ -1725,7 +1713,7 @@ static struct pci_driver atl2_driver = {
 	.shutdown = atl2_shutdown,
 };
 
-/*
+/**
  * atl2_init_module - Driver Registration Routine
  *
  * atl2_init_module is the first routine called when the driver is
@@ -1740,7 +1728,7 @@ static int __init atl2_init_module(void)
 }
 module_init(atl2_init_module);
 
-/*
+/**
  * atl2_exit_module - Driver Exit Cleanup Routine
  *
  * atl2_exit_module is called just before the driver is removed
@@ -2049,10 +2037,12 @@ static void atl2_get_drvinfo(struct net_device *netdev,
 {
 	struct atl2_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(drvinfo->driver,  atl2_driver_name, 32);
-	strncpy(drvinfo->version, atl2_driver_version, 32);
-	strncpy(drvinfo->fw_version, "L2", 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->driver,  atl2_driver_name, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, atl2_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "L2", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;
 	drvinfo->testinfo_len = 0;
 	drvinfo->regdump_len = atl2_get_regs_len(netdev);
@@ -2253,7 +2243,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 	u32 Addr[2];
 	u32 i, Control;
 	u16 Register;
-	u8  EthAddr[NODE_ADDRESS_SIZE];
+	u8  EthAddr[ETH_ALEN];
 	bool KeyValid;
 
 	if (is_valid_ether_addr(hw->perm_mac_addr))
@@ -2294,7 +2284,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 		*(u16 *) &EthAddr[0] = SHORTSWAP(*(u16 *) &Addr[1]);
 
 		if (is_valid_ether_addr(EthAddr)) {
-			memcpy(hw->perm_mac_addr, EthAddr, NODE_ADDRESS_SIZE);
+			memcpy(hw->perm_mac_addr, EthAddr, ETH_ALEN);
 			return 0;
 		}
 		return 1;
@@ -2329,7 +2319,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 	*(u32 *) &EthAddr[2] = LONGSWAP(Addr[0]);
 	*(u16 *) &EthAddr[0] = SHORTSWAP(*(u16 *)&Addr[1]);
 	if (is_valid_ether_addr(EthAddr)) {
-		memcpy(hw->perm_mac_addr, EthAddr, NODE_ADDRESS_SIZE);
+		memcpy(hw->perm_mac_addr, EthAddr, ETH_ALEN);
 		return 0;
 	}
 	/* maybe MAC-address is from BIOS */
@@ -2339,7 +2329,7 @@ static int get_permanent_address(struct atl2_hw *hw)
 	*(u16 *) &EthAddr[0] = SHORTSWAP(*(u16 *) &Addr[1]);
 
 	if (is_valid_ether_addr(EthAddr)) {
-		memcpy(hw->perm_mac_addr, EthAddr, NODE_ADDRESS_SIZE);
+		memcpy(hw->perm_mac_addr, EthAddr, ETH_ALEN);
 		return 0;
 	}
 
@@ -2353,11 +2343,9 @@ static int get_permanent_address(struct atl2_hw *hw)
  */
 static s32 atl2_read_mac_addr(struct atl2_hw *hw)
 {
-	u16 i;
-
 	if (get_permanent_address(hw)) {
 		/* for test */
-		/* FIXME: shouldn't we use random_ether_addr() here? */
+		/* FIXME: shouldn't we use eth_random_addr() here? */
 		hw->perm_mac_addr[0] = 0x00;
 		hw->perm_mac_addr[1] = 0x13;
 		hw->perm_mac_addr[2] = 0x74;
@@ -2366,8 +2354,7 @@ static s32 atl2_read_mac_addr(struct atl2_hw *hw)
 		hw->perm_mac_addr[5] = 0x38;
 	}
 
-	for (i = 0; i < NODE_ADDRESS_SIZE; i++)
-		hw->mac_addr[i] = hw->perm_mac_addr[i];
+	memcpy(hw->mac_addr, hw->perm_mac_addr, ETH_ALEN);
 
 	return 0;
 }
@@ -2857,12 +2844,12 @@ static void atl2_force_ps(struct atl2_hw *hw)
  */
 
 #define ATL2_PARAM(X, desc) \
-    static const int __devinitdata X[ATL2_MAX_NIC + 1] = ATL2_PARAM_INIT; \
+    static const int X[ATL2_MAX_NIC + 1] = ATL2_PARAM_INIT; \
     MODULE_PARM(X, "1-" __MODULE_STRING(ATL2_MAX_NIC) "i"); \
     MODULE_PARM_DESC(X, desc);
 #else
 #define ATL2_PARAM(X, desc) \
-    static int __devinitdata X[ATL2_MAX_NIC+1] = ATL2_PARAM_INIT; \
+    static int X[ATL2_MAX_NIC+1] = ATL2_PARAM_INIT; \
     static unsigned int num_##X; \
     module_param_array_named(X, X, int, &num_##X, 0); \
     MODULE_PARM_DESC(X, desc);
@@ -2946,7 +2933,7 @@ struct atl2_option {
 	} arg;
 };
 
-static int __devinit atl2_validate_option(int *value, struct atl2_option *opt)
+static int atl2_validate_option(int *value, struct atl2_option *opt)
 {
 	int i;
 	struct atl2_opt_list *ent;
@@ -2995,7 +2982,7 @@ static int __devinit atl2_validate_option(int *value, struct atl2_option *opt)
 	return -1;
 }
 
-/*
+/**
  * atl2_check_options - Range Checking for Command Line Parameters
  * @adapter: board private structure
  *
@@ -3004,7 +2991,7 @@ static int __devinit atl2_validate_option(int *value, struct atl2_option *opt)
  * value exists, a default value is used.  The final value is stored
  * in a variable in the adapter structure.
  */
-static void __devinit atl2_check_options(struct atl2_adapter *adapter)
+static void atl2_check_options(struct atl2_adapter *adapter)
 {
 	int val;
 	struct atl2_option opt;

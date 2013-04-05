@@ -18,7 +18,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <mach/map.h>
+#include <asm/sched_clock.h>
 #include <asm/mach/time.h>
+
+#include "common.h"
 
 #define SIRFSOC_TIMER_COUNTER_LO	0x0000
 #define SIRFSOC_TIMER_COUNTER_HI	0x0004
@@ -131,11 +134,11 @@ static void sirfsoc_clocksource_resume(struct clocksource *cs)
 {
 	int i;
 
-	for (i = 0; i < SIRFSOC_TIMER_REG_CNT; i++)
+	for (i = 0; i < SIRFSOC_TIMER_REG_CNT - 2; i++)
 		writel_relaxed(sirfsoc_timer_reg_val[i], sirfsoc_timer_base + sirfsoc_timer_reg_list[i]);
 
-	writel_relaxed(sirfsoc_timer_reg_val[i - 2], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
-	writel_relaxed(sirfsoc_timer_reg_val[i - 1], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
+	writel_relaxed(sirfsoc_timer_reg_val[SIRFSOC_TIMER_REG_CNT - 2], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
+	writel_relaxed(sirfsoc_timer_reg_val[SIRFSOC_TIMER_REG_CNT - 1], sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
 }
 
 static struct clock_event_device sirfsoc_clockevent = {
@@ -165,21 +168,9 @@ static struct irqaction sirfsoc_timer_irq = {
 };
 
 /* Overwrite weak default sched_clock with more precise one */
-unsigned long long notrace sched_clock(void)
+static u32 notrace sirfsoc_read_sched_clock(void)
 {
-	static int is_mapped;
-
-	/*
-	 * sched_clock is called earlier than .init of sys_timer
-	 * if we map timer memory in .init of sys_timer, system
-	 * will panic due to illegal memory access
-	 */
-	if (!is_mapped) {
-		sirfsoc_of_timer_map();
-		is_mapped = 1;
-	}
-
-	return sirfsoc_timer_read(NULL) * (NSEC_PER_SEC / CLOCK_TICK_RATE);
+	return (u32)(sirfsoc_timer_read(NULL) & 0xffffffff);
 }
 
 static void __init sirfsoc_clockevent_init(void)
@@ -199,9 +190,13 @@ static void __init sirfsoc_clockevent_init(void)
 static void __init sirfsoc_timer_init(void)
 {
 	unsigned long rate;
+	struct clk *clk;
+
+	/* initialize clocking early, we want to set the OS timer */
+	sirfsoc_of_clk_init();
 
 	/* timer's input clock is io clock */
-	struct clk *clk = clk_get_sys("io", NULL);
+	clk = clk_get_sys("io", NULL);
 
 	BUG_ON(IS_ERR(clk));
 
@@ -210,12 +205,16 @@ static void __init sirfsoc_timer_init(void)
 	BUG_ON(rate < CLOCK_TICK_RATE);
 	BUG_ON(rate % CLOCK_TICK_RATE);
 
+	sirfsoc_of_timer_map();
+
 	writel_relaxed(rate / CLOCK_TICK_RATE / 2 - 1, sirfsoc_timer_base + SIRFSOC_TIMER_DIV);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_LO);
 	writel_relaxed(0, sirfsoc_timer_base + SIRFSOC_TIMER_COUNTER_HI);
 	writel_relaxed(BIT(0), sirfsoc_timer_base + SIRFSOC_TIMER_STATUS);
 
 	BUG_ON(clocksource_register_hz(&sirfsoc_clocksource, CLOCK_TICK_RATE));
+
+	setup_sched_clock(sirfsoc_read_sched_clock, 32, CLOCK_TICK_RATE);
 
 	BUG_ON(setup_irq(sirfsoc_timer_irq.irq, &sirfsoc_timer_irq));
 

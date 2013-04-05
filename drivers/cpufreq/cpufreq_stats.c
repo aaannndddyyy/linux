@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/sysdev.h>
 #include <linux/cpu.h>
 #include <linux/sysfs.h>
 #include <linux/cpufreq.h>
@@ -38,7 +37,7 @@ struct cpufreq_stats {
 	unsigned int max_state;
 	unsigned int state_num;
 	unsigned int last_index;
-	cputime64_t *time_in_state;
+	u64 *time_in_state;
 	unsigned int *freq_table;
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	unsigned int *trans_table;
@@ -61,9 +60,8 @@ static int cpufreq_stats_update(unsigned int cpu)
 	spin_lock(&cpufreq_stats_lock);
 	stat = per_cpu(cpufreq_stats_table, cpu);
 	if (stat->time_in_state)
-		stat->time_in_state[stat->last_index] =
-			cputime64_add(stat->time_in_state[stat->last_index],
-				      cputime_sub(cur_time, stat->last_time));
+		stat->time_in_state[stat->last_index] +=
+			cur_time - stat->last_time;
 	stat->last_time = cur_time;
 	spin_unlock(&cpufreq_stats_lock);
 	return 0;
@@ -225,7 +223,7 @@ static int cpufreq_stats_create_table(struct cpufreq_policy *policy,
 		count++;
 	}
 
-	alloc_size = count * sizeof(int) + count * sizeof(cputime64_t);
+	alloc_size = count * sizeof(int) + count * sizeof(u64);
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
 	alloc_size += count * count * sizeof(int);
@@ -330,6 +328,7 @@ static int __cpuinit cpufreq_stat_cpu_callback(struct notifier_block *nfb,
 		cpufreq_update_policy(cpu);
 		break;
 	case CPU_DOWN_PREPARE:
+	case CPU_DOWN_PREPARE_FROZEN:
 		cpufreq_stats_free_sysfs(cpu);
 		break;
 	case CPU_DEAD:
@@ -365,18 +364,21 @@ static int __init cpufreq_stats_init(void)
 	if (ret)
 		return ret;
 
+	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
+	for_each_online_cpu(cpu)
+		cpufreq_update_policy(cpu);
+
 	ret = cpufreq_register_notifier(&notifier_trans_block,
 				CPUFREQ_TRANSITION_NOTIFIER);
 	if (ret) {
 		cpufreq_unregister_notifier(&notifier_policy_block,
 				CPUFREQ_POLICY_NOTIFIER);
+		unregister_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
+		for_each_online_cpu(cpu)
+			cpufreq_stats_free_table(cpu);
 		return ret;
 	}
 
-	register_hotcpu_notifier(&cpufreq_stat_cpu_notifier);
-	for_each_online_cpu(cpu) {
-		cpufreq_update_policy(cpu);
-	}
 	return 0;
 }
 static void __exit cpufreq_stats_exit(void)

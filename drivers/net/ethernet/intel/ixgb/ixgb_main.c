@@ -54,13 +54,13 @@ MODULE_PARM_DESC(copybreak,
  *   Class, Class Mask, private data (not used) }
  */
 static DEFINE_PCI_DEVICE_TABLE(ixgb_pci_tbl) = {
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_CX4,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_CX4,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_SR,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_SR,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	{INTEL_VENDOR_ID, IXGB_DEVICE_ID_82597EX_LR,
+	{PCI_VENDOR_ID_INTEL, IXGB_DEVICE_ID_82597EX_LR,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 
 	/* required last entry */
@@ -73,7 +73,7 @@ MODULE_DEVICE_TABLE(pci, ixgb_pci_tbl);
 static int ixgb_init_module(void);
 static void ixgb_exit_module(void);
 static int ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
-static void __devexit ixgb_remove(struct pci_dev *pdev);
+static void ixgb_remove(struct pci_dev *pdev);
 static int ixgb_sw_init(struct ixgb_adapter *adapter);
 static int ixgb_open(struct net_device *netdev);
 static int ixgb_close(struct net_device *netdev);
@@ -101,8 +101,8 @@ static void ixgb_tx_timeout_task(struct work_struct *work);
 
 static void ixgb_vlan_strip_enable(struct ixgb_adapter *adapter);
 static void ixgb_vlan_strip_disable(struct ixgb_adapter *adapter);
-static void ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
-static void ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
+static int ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
+static int ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
 static void ixgb_restore_vlan(struct ixgb_adapter *adapter);
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -115,7 +115,7 @@ static pci_ers_result_t ixgb_io_error_detected (struct pci_dev *pdev,
 static pci_ers_result_t ixgb_io_slot_reset (struct pci_dev *pdev);
 static void ixgb_io_resume (struct pci_dev *pdev);
 
-static struct pci_error_handlers ixgb_err_handler = {
+static const struct pci_error_handlers ixgb_err_handler = {
 	.error_detected = ixgb_io_error_detected,
 	.slot_reset = ixgb_io_slot_reset,
 	.resume = ixgb_io_resume,
@@ -125,7 +125,7 @@ static struct pci_driver ixgb_driver = {
 	.name     = ixgb_driver_name,
 	.id_table = ixgb_pci_tbl,
 	.probe    = ixgb_probe,
-	.remove   = __devexit_p(ixgb_remove),
+	.remove   = ixgb_remove,
 	.err_handler = &ixgb_err_handler
 };
 
@@ -134,8 +134,8 @@ MODULE_DESCRIPTION("Intel(R) PRO/10GbE Network Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-#define DEFAULT_DEBUG_LEVEL_SHIFT 3
-static int debug = DEFAULT_DEBUG_LEVEL_SHIFT;
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
+static int debug = -1;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
@@ -195,7 +195,7 @@ ixgb_irq_enable(struct ixgb_adapter *adapter)
 {
 	u32 val = IXGB_INT_RXT0 | IXGB_INT_RXDMT0 |
 		  IXGB_INT_TXDW | IXGB_INT_LSC;
-	if (adapter->hw.subsystem_vendor_id == SUN_SUBVENDOR_ID)
+	if (adapter->hw.subsystem_vendor_id == PCI_VENDOR_ID_SUN)
 		val |= IXGB_INT_GPI0;
 	IXGB_WRITE_REG(&adapter->hw, IMS, val);
 	IXGB_WRITE_FLUSH(&adapter->hw);
@@ -228,7 +228,7 @@ ixgb_up(struct ixgb_adapter *adapter)
 	if (IXGB_READ_REG(&adapter->hw, STATUS) & IXGB_STATUS_PCIX_MODE) {
 		err = pci_enable_msi(adapter->pdev);
 		if (!err) {
-			adapter->have_msi = 1;
+			adapter->have_msi = true;
 			irq_flags = 0;
 		}
 		/* proceed to try to request regular interrupt */
@@ -325,8 +325,8 @@ ixgb_reset(struct ixgb_adapter *adapter)
 	}
 }
 
-static u32
-ixgb_fix_features(struct net_device *netdev, u32 features)
+static netdev_features_t
+ixgb_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	/*
 	 * Tx VLAN insertion does not work per HW design when Rx stripping is
@@ -339,10 +339,10 @@ ixgb_fix_features(struct net_device *netdev, u32 features)
 }
 
 static int
-ixgb_set_features(struct net_device *netdev, u32 features)
+ixgb_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
-	u32 changed = features ^ netdev->features;
+	netdev_features_t changed = features ^ netdev->features;
 
 	if (!(changed & (NETIF_F_RXCSUM|NETIF_F_HW_VLAN_RX)))
 		return 0;
@@ -391,7 +391,7 @@ static const struct net_device_ops ixgb_netdev_ops = {
  * and a hardware reset occur.
  **/
 
-static int __devinit
+static int
 ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct net_device *netdev = NULL;
@@ -442,7 +442,7 @@ ixgb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->netdev = netdev;
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
-	adapter->msg_enable = netif_msg_init(debug, DEFAULT_DEBUG_LEVEL_SHIFT);
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	adapter->hw.hw_addr = pci_ioremap_bar(pdev, BAR_0);
 	if (!adapter->hw.hw_addr) {
@@ -558,7 +558,7 @@ err_dma_mask:
  * memory.
  **/
 
-static void __devexit
+static void
 ixgb_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
@@ -584,7 +584,7 @@ ixgb_remove(struct pci_dev *pdev)
  * OS network device settings (MTU size).
  **/
 
-static int __devinit
+static int
 ixgb_sw_init(struct ixgb_adapter *adapter)
 {
 	struct ixgb_hw *hw = &adapter->hw;
@@ -1136,10 +1136,8 @@ ixgb_set_multi(struct net_device *netdev)
 		u8 *mta = kmalloc(IXGB_MAX_NUM_MULTICAST_ADDRESSES *
 			      ETH_ALEN, GFP_ATOMIC);
 		u8 *addr;
-		if (!mta) {
-			pr_err("allocation of multicast memory failed\n");
+		if (!mta)
 			goto alloc_failed;
-		}
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
@@ -2070,8 +2068,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 
 			/* All receives must fit into a single buffer */
 
-			IXGB_DBG("Receive packet consumed multiple buffers "
-					 "length<%x>\n", length);
+			pr_debug("Receive packet consumed multiple buffers length<%x>\n",
+				 length);
 
 			dev_kfree_skb_irq(skb);
 			goto rxdesc_done;
@@ -2217,7 +2215,7 @@ ixgb_vlan_strip_disable(struct ixgb_adapter *adapter)
 	IXGB_WRITE_REG(&adapter->hw, CTRL0, ctrl);
 }
 
-static void
+static int
 ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -2230,9 +2228,11 @@ ixgb_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	vfta |= (1 << (vid & 0x1F));
 	ixgb_write_vfta(&adapter->hw, index, vfta);
 	set_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
-static void
+static int
 ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
@@ -2245,6 +2245,8 @@ ixgb_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	vfta &= ~(1 << (vid & 0x1F));
 	ixgb_write_vfta(&adapter->hw, index, vfta);
 	clear_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 static void
@@ -2274,9 +2276,9 @@ static void ixgb_netpoll(struct net_device *dev)
 #endif
 
 /**
- * ixgb_io_error_detected() - called when PCI error is detected
- * @pdev    pointer to pci device with error
- * @state   pci channel state after error
+ * ixgb_io_error_detected - called when PCI error is detected
+ * @pdev:    pointer to pci device with error
+ * @state:   pci channel state after error
  *
  * This callback is called by the PCI subsystem whenever
  * a PCI bus error is detected.

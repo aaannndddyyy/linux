@@ -20,11 +20,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/hardware.h>
-#include <mach/common.h>
-#include <mach/iomux-mx27.h>
 
+#include "common.h"
 #include "devices-imx27.h"
+#include "hardware.h"
+#include "iomux-mx27.h"
 
 static const int mx27lite_pins[] __initconst = {
 	/* UART1 */
@@ -84,4 +84,5 @@ MACHINE_START(IMX27LITE, "LogicPD i.MX27LITE")
 	.handle_irq = imx27_handle_irq,
 	.timer = &mx27lite_timer,
 	.init_machine = mx27lite_init,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -312,16 +312,12 @@ static int pl010_startup(struct uart_port *port)
 	struct uart_amba_port *uap = (struct uart_amba_port *)port;
 	int retval;
 
-	retval = clk_prepare(uap->clk);
-	if (retval)
-		goto out;
-
 	/*
 	 * Try to enable the clock producer.
 	 */
-	retval = clk_enable(uap->clk);
+	retval = clk_prepare_enable(uap->clk);
 	if (retval)
-		goto clk_unprep;
+		goto out;
 
 	uap->port.uartclk = clk_get_rate(uap->clk);
 
@@ -346,9 +342,7 @@ static int pl010_startup(struct uart_port *port)
 	return 0;
 
  clk_dis:
-	clk_disable(uap->clk);
- clk_unprep:
-	clk_unprepare(uap->clk);
+	clk_disable_unprepare(uap->clk);
  out:
 	return retval;
 }
@@ -375,8 +369,7 @@ static void pl010_shutdown(struct uart_port *port)
 	/*
 	 * Shut down the clock producer
 	 */
-	clk_disable(uap->clk);
-	clk_unprepare(uap->clk);
+	clk_disable_unprepare(uap->clk);
 }
 
 static void
@@ -794,6 +787,8 @@ static struct amba_id pl010_ids[] = {
 	},
 	{ 0, 0 },
 };
+
+MODULE_DEVICE_TABLE(amba, pl010_ids);
 
 static struct amba_driver pl010_driver = {
 	.drv = {

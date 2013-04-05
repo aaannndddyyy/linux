@@ -193,35 +193,35 @@ iow(board_info_t * db, int reg, int value)
 
 static void dm9000_outblk_8bit(void __iomem *reg, void *data, int count)
 {
-	writesb(reg, data, count);
+	iowrite8_rep(reg, data, count);
 }
 
 static void dm9000_outblk_16bit(void __iomem *reg, void *data, int count)
 {
-	writesw(reg, data, (count+1) >> 1);
+	iowrite16_rep(reg, data, (count+1) >> 1);
 }
 
 static void dm9000_outblk_32bit(void __iomem *reg, void *data, int count)
 {
-	writesl(reg, data, (count+3) >> 2);
+	iowrite32_rep(reg, data, (count+3) >> 2);
 }
 
 /* input block from chip to memory */
 
 static void dm9000_inblk_8bit(void __iomem *reg, void *data, int count)
 {
-	readsb(reg, data, count);
+	ioread8_rep(reg, data, count);
 }
 
 
 static void dm9000_inblk_16bit(void __iomem *reg, void *data, int count)
 {
-	readsw(reg, data, (count+1) >> 1);
+	ioread16_rep(reg, data, (count+1) >> 1);
 }
 
 static void dm9000_inblk_32bit(void __iomem *reg, void *data, int count)
 {
-	readsl(reg, data, (count+3) >> 2);
+	ioread32_rep(reg, data, (count+3) >> 2);
 }
 
 /* dump block from chip to null */
@@ -474,10 +474,11 @@ static int dm9000_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&dm->mii);
 }
 
-static int dm9000_set_features(struct net_device *dev, u32 features)
+static int dm9000_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	board_info_t *dm = to_dm9000_board(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	unsigned long flags;
 
 	if (!(changed & NETIF_F_RXCSUM))
@@ -1027,7 +1028,7 @@ dm9000_rx(struct net_device *dev)
 
 		/* Move data from DM9000 */
 		if (GoodPacket &&
-		    ((skb = dev_alloc_skb(RxLen + 4)) != NULL)) {
+		    ((skb = netdev_alloc_skb(dev, RxLen + 4)) != NULL)) {
 			skb_reserve(skb, 2);
 			rdptr = (u8 *) skb_put(skb, RxLen - 4);
 
@@ -1358,7 +1359,7 @@ static const struct net_device_ops dm9000_netdev_ops = {
 /*
  * Search DM9000 board, allocate space and register it
  */
-static int __devinit
+static int
 dm9000_probe(struct platform_device *pdev)
 {
 	struct dm9000_plat_data *pdata = pdev->dev.platform_data;
@@ -1372,10 +1373,8 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct board_info));
-	if (!ndev) {
-		dev_err(&pdev->dev, "could not allocate device.\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
@@ -1586,7 +1585,7 @@ dm9000_probe(struct platform_device *pdev)
 		dev_warn(db->dev, "%s: Invalid ethernet MAC address. Please "
 			 "set using ifconfig\n", ndev->name);
 
-		random_ether_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
 		mac_src = "random";
 	}
 
@@ -1662,7 +1661,7 @@ static const struct dev_pm_ops dm9000_drv_pm_ops = {
 	.resume		= dm9000_drv_resume,
 };
 
-static int __devexit
+static int
 dm9000_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
@@ -1684,7 +1683,7 @@ static struct platform_driver dm9000_driver = {
 		.pm	 = &dm9000_drv_pm_ops,
 	},
 	.probe   = dm9000_probe,
-	.remove  = __devexit_p(dm9000_drv_remove),
+	.remove  = dm9000_drv_remove,
 };
 
 static int __init

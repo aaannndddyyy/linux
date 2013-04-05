@@ -45,6 +45,8 @@ static int pxm_to_node_map[MAX_PXM_DOMAINS]
 static int node_to_pxm_map[MAX_NUMNODES]
 			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
 
+unsigned char acpi_srat_revision __initdata;
+
 int pxm_to_node(int pxm)
 {
 	if (pxm < 0)
@@ -235,6 +237,8 @@ acpi_parse_processor_affinity(struct acpi_subtable_header *header,
 	return 0;
 }
 
+static int __initdata parsed_numa_memblks;
+
 static int __init
 acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 			   const unsigned long end)
@@ -248,15 +252,19 @@ acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 	acpi_table_print_srat_entry(header);
 
 	/* let architecture-dependent part to do it */
-	acpi_numa_memory_affinity_init(memory_affinity);
-
+	if (!acpi_numa_memory_affinity_init(memory_affinity))
+		parsed_numa_memblks++;
 	return 0;
 }
 
 static int __init acpi_parse_srat(struct acpi_table_header *table)
 {
+	struct acpi_table_srat *srat;
 	if (!table)
 		return -EINVAL;
+
+	srat = (struct acpi_table_srat *)table;
+	acpi_srat_revision = srat->header.revision;
 
 	/* Real work done in acpi_table_parse_srat below. */
 
@@ -298,8 +306,10 @@ int __init acpi_numa_init(void)
 
 	acpi_numa_arch_fixup();
 
-	if (cnt <= 0)
-		return cnt ?: -ENOENT;
+	if (cnt < 0)
+		return cnt;
+	else if (!parsed_numa_memblks)
+		return -ENOENT;
 	return 0;
 }
 

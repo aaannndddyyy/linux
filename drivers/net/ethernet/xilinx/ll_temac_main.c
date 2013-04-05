@@ -197,7 +197,7 @@ static int temac_dcr_setup(struct temac_local *lp, struct platform_device *op,
 #endif
 
 /**
- *  * temac_dma_bd_release - Release buffer descriptor rings
+ * temac_dma_bd_release - Release buffer descriptor rings
  */
 static void temac_dma_bd_release(struct net_device *ndev)
 {
@@ -237,7 +237,7 @@ static int temac_dma_bd_init(struct net_device *ndev)
 	struct sk_buff *skb;
 	int i;
 
-	lp->rx_skb = kzalloc(sizeof(*lp->rx_skb) * RX_BD_NUM, GFP_KERNEL);
+	lp->rx_skb = kcalloc(RX_BD_NUM, sizeof(*lp->rx_skb), GFP_KERNEL);
 	if (!lp->rx_skb) {
 		dev_err(&ndev->dev,
 				"can't allocate memory for DMA RX buffer\n");
@@ -327,7 +327,9 @@ static int temac_set_mac_address(struct net_device *ndev, void *address)
 		memcpy(ndev->dev_addr, address, ETH_ALEN);
 
 	if (!is_valid_ether_addr(ndev->dev_addr))
-		random_ether_addr(ndev->dev_addr);
+		eth_hw_addr_random(ndev);
+	else
+		ndev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	/* set up unicast MAC address filter set its mac address */
 	mutex_lock(&lp->indirect_mutex);
@@ -766,7 +768,6 @@ static void ll_temac_recv(struct net_device *ndev)
 				 DMA_FROM_DEVICE);
 
 		skb_put(skb, length);
-		skb->dev = ndev;
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb_checksum_none_assert(skb);
 
@@ -920,12 +921,26 @@ temac_poll_controller(struct net_device *ndev)
 }
 #endif
 
+static int temac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
+{
+	struct temac_local *lp = netdev_priv(ndev);
+
+	if (!netif_running(ndev))
+		return -EINVAL;
+
+	if (!lp->phy_dev)
+		return -EINVAL;
+
+	return phy_mii_ioctl(lp->phy_dev, rq, cmd);
+}
+
 static const struct net_device_ops temac_netdev_ops = {
 	.ndo_open = temac_open,
 	.ndo_stop = temac_stop,
 	.ndo_start_xmit = temac_start_xmit,
 	.ndo_set_mac_address = netdev_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
+	.ndo_do_ioctl = temac_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = temac_poll_controller,
 #endif
@@ -984,9 +999,10 @@ static const struct ethtool_ops temac_ethtool_ops = {
 	.set_settings = temac_set_settings,
 	.nway_reset = temac_nway_reset,
 	.get_link = ethtool_op_get_link,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
-static int __devinit temac_of_probe(struct platform_device *op)
+static int temac_of_probe(struct platform_device *op)
 {
 	struct device_node *np;
 	struct temac_local *lp;
@@ -997,10 +1013,9 @@ static int __devinit temac_of_probe(struct platform_device *op)
 
 	/* Init network device structure */
 	ndev = alloc_etherdev(sizeof(*lp));
-	if (!ndev) {
-		dev_err(&op->dev, "could not allocate device.\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
+
 	ether_setup(ndev);
 	dev_set_drvdata(&op->dev, ndev);
 	SET_NETDEV_DEV(ndev, &op->dev);
@@ -1077,7 +1092,7 @@ static int __devinit temac_of_probe(struct platform_device *op)
 
 	of_node_put(np); /* Finished with the DMA node; drop the reference */
 
-	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
+	if (!lp->rx_irq || !lp->tx_irq) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		rc = -ENOMEM;
 		goto err_iounmap_2;
@@ -1129,7 +1144,7 @@ static int __devinit temac_of_probe(struct platform_device *op)
 	return rc;
 }
 
-static int __devexit temac_of_remove(struct platform_device *op)
+static int temac_of_remove(struct platform_device *op)
 {
 	struct net_device *ndev = dev_get_drvdata(&op->dev);
 	struct temac_local *lp = netdev_priv(ndev);
@@ -1148,7 +1163,7 @@ static int __devexit temac_of_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id temac_of_match[] __devinitdata = {
+static struct of_device_id temac_of_match[] = {
 	{ .compatible = "xlnx,xps-ll-temac-1.01.b", },
 	{ .compatible = "xlnx,xps-ll-temac-2.00.a", },
 	{ .compatible = "xlnx,xps-ll-temac-2.02.a", },
@@ -1159,7 +1174,7 @@ MODULE_DEVICE_TABLE(of, temac_of_match);
 
 static struct platform_driver temac_of_driver = {
 	.probe = temac_of_probe,
-	.remove = __devexit_p(temac_of_remove),
+	.remove = temac_of_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "xilinx_temac",
@@ -1167,17 +1182,7 @@ static struct platform_driver temac_of_driver = {
 	},
 };
 
-static int __init temac_init(void)
-{
-	return platform_driver_register(&temac_of_driver);
-}
-module_init(temac_init);
-
-static void __exit temac_exit(void)
-{
-	platform_driver_unregister(&temac_of_driver);
-}
-module_exit(temac_exit);
+module_platform_driver(temac_of_driver);
 
 MODULE_DESCRIPTION("Xilinx LL_TEMAC Ethernet driver");
 MODULE_AUTHOR("Yoshio Kashiwagi");

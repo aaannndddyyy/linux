@@ -4,7 +4,7 @@
  *  Copyright (C) 2008 Thomas Gleixner <tglx@linutronix.de>
  *  Copyright (C) 2008-2011 Red Hat, Inc., Ingo Molnar
  *  Copyright (C) 2008-2011 Red Hat, Inc., Peter Zijlstra <pzijlstr@redhat.com>
- *  Copyright  ©  2009 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
+ *  Copyright  Â©  2009 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
  *
  * For licensing details see kernel-base/COPYING
  */
@@ -182,10 +182,16 @@ out:
 	return -ENOSPC;
 }
 
-void perf_output_copy(struct perf_output_handle *handle,
+unsigned int perf_output_copy(struct perf_output_handle *handle,
 		      const void *buf, unsigned int len)
 {
-	__output_copy(handle, buf, len);
+	return __output_copy(handle, buf, len);
+}
+
+unsigned int perf_output_skip(struct perf_output_handle *handle,
+			      unsigned int len)
+{
+	return __output_skip(handle, NULL, len);
 }
 
 void perf_output_end(struct perf_output_handle *handle)

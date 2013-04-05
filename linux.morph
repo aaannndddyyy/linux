@@ -52,6 +52,9 @@
         "scripts/config -d DEBUG_STACK_TRACE",
         "scripts/config -e NFSD",
         "scripts/config -e NFSD_V3",
+        "scripts/config -e FB",
+        "scripts/config -e FRAMEBUFFER_CONSOLE",
+        "scripts/config -e FB_VESA",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

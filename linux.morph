@@ -1,0 +1,10 @@
+name: linux
+kind: chunk
+configure-commands:
+    - cp panda4.config .config
+    - yes '' | make oldconfig
+build-commands:
+    - make ARCH=arm zImage
+install-commands:
+    - mkdir -p "$DESTDIR"/boot
+    - cp arch/arm/boot/zImage "$DESTDIR"/boot/zImage

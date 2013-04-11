@@ -4,7 +4,7 @@ configure-commands:
     - cp panda4.config .config
     - yes '' | make oldconfig
 build-commands:
-    - make ARCH=arm zImage
+    - make ARCH=arm uImage
 install-commands:
     - mkdir -p "$DESTDIR"/boot
     - cp arch/arm/boot/zImage "$DESTDIR"/boot/zImage

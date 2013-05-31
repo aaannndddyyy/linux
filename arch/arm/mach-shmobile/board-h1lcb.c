@@ -52,11 +52,9 @@
 
 static struct i2c_board_info h1lcb_i2c_devices[] = {
 	{ I2C_BOARD_INFO("ak4642", 0x12), },
-#ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD
 	{ I2C_BOARD_INFO("tfp410", 0x3f), },
 #ifdef CONFIG_MACH_MARZEN_REE_EDC_EXP_BOARD_DU1
 	{ I2C_BOARD_INFO("tfp410", 0x3e), },
-#endif
 #endif
 };
 

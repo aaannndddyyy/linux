@@ -18,6 +18,8 @@
 #define SH_HSPI_H
 
 struct sh_hspi_info {
+	unsigned int dma_tx_id;
+	unsigned int dma_rx_id;
 };
 
 #endif

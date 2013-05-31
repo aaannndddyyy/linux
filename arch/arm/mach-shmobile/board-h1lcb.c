@@ -211,9 +211,21 @@ static struct resource hspi_resources[] = {
 		.end		= 0xFFFC7018 - 1,
 		.flags		= IORESOURCE_MEM,
 	},
+	{
+		.start	= gic_spi(73),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_hspi_info hspi0_pdata = {
+	.dma_tx_id = HPBDMA_SLAVE_HSPI0_TX,
+	.dma_rx_id = HPBDMA_SLAVE_HSPI0_RX,
 };
 
 static struct platform_device hspi_device = {
+	.dev = {
+		.platform_data = &hspi0_pdata,
+	},
 	.name	= "sh-hspi",
 	.id	= 0,
 	.resource	= hspi_resources,
@@ -226,9 +238,21 @@ static struct resource hspi2_resources[] = {
 		.end		= 0xFFFC6018 - 1,
 		.flags		= IORESOURCE_MEM,
 	},
+	{
+		.start	= gic_spi(75),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_hspi_info hspi2_pdata = {
+	.dma_tx_id = HPBDMA_SLAVE_HSPI2_TX,
+	.dma_rx_id = HPBDMA_SLAVE_HSPI2_RX,
 };
 
 static struct platform_device hspi2_device = {
+	.dev = {
+		.platform_data = &hspi2_pdata,
+	},
 	.name	= "sh-hspi",
 	.id	= 2,
 	.resource	= hspi2_resources,

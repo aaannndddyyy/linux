@@ -103,6 +103,10 @@ config MACH_H1LCB
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 
+config SERIES_ABOVE_15
+	bool "Series number above 15"
+	depends on MACH_H1LCB
+
 choice
 	prompt "USB-PHY workaround"
 	depends on MACH_MARZEN || MACH_H1LCB

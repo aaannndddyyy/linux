@@ -925,7 +925,11 @@ static void __init h1lcb_init(void)
 
 	/* LAN89218 */
 	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
+#ifdef CONFIG_SERIES_ABOVE_15
+	gpio_request(GPIO_FN_IRQ1, NULL); /* IRQ + PME */
+#else
 	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
+#endif
 
 	/* SD0 (CN20) */
 	gpio_request(GPIO_FN_SD0_CLK, NULL);

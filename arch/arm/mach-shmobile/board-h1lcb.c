@@ -963,6 +963,18 @@ static void __init h1lcb_init(void)
 	gpio_request(GPIO_FN_HSPI_TX2_B, NULL);
 	gpio_request(GPIO_FN_HSPI_RX2_B, NULL);
 
+	/* HPB-DMAC ch0,1 realtime HSPI */
+	{
+		void __iomem *hpbdmlvlr0 = ioremap_nocache(0xffc09160, 4);
+		void __iomem *hpbdmaspr0 = ioremap_nocache(0xffc09140, 4);
+		iowrite32(ioread32(hpbdmlvlr0) | (1 << 1) | (1 << 0)                 /* HPB-DMLVLR0: ch1(hspi_rx0) & ch0(hspi_rx2): - Group 1 */
+		                               | (1 << 5) | (1 << 4), hpbdmlvlr0);   /* HPB-DMLVLR0: ch5(hspi_tx0) & ch4(hspi_tx2): - Group 1 */
+		iowrite32(ioread32(hpbdmaspr0) | (9 << 4) | (9 << 0)                 /* HPB-DMASPR0: ch1(hspi_rx0) & ch0(hspi_rx2): priority 9 */
+		                               | (9 << 20) | (9 << 16), hpbdmaspr0); /* HPB-DMASPR0: ch5(hspi_tx0) & & ch4(hspi_tx2): priority 9 */
+		iounmap(hpbdmlvlr0);
+		iounmap(hpbdmaspr0);
+	}
+
 	/* USB (CN21) */
 	gpio_request(GPIO_FN_USB_OVC0, NULL);
 	gpio_request(GPIO_FN_USB_OVC1, NULL);

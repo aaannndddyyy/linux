@@ -25,6 +25,10 @@ extern struct platform_device rcar_dma_device;
 /* DMA slave IDs */
 enum {
 	HPBDMA_SLAVE_INVALID,		/* DMA slave ID 0 means no DMA */
+	HPBDMA_SLAVE_HSPI2_RX,		/*Ch.0*/
+	HPBDMA_SLAVE_HSPI0_RX,		/*Ch.1*/
+	HPBDMA_SLAVE_HSPI2_TX,		/*Ch.4*/
+	HPBDMA_SLAVE_HSPI0_TX,		/*Ch.5*/
 	HPBDMA_SLAVE_SDHI0_TX,		/*Ch.21*/
 	HPBDMA_SLAVE_SDHI0_RX,		/*Ch.22*/
 	HPBDMA_SLAVE_MMC0_TX,		/*Ch.24*/

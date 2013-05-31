@@ -52,6 +52,34 @@ enum {
 
 static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
 	{
+		.id	= HPBDMA_SLAVE_HSPI2_TX,
+		.addr	= 0xfffc6000 + 0x0C,
+		.dcr	= SPDS_8BIT | DMDL | DPDS_8BIT,
+		.port	= 0x1313,
+		.flags	= 0,
+		.dma_ch	= 4,
+	}, {
+		.id	= HPBDMA_SLAVE_HSPI2_RX,
+		.addr	= 0xfffc6000 + 0x13,
+		.dcr	= SMDL | SPDS_8BIT | DPDS_8BIT,
+		.port	= 0x1313,
+		.flags	= 0,
+		.dma_ch	= 0,
+	}, {
+		.id	= HPBDMA_SLAVE_HSPI0_TX,
+		.addr	= 0xfffc7000 + 0x0C,
+		.dcr	= SPDS_8BIT | DMDL | DPDS_8BIT,
+		.port	= 0x0A0A,
+		.flags	= 0,
+		.dma_ch	= 5,
+	}, {
+		.id	= HPBDMA_SLAVE_HSPI0_RX,
+		.addr	= 0xfffc7000 + 0x13,
+		.dcr	= SMDL | SPDS_8BIT | DPDS_8BIT,
+		.port	= 0x0A0A,
+		.flags	= 0,
+		.dma_ch	= 1,
+	}, {
 		.id	= HPBDMA_SLAVE_SDHI0_TX,
 		.addr	= 0xffe4c000 + 0x30,
 		.dcr	= SPDS_16BIT | DMDL | DPDS_16BIT,
@@ -141,6 +169,14 @@ static const struct hpb_dmae_slave_config rcar_dmae_slaves[] = {
 
 /* comment out for not using Ch */
 static const struct hpb_dmae_channel rcar_dmae_channels[] = {
+	/* ch.0 HSPI2 */
+	DMAE_CHANNEL(IRQ_DMAC_H(0), HPBDMA_SLAVE_HSPI2_RX),
+	/* ch.4 HSPI2 */
+	DMAE_CHANNEL(IRQ_DMAC_H(4), HPBDMA_SLAVE_HSPI2_TX),
+	/* ch.1 HSPI0 */
+	DMAE_CHANNEL(IRQ_DMAC_H(1), HPBDMA_SLAVE_HSPI0_RX),
+	/* ch.5 HSPI0 */
+	DMAE_CHANNEL(IRQ_DMAC_H(5), HPBDMA_SLAVE_HSPI0_TX),
 	/* ch.21 SD0 */
 	DMAE_CHANNEL(IRQ_DMAC_H(21), HPBDMA_SLAVE_SDHI0_TX),
 	/* ch.22 SD0 */

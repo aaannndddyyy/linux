@@ -21,7 +21,7 @@
 #include <mach/common.h>
 
 #define is_sh73a0() (machine_is_ag5evm() || machine_is_kota2())
-#define is_r8a7779() (machine_is_marzen() || machine_is_hurricane())
+#define is_r8a7779() (machine_is_marzen() || machine_is_hurricane() || machine_is_h1lcb())
 
 static unsigned int __init shmobile_smp_get_core_count(void)
 {

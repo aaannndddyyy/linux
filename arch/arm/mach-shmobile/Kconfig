@@ -98,9 +98,14 @@ config MACH_MARZEN
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 
+config MACH_H1LCB
+	bool "H1LCB board"
+	depends on ARCH_R8A7779
+	select ARCH_REQUIRE_GPIOLIB
+
 choice
 	prompt "USB-PHY workaround"
-	depends on MACH_MARZEN
+	depends on MACH_MARZEN || MACH_H1LCB
 	default USB_PHY_MARZEN_010S
 
 	config USB_PHY_MARZEN_010S

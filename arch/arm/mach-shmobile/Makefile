@@ -53,6 +53,7 @@ obj-$(CONFIG_MACH_KOTA2)	+= board-kota2.o
 obj-$(CONFIG_MACH_BONITO)	+= board-bonito.o
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen.o
 obj-$(CONFIG_MACH_HURRICANE)	+= board-hurricane.o
+obj-$(CONFIG_MACH_H1LCB)	+= board-h1lcb.o
 
 # Framework support
 obj-$(CONFIG_SMP)		+= $(smp-y)

@@ -1,5 +1,6 @@
 #include <asm/setup.h>
 #include <libfdt.h>
+#include <linux/of.h>
 
 #if defined(CONFIG_ARM_ATAG_DTB_COMPAT_CMDLINE_EXTEND)
 #define do_extend_cmdline 1
@@ -84,6 +85,19 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 	setprop_string(fdt, "/chosen", "bootargs", cmdline);
 }
 
+static int set_mem_property(uint32_t *mem_reg_property,
+			    int memcount, u32 cell_size,
+			    u32 cell_data)
+{
+	int i;
+
+	for (i = 0; i < cell_size - 1; i--)
+		mem_reg_property[memcount++] = cpu_to_fdt32(0);
+
+	mem_reg_property[memcount++] = cpu_to_fdt32(cell_data);
+	return memcount;
+}
+
 /*
  * Convert and fold provided ATAGs into the provided FDT.
  *
@@ -95,7 +109,10 @@ static void merge_fdt_bootargs(void *fdt, const char *fdt_cmdline)
 int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 {
 	struct tag *atag = atag_list;
-	uint32_t mem_reg_property[2 * NR_BANKS];
+	uint32_t mem_reg_property[2 * 2 * NR_BANKS];
+	u32 dt_root_size_cells;
+	u32 dt_root_addr_cells;
+	const __be32 *prop;
 	int memcount = 0;
 	int ret;
 
@@ -118,6 +135,18 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 	if (ret < 0)
 		return ret;
 
+	/* work out size parameters for any memory cells. */
+	dt_root_size_cells = OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
+	dt_root_addr_cells = OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
+
+	prop = getprop(fdt, "/", "#size-cells", NULL);
+	if (prop)
+		dt_root_size_cells = be32_to_cpup(prop);
+
+	prop = getprop(fdt, "/", "#address-cells", NULL);
+	if (prop)
+		dt_root_addr_cells = be32_to_cpup(prop);
+
 	for_each_tag(atag, atag_list) {
 		if (atag->hdr.tag == atag32_to_cpu(ATAG_CMDLINE)) {
 			/* Append the ATAGS command line to the device tree
@@ -137,8 +166,10 @@ int atags_to_fdt(void *atag_list, void *fdt, int total_space)
 				continue;
 			if (!atag32_to_cpu(atag->u.mem.size))
 				continue;
-			mem_reg_property[memcount++] = cpu_to_fdt32(atag32_to_cpu(atag->u.mem.start));
-			mem_reg_property[memcount++] = cpu_to_fdt32(atag32_to_cpu(atag->u.mem.size));
+			memcount = set_mem_property(mem_reg_property, memcount,
+						    dt_root_addr_cells, atag32_to_cpu(atag->u.mem.start));
+			memcount = set_mem_property(mem_reg_property, memcount,
+						    dt_root_size_cells, atag32_to_cpu(atag->u.mem.size));
 		} else if (atag->hdr.tag == atag32_to_cpu(ATAG_INITRD2)) {
 			uint32_t initrd_start, initrd_size;
 			initrd_start = atag32_to_cpu(atag->u.initrd.start);

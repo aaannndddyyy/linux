@@ -548,8 +548,10 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 	struct clcd_fb *fb;
 	int ret;
 
-	if (!board)
+	if (!board) {
+		dev_err(&dev->dev, "no board info\n");
 		return -EINVAL;
+	}
 
 	ret = amba_request_regions(dev, NULL);
 	if (ret) {
@@ -572,11 +574,14 @@ static int clcdfb_probe(struct amba_device *dev, const struct amba_id *id)
 		(unsigned long long)dev->res.start);
 
 	ret = fb->board->setup(fb);
-	if (ret)
+	if (ret) {
+		dev_err(&dev->dev, "fb->board->setup(fb) failed\n");
 		goto free_fb;
+	}
 
 	ret = clcdfb_register(fb); 
 	if (ret == 0) {
+		dev_info(&dev->dev, "failed clcdfb_register\n");
 		amba_set_drvdata(dev, fb);
 		goto out;
 	}

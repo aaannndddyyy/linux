@@ -34,6 +34,15 @@ int elf_check_arch(const struct elf32_hdr *x)
 		if (flt_fmt == EF_ARM_VFP_FLOAT && !(elf_hwcap & HWCAP_VFP))
 			return 0;
 	}
+
+	if ((eflags & EF_ARM_EABI_MASK) >= EF_ARM_EABI_VER4) {
+		if (eflags & EF_ARM_BE8) {
+			if (!IS_ENABLED(CONFIG_ARM_CPU_BE8))
+				return 1;
+		} else if (IS_ENABLED(CONFIG_ARM_CPU_BE8))
+			return 1;
+	}
+
 	return 1;
 }
 EXPORT_SYMBOL(elf_check_arch);

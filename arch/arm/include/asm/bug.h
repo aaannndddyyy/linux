@@ -12,10 +12,10 @@
  */
 #ifdef CONFIG_THUMB2_KERNEL
 #define BUG_INSTR_VALUE 0xde02
-#define BUG_INSTR_TYPE ".hword "
+#define BUG_INSTR_TYPE ".inst.w "
 #else
 #define BUG_INSTR_VALUE 0xe7f001f2
-#define BUG_INSTR_TYPE ".word "
+#define BUG_INSTR_TYPE ".inst "
 #endif
 
 

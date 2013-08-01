@@ -10,6 +10,7 @@
         "scripts/config -e DEVTMPFS_MOUNT",
         "scripts/config -e CGROUPS",
         "scripts/config -e AUTOFS4_FS",
+        "scripts/config -e BLK_DEV_LOOP",
         "scripts/config --set-str UEVENT_HELPER_PATH ''",
         "scripts/config -e IKCONFIG",
         "scripts/config -e IKCONFIG_PROC",

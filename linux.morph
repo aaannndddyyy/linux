@@ -1,0 +1,47 @@
+name: linux
+kind: chunk
+configure-commands:
+    - cp arch/arm/configs/imx_v6_v7_defconfig .config
+    - scripts/config -d KERNEL_LZO
+    - scripts/config -e EXT2_FS
+    - scripts/config -e EXT2_FS_XATTR
+    - scripts/config -e EXT2_FS_POSIX_ACL
+    - scripts/config -e EXT2_FS_SECURITY
+    - scripts/config -e EXT2_FS_XIP
+    - scripts/config -e EXT3_FS
+    - scripts/config -d EXT3_DEFAULTS_TO_ORDERED
+    - scripts/config -e EXT3_FS_XATTR
+    - scripts/config -e EXT3_FS_POSIX_ACL
+    - scripts/config -e EXT3_FS_SECURITY
+    - scripts/config -e EXT4_FS
+    - scripts/config -e EXT4_FS_XATTR
+    - scripts/config -e EXT4_FS_POSIX_ACL
+    - scripts/config -e EXT4_FS_SECURITY
+    - scripts/config -d EXT4_DEBUG
+    - scripts/config -d JBD_DEBUG
+    - scripts/config -d JBD2_DEBUG
+    - scripts/config -e BLK_DEV_LOOP
+    - scripts/config -d BLK_DEV_CRYPTOLOOP
+    - scripts/config --set-val BLK_DEV_LOOP_MIN_COUNT 8
+    - scripts/config -e VIRTIO
+    - scripts/config -e VIRTIO_RING
+    - scripts/config -e VIRTIO_PCI
+    - scripts/config -e VIRTIO_BALLOON
+    - scripts/config -e VIRTIO_BLK
+    - scripts/config -e VIRTIO_NET
+    - scripts/config -e VIRTIO_CONSOLE
+    - scripts/config -e HW_RANDOM_VIRTIO
+    - scripts/config -e IKCONFIG
+    - scripts/config -e IKCONFIG_PROC
+    - scripts/config -e SECCOMP
+    - scripts/config -d DEBUG_STACK_TRACE
+    - scripts/config -e NFSD
+    - scripts/config -e NFSD_V3
+    - yes '' | make oldconfig
+build-commands:
+    - make ARCH=arm uImage LOADADDR=0x12000000
+    - make ARCH=arm imx6q-wandboard.dtb
+install-commands:
+    - mkdir -p "$DESTDIR"/boot
+    - cp arch/arm/boot/uImage "$DESTDIR"/boot/uImage
+    - cp arch/arm/boot/dts/imx6q-wandboard.dtb "$DESTDIR"/boot/

@@ -39,7 +39,7 @@ configure-commands:
     - scripts/config -e NFSD_V3
     - yes '' | make oldconfig
 build-commands:
-    - make ARCH=arm uImage LOADADDR=0x12000000
+    - make $MAKEFLAGS ARCH=arm uImage LOADADDR=0x12000000
     - make ARCH=arm imx6q-wandboard.dtb
 install-commands:
     - mkdir -p "$DESTDIR"/boot

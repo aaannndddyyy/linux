@@ -407,6 +407,8 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 {
 	int ret;
 
+	nouveau_bo_sync_for_device(nvbo);
+
 	ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
 			      interruptible, no_wait_gpu);
 	if (ret)
@@ -485,6 +487,34 @@ nouveau_bo_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 {
 	/* We'll do this from user space. */
 	return 0;
+}
+
+void
+nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
+{
+	struct nouveau_device *device;
+	struct ttm_tt *ttm = nvbo->bo.ttm;
+
+	device = nouveau_dev(nouveau_bdev(ttm->bdev)->dev);
+
+	if (nvbo->bo.ttm && nvbo->bo.ttm->caching_state == tt_cached)
+		ttm_dma_tt_cache_sync_for_cpu((struct ttm_dma_tt *)nvbo->bo.ttm,
+					      nv_device_base(device));
+}
+
+void
+nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
+{
+	struct ttm_tt *ttm = nvbo->bo.ttm;
+
+	if (ttm && ttm->caching_state == tt_cached) {
+		struct nouveau_device *device;
+
+		device = nouveau_dev(nouveau_bdev(ttm->bdev)->dev);
+
+		ttm_dma_tt_cache_sync_for_device((struct ttm_dma_tt *)ttm,
+						 nv_device_base(device));
+	}
 }
 
 static int

@@ -897,7 +897,13 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	ret = ttm_bo_wait(&nvbo->bo, true, true, no_wait);
 	spin_unlock(&nvbo->bo.bdev->fence_lock);
 	drm_gem_object_unreference_unlocked(gem);
-	return ret;
+
+	if (ret)
+		return ret;
+
+	nouveau_bo_sync_for_cpu(nvbo);
+
+	return 0;
 }
 
 int

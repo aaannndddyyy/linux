@@ -3,6 +3,7 @@ kind: chunk
 configure-commands:
     - cp arch/arm/configs/imx_v6_v7_defconfig .config
     - scripts/config -d KERNEL_LZO
+    - scripts/config -e NAMESPACES
     - scripts/config -e EXT2_FS
     - scripts/config -e EXT2_FS_XATTR
     - scripts/config -e EXT2_FS_POSIX_ACL

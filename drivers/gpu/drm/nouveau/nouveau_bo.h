@@ -89,6 +89,9 @@ int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
 			struct nouveau_vma *);
 void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
+void nouveau_bo_sync_for_cpu(struct nouveau_bo *);
+void nouveau_bo_sync_for_device(struct nouveau_bo *);
+
 /* TODO: submit equivalent to TTM generic API upstream? */
 static inline void __iomem *
 nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)

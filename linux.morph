@@ -48,4 +48,3 @@ install-commands:
     - mkdir -p "$DESTDIR"/boot
     - cp arch/arm/boot/uImage "$DESTDIR"/boot/uImage
     - cp arch/arm/boot/dts/imx6q-wandboard.dtb "$DESTDIR"/boot/
-    - ln -sf /dev/null "$DESTDIR/etc/systemd/system/pulseaudio.service"

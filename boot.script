@@ -1,0 +1,6 @@
+setenv image_addr "0x12000000"
+
+setenv bootargs "console=ttymxc0,115200 root=/dev/nfs rw ip=dhcp nfsroot=${fileserver}:${nfsroot},v3,tcp"
+dhcp ${image_addr} ${fileserver}:${tfpboot}/uImage
+bootm ${image_addr}
+

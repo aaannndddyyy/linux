@@ -6,7 +6,8 @@ configure-commands:
     - yes '' | make oldconfig
 build-commands:
     - make $MAKEFLAGS ARCH=arm uImage
+    - mkimage -A arm -T script -C none -n "Wandboard TFTP Boot Script" -d boot.script boot.scr
 install-commands:
     - mkdir -p "$DESTDIR"/boot
     - cp arch/arm/boot/uImage "$DESTDIR"/boot/uImage
-
+    - cp boot.scr "$DESTDIR"/boot/boot.scr

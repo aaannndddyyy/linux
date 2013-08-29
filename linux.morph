@@ -1,7 +1,7 @@
 name: linux
 kind: chunk
 configure-commands:
-    - cp arch/arm/configs/wandboard_defconfig config
+    - make ARCH=arm wandboard_defconfig
     - scripts/config -e NAMESPACES
     - yes '' | make oldconfig
 build-commands:

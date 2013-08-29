@@ -3,23 +3,6 @@ kind: chunk
 configure-commands:
     - cp arch/arm/configs/wandboard_defconfig config
     - scripts/config -e NAMESPACES
-    - scripts/config -e EXT2_FS
-    - scripts/config -e EXT2_FS_XATTR
-    - scripts/config -e EXT2_FS_POSIX_ACL
-    - scripts/config -e EXT2_FS_SECURITY
-    - scripts/config -e EXT2_FS_XIP
-    - scripts/config -e EXT3_FS
-    - scripts/config -e EXT3_FS_XATTR
-    - scripts/config -e EXT3_FS_POSIX_ACL
-    - scripts/config -e EXT3_FS_SECURITY
-    - scripts/config -e EXT4_FS
-    - scripts/config -e EXT4_FS_XATTR
-    - scripts/config -e EXT4_FS_POSIX_ACL
-    - scripts/config -e EXT4_FS_SECURITY
-    - scripts/config -e BTRFS_FS
-    - scripts/config -e BTRFS_FS_POSIX_ACL
-    - scripts/config -e NFSD
-    - scripts/config -e NFSD_V3
     - yes '' | make oldconfig
 build-commands:
     - make $MAKEFLAGS ARCH=arm uImage

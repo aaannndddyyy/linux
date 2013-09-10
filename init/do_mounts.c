@@ -31,6 +31,8 @@
 #include <linux/nfs_fs_sb.h>
 #include <linux/nfs_mount.h>
 
+#include <linux/ceph/ceph_root.h>
+
 #include "do_mounts.h"
 
 int __initdata rd_doload;	/* 1 = load RAM disk, 0 = don't load */
@@ -242,6 +244,7 @@ dev_t name_to_dev_t(char *name)
 	res = Root_RAM0;
 	if (strcmp(name, "ram") == 0)
 		goto done;
+	res = Root_CEPH;
 
 	if (strlen(name) > 31)
 		goto fail;
@@ -470,6 +473,25 @@ static int __init mount_nfs_root(void)
 }
 #endif
 
+#ifdef CONFIG_ROOT_CEPH
+static int __init mount_ceph_root(void)
+{
+	char *root_dev, *root_data;
+	int err;
+
+	err = ceph_root_data(&root_dev, &root_data);
+	if (err != 0)
+		return 0;
+
+	err = do_mount_root(root_dev, "ceph",
+				root_mountflags, root_data);
+	if (err == 0)
+		return 1;
+
+	return 0;
+}
+#endif
+
 #if defined(CONFIG_BLK_DEV_RAM) || defined(CONFIG_BLK_DEV_FD)
 void __init change_floppy(char *fmt, ...)
 {
@@ -508,6 +530,15 @@ void __init mount_root(void)
 			return;
 
 		printk(KERN_ERR "VFS: Unable to mount root fs via NFS, trying floppy.\n");
+		ROOT_DEV = Root_FD0;
+	}
+#endif
+#ifdef CONFIG_ROOT_CEPH
+	if (ROOT_DEV == Root_CEPH) {
+		if (mount_ceph_root())
+			return;
+
+		printk(KERN_ERR "VFS: Unable to mount root fs via CephFS, trying floppy.\n");
 		ROOT_DEV = Root_FD0;
 	}
 #endif

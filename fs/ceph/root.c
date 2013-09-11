@@ -4,17 +4,25 @@
  * Allow a CephFS filesystem to be mounted as root.
  */
 
+#include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/slab.h>
+#include <linux/utsname.h>
 #include <linux/root_dev.h>
+#include <linux/in.h>
 #include <net/ipconfig.h>
+
+// TODO Add dynamic debugging with some info debug messages
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 
+#define MAXPATHLEN 1024
+
 /* Parameters passed from the kernel command line */
-static char ceph_root_parms[256] __initdata = "";
+static char ceph_root_params[256] __initdata = "";
 
 /* Address of CEPH server */
 static __be32 servaddr __initdata = htonl(INADDR_NONE);
@@ -90,13 +98,13 @@ static int __init ceph_root_setup(char *line)
 {
 	ROOT_DEV = Root_CEPH;
 
-	strlcpy(ceph_root_parms, line, sizeof(ceph_root_parms));
+	strlcpy(ceph_root_params, line, sizeof(ceph_root_params));
 
 	/*
 	 * Note: root_nfs_parse_addr() removes the server-ip from
 	 *	 nfs_root_parms, if it exists.
 	 */
-	root_server_addr = root_nfs_parse_addr(ceph_root_parms);
+	root_server_addr = root_nfs_parse_addr(ceph_root_params);
 
 	return 1;
 }
@@ -118,6 +126,8 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 {
 	char *tmp = NULL;
 	const size_t tmplen = sizeof(ceph_export_path);
+	int len;
+	int retval = 0;
 
 	servaddr = root_server_addr;
 	if (servaddr == htonl(INADDR_NONE)) {
@@ -130,14 +140,13 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 		goto out_nomem;
 
 	if (root_server_path[0] != '\0') {
-		dprintk("Root-NFS: DHCPv4 option 17: %s\n",
-			root_server_path);
+		//dprintk("Root-NFS: DHCPv4 option 17: %s\n", root_server_path);
 		if (root_nfs_parse_options(root_server_path, tmp, tmplen))
 			goto out_optionstoolong;
 	}
 
 	if (ceph_root_params[0] != '\0') {
-		dprintk("Root-NFS: nfsroot=%s\n", ceph_root_params);
+		//dprintk("Root-NFS: nfsroot=%s\n", ceph_root_params);
 		if (root_nfs_parse_options(ceph_root_params, tmp, tmplen))
 			goto out_optionstoolong;
 	}
@@ -150,13 +159,13 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 	 * At this point, utsname()->nodename contains our local
 	 * IP address or hostname, set by ipconfig.  If "%s" exists
 	 * in tmp, substitute the nodename, then shovel the whole
-	 * mess into nfs_root_device.
+	 * mess into ceph_root_device.
 	 */
 	len = snprintf(ceph_export_path, sizeof(ceph_export_path),
 				tmp, utsname()->nodename);
 	if (len > (int)sizeof(ceph_export_path))
 		goto out_devnametoolong;
-	len = snprintf(nfs_root_device, sizeof(nfs_root_device),
+	len = snprintf(ceph_root_device, sizeof(ceph_root_device),
 				"%pI4:%s", &servaddr, ceph_export_path);
 	if (len > (int)sizeof(ceph_root_device))
 		goto out_devnametoolong;
@@ -164,7 +173,7 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 	*root_device = ceph_root_device;
 	*root_data = ceph_root_options;
 
-	retval=0
+	retval=0;
 out:
 	kfree(tmp);
 	return retval;

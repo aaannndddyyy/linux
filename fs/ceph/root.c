@@ -8,6 +8,77 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/root_dev.h>
+#include <net/ipconfig.h>
+
+/* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
+extern __be32 root_nfs_parse_addr(char *name); /*__init*/
+
+/* Parameters passed from the kernel command line */
+static char ceph_root_parms[256] __initdata = "";
+
+/* Address of CEPH server */
+static __be32 servaddr __initdata = htonl(INADDR_NONE);
+
+/* Name of directory to mount */
+static char ceph_export_path[MAXPATHLEN + 1] __initdata = "";
+
+/* Text-based mount options */
+static char ceph_root_options[256] __initdata = "";
+
+/* server:path string passed to mount */
+static char ceph_root_device[MAXPATHLEN + 1] __initdata = "";
+
+static int __init root_nfs_copy(char *dest, const char *src,
+				     const size_t destlen)
+{
+	if (strlcpy(dest, src, destlen) > destlen)
+		return -1;
+	return 0;
+}
+
+static int __init root_nfs_cat(char *dest, const char *src,
+			       const size_t destlen)
+{
+	size_t len = strlen(dest);
+
+	if (len && dest[len - 1] != ',')
+		if (strlcat(dest, ",", destlen) > destlen)
+			return -1;
+
+	if (strlcat(dest, src, destlen) > destlen)
+		return -1;
+	return 0;
+}
+
+/*
+ * Parse out root export path and mount options from
+ * passed-in string @incoming.
+ *
+ * Copy the export path into @exppath.
+ */
+static int __init root_nfs_parse_options(char *incoming, char *exppath,
+					 const size_t exppathlen)
+{
+	char *p;
+
+	/*
+	 * Set the NFS remote path
+	 */
+	p = strsep(&incoming, ",");
+	if (*p != '\0' && strcmp(p, "default") != 0)
+		if (root_nfs_copy(exppath, p, exppathlen))
+			return -1;
+
+	/*
+	 * @incoming now points to the rest of the string; if it
+	 * contains something, append it to our root options buffer
+	 */
+	if (incoming != NULL && *incoming != '\0')
+		if (root_nfs_cat(ceph_root_options, incoming,
+						sizeof(ceph_root_options)))
+			return -1;
+	return 0;
+}
 
 /*
  *  Parse CephFS server and directory information passed on the kernel
@@ -18,6 +89,14 @@
 static int __init ceph_root_setup(char *line) 
 {
 	ROOT_DEV = Root_CEPH;
+
+	strlcpy(ceph_root_parms, line, sizeof(ceph_root_parms));
+
+	/*
+	 * Note: root_nfs_parse_addr() removes the server-ip from
+	 *	 nfs_root_parms, if it exists.
+	 */
+	root_server_addr = root_nfs_parse_addr(ceph_root_parms);
 
 	return 1;
 }
@@ -37,5 +116,65 @@ __setup("cephroot=", ceph_root_setup);
  */
 int __init ceph_root_data(char **root_device, char ** root_data)
 {
-	return 0;
+	char *tmp = NULL;
+	const size_t tmplen = sizeof(ceph_export_path);
+
+	servaddr = root_server_addr;
+	if (servaddr == htonl(INADDR_NONE)) {
+		printk(KERN_ERR "Root-CEPH: no CEPH server address\n");
+		return -1;
+	}
+
+	tmp = kzalloc(tmplen, GFP_KERNEL);
+	if (tmp == NULL)
+		goto out_nomem;
+
+	if (root_server_path[0] != '\0') {
+		dprintk("Root-NFS: DHCPv4 option 17: %s\n",
+			root_server_path);
+		if (root_nfs_parse_options(root_server_path, tmp, tmplen))
+			goto out_optionstoolong;
+	}
+
+	if (ceph_root_params[0] != '\0') {
+		dprintk("Root-NFS: nfsroot=%s\n", ceph_root_params);
+		if (root_nfs_parse_options(ceph_root_params, tmp, tmplen))
+			goto out_optionstoolong;
+	}
+
+	/*
+	 * Set up ceph_root_device.  This looks like
+	 *
+	 *	server:/path
+	 *
+	 * At this point, utsname()->nodename contains our local
+	 * IP address or hostname, set by ipconfig.  If "%s" exists
+	 * in tmp, substitute the nodename, then shovel the whole
+	 * mess into nfs_root_device.
+	 */
+	len = snprintf(ceph_export_path, sizeof(ceph_export_path),
+				tmp, utsname()->nodename);
+	if (len > (int)sizeof(ceph_export_path))
+		goto out_devnametoolong;
+	len = snprintf(nfs_root_device, sizeof(nfs_root_device),
+				"%pI4:%s", &servaddr, ceph_export_path);
+	if (len > (int)sizeof(ceph_root_device))
+		goto out_devnametoolong;
+
+	*root_device = ceph_root_device;
+	*root_data = ceph_root_options;
+
+	retval=0
+out:
+	kfree(tmp);
+	return retval;
+out_nomem:
+	printk(KERN_ERR "Root-CEPH: could not allocate memory\n");
+	goto out;
+out_optionstoolong:
+	printk(KERN_ERR "Root-CEPH: mount options string too long\n");
+	goto out;
+out_devnametoolong:
+	printk(KERN_ERR "Root-CEPH: root device name too long.\n");
+	goto out;
 }

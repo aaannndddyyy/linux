@@ -245,6 +245,8 @@ dev_t name_to_dev_t(char *name)
 	if (strcmp(name, "ram") == 0)
 		goto done;
 	res = Root_CEPH;
+	if (strcmp(name, "ceph") == 0)
+		goto done;
 
 	if (strlen(name) > 31)
 		goto fail;

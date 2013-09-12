@@ -239,14 +239,17 @@ dev_t name_to_dev_t(char *name)
 
 	name += 5;
 	res = Root_NFS;
+	printk(KERN_CRIT "Root device name: %s\n", name);
 	if (strcmp(name, "nfs") == 0)
 		goto done;
 	res = Root_RAM0;
 	if (strcmp(name, "ram") == 0)
 		goto done;
 	res = Root_CEPH;
-	if (strcmp(name, "ceph") == 0)
+	if (strcmp(name, "ceph") == 0) {
+		printk(KERN_CRIT "Root_CEPH chosen as root device\n");
 		goto done;
+	}
 
 	if (strlen(name) > 31)
 		goto fail;

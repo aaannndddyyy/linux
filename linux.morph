@@ -52,6 +52,8 @@
         "scripts/config -d DEBUG_STACK_TRACE",
         "scripts/config -e NFSD",
         "scripts/config -e NFSD_V3",
+        "scripts/config -e CEPH_FS",
+        "scripts/config -e ROOT_CEPH",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

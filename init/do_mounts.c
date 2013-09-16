@@ -246,10 +246,8 @@ dev_t name_to_dev_t(char *name)
 	if (strcmp(name, "ram") == 0)
 		goto done;
 	res = Root_CEPH;
-	if (strcmp(name, "ceph") == 0) {
-		printk(KERN_CRIT "Root_CEPH chosen as root device\n");
+	if (strcmp(name, "ceph") == 0)
 		goto done;
-	}
 
 	if (strlen(name) > 31)
 		goto fail;
@@ -485,8 +483,8 @@ static int __init mount_ceph_root(void)
 	int err;
 
 	err = ceph_root_data(&root_dev, &root_data);
-	if (err != 0)
-		return 0;
+	if (err == 0)
+		return 1;
 
 	err = do_mount_root(root_dev, "ceph",
 				root_mountflags, root_data);

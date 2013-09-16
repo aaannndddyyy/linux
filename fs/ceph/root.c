@@ -131,7 +131,6 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 
 	servaddr = root_server_addr;
 	if (servaddr == htonl(INADDR_NONE)) {
-		printk(KERN_ERR "Root-CEPH: no CEPH server address\n");
 		return -1;
 	}
 
@@ -140,13 +139,11 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 		goto out_nomem;
 
 	if (root_server_path[0] != '\0') {
-		printk(KERN_ERR "Root-CEPH: DHCPv4 option 17: %s\n", root_server_path);
 		if (root_nfs_parse_options(root_server_path, tmp, tmplen))
 			goto out_optionstoolong;
 	}
 
 	if (ceph_root_params[0] != '\0') {
-	        printk(KERN_ERR "Root-CEPH: cephroot=%s\n", ceph_root_params);
 		if (root_nfs_parse_options(ceph_root_params, tmp, tmplen))
 			goto out_optionstoolong;
 	}
@@ -170,9 +167,7 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 	if (len > (int)sizeof(ceph_root_device))
 		goto out_devnametoolong;
 
-	printk(KERN_ERR "Root-CEPH: root_device: %s\n", ceph_root_device);
 	*root_device = ceph_root_device;
-	printk(KERN_ERR "Root-CEPH: root_options: %s\n", ceph_root_options);
 	*root_data = ceph_root_options;
 
 	retval=0;

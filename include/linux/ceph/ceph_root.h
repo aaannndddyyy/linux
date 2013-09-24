@@ -1,7 +1,9 @@
 /*
- * ceph_root.h
+ * Copyright (C) 2012 Codethink Ltd. <mark.doffman@codethink.co.uk>
  *
- * LGPL2
+ * This file is released under the GPL v2
+ *
+ * ceph_root.h
  */
 
 /* linux/fs/ceph/root.c */

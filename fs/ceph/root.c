@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2012 Mark Doffman <mark.doffman@codethink.co.uk>
+ * Copyright (C) 2012 Codethink Ltd. <mark.doffman@codethink.co.uk>
+ *
+ * This file is released under the GPL v2
  *
  * Allow a CephFS filesystem to be mounted as root.
  */
@@ -21,22 +23,22 @@ extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 #define MAXPATHLEN 1024
 
 /* Parameters passed from the kernel command line */
-static char ceph_root_params[256] __initdata = "";
+static char ceph_root_params[256] __initdata;
 
 /* Address of CEPH server */
 static __be32 servaddr __initdata = htonl(INADDR_NONE);
 
 /* Name of directory to mount */
-static char ceph_export_path[MAXPATHLEN + 1] __initdata = "";
+static char ceph_export_path[MAXPATHLEN + 1] __initdata;
 
 /* Text-based mount options */
-static char ceph_root_options[256] __initdata = "";
+static char ceph_root_options[256] __initdata;
 
 /* server:path string passed to mount */
-static char ceph_root_device[MAXPATHLEN + 1] __initdata = "";
+static char ceph_root_device[MAXPATHLEN + 1] __initdata;
 
 static int __init root_ceph_copy(char *dest, const char *src,
-				     const size_t destlen)
+					const size_t destlen)
 {
 	if (strlcpy(dest, src, destlen) > destlen)
 		return -1;
@@ -44,7 +46,7 @@ static int __init root_ceph_copy(char *dest, const char *src,
 }
 
 static int __init root_ceph_cat(char *dest, const char *src,
-			       const size_t destlen)
+				const size_t destlen)
 {
 	size_t len = strlen(dest);
 
@@ -64,7 +66,7 @@ static int __init root_ceph_cat(char *dest, const char *src,
  * Copy the export path into @exppath.
  */
 static int __init root_ceph_parse_options(char *incoming, char *exppath,
-					 const size_t exppathlen)
+						const size_t exppathlen)
 {
 	char *p;
 
@@ -169,16 +171,20 @@ int __init ceph_root_data(char **root_device, char **root_data)
 	*root_data = ceph_root_options;
 
 	retval = 0;
+
 out:
 	kfree(tmp);
 	return retval;
+
 out_nomem:
-	printk(KERN_ERR "Root-CEPH: could not allocate memory\n");
+	pr_err("Root-CEPH: could not allocate memory\n");
 	goto out;
+
 out_optionstoolong:
-	printk(KERN_ERR "Root-CEPH: mount options string too long\n");
+	pr_err("Root-CEPH: mount options string too long\n");
 	goto out;
+
 out_devnametoolong:
-	printk(KERN_ERR "Root-CEPH: root device name too long.\n");
+	pr_err("Root-CEPH: root device name too long.\n");
 	goto out;
 }

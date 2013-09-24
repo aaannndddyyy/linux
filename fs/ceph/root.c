@@ -13,6 +13,7 @@
 #include <linux/root_dev.h>
 #include <linux/in.h>
 #include <net/ipconfig.h>
+#include <linux/ceph/ceph_root.h>
 
 // TODO Add dynamic debugging with some info debug messages
 
@@ -110,8 +111,6 @@ static int __init ceph_root_setup(char *line)
 }
 
 __setup("cephroot=", ceph_root_setup);
-
-/* Blaghbalasdfkjs */
 
 /*
  * ceph_root_data - Return mount device and data for CEPHROOT mount.

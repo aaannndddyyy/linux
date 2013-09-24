@@ -248,7 +248,6 @@ dev_t name_to_dev_t(char *name)
 	res = Root_CEPH;
 	if (strcmp(name, "ceph") == 0)
 		goto done;
-
 	if (strlen(name) > 31)
 		goto fail;
 	strcpy(s, name);
@@ -481,17 +480,16 @@ static int __init mount_ceph_root(void)
 {
 	char *root_dev, *root_data;
 	int err;
+	int res = 0;
 
 	err = ceph_root_data(&root_dev, &root_data);
-	if (err == 0)
-		return 1;
-
-	err = do_mount_root(root_dev, "ceph",
-				root_mountflags, root_data);
-	if (err == 0)
-		return 1;
-
-	return 0;
+	if (err == 0) {
+		err = do_mount_root(root_dev, "ceph",
+					root_mountflags, root_data);
+		if (err == 0)
+			res = 1;
+	}
+	return res;
 }
 #endif
 

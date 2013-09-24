@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2012 Mark Doffman <mark.doffman@codethink.co.uk>
+ * ceph_root.h
+ *
+ * LGPL2
  */
 
 /* linux/fs/ceph/root.c */

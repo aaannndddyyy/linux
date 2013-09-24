@@ -37,7 +37,7 @@ static char ceph_root_options[256] __initdata = "";
 /* server:path string passed to mount */
 static char ceph_root_device[MAXPATHLEN + 1] __initdata = "";
 
-static int __init root_nfs_copy(char *dest, const char *src,
+static int __init root_ceph_copy(char *dest, const char *src,
 				     const size_t destlen)
 {
 	if (strlcpy(dest, src, destlen) > destlen)
@@ -45,7 +45,7 @@ static int __init root_nfs_copy(char *dest, const char *src,
 	return 0;
 }
 
-static int __init root_nfs_cat(char *dest, const char *src,
+static int __init root_ceph_cat(char *dest, const char *src,
 			       const size_t destlen)
 {
 	size_t len = strlen(dest);
@@ -65,7 +65,7 @@ static int __init root_nfs_cat(char *dest, const char *src,
  *
  * Copy the export path into @exppath.
  */
-static int __init root_nfs_parse_options(char *incoming, char *exppath,
+static int __init root_ceph_parse_options(char *incoming, char *exppath,
 					 const size_t exppathlen)
 {
 	char *p;
@@ -75,7 +75,7 @@ static int __init root_nfs_parse_options(char *incoming, char *exppath,
 	 */
 	p = strsep(&incoming, ",");
 	if (*p != '\0' && strcmp(p, "default") != 0)
-		if (root_nfs_copy(exppath, p, exppathlen))
+		if (root_ceph_copy(exppath, p, exppathlen))
 			return -1;
 
 	/*
@@ -83,7 +83,7 @@ static int __init root_nfs_parse_options(char *incoming, char *exppath,
 	 * contains something, append it to our root options buffer
 	 */
 	if (incoming != NULL && *incoming != '\0')
-		if (root_nfs_cat(ceph_root_options, incoming,
+		if (root_ceph_cat(ceph_root_options, incoming,
 						sizeof(ceph_root_options)))
 			return -1;
 	return 0;
@@ -103,7 +103,7 @@ static int __init ceph_root_setup(char *line)
 
 	/*
 	 * Note: root_nfs_parse_addr() removes the server-ip from
-	 *	 nfs_root_parms, if it exists.
+	 *	 ceph_root_parms, if it exists.
 	 */
 	root_server_addr = root_nfs_parse_addr(ceph_root_params);
 
@@ -138,12 +138,12 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 		goto out_nomem;
 
 	if (root_server_path[0] != '\0') {
-		if (root_nfs_parse_options(root_server_path, tmp, tmplen))
+		if (root_ceph_parse_options(root_server_path, tmp, tmplen))
 			goto out_optionstoolong;
 	}
 
 	if (ceph_root_params[0] != '\0') {
-		if (root_nfs_parse_options(ceph_root_params, tmp, tmplen))
+		if (root_ceph_parse_options(ceph_root_params, tmp, tmplen))
 			goto out_optionstoolong;
 	}
 

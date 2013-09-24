@@ -16,3 +16,12 @@ config CEPH_FS
 
 	  If unsure, say N.
 
+config ROOT_CEPH
+	bool "Root file system on Ceph FS"
+	depends on CEPH_FS=y && IP_PNP
+	help
+	  If you want your system to mount its root file system via CEPH,
+	  choose Y here.  For details, read
+	  <file:Documentation/filesystems/ceph/cephroot.txt>.
+
+	  If unsure say N.

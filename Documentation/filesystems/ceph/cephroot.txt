@@ -35,8 +35,6 @@ along with the types of autoconfiguration to support. Selecting all of
 DHCP, BOOTP and RARP is safe.
 
 
-
-
 2.) Kernel command line
     -------------------
 
@@ -44,7 +42,6 @@ When the kernel has been loaded by a boot loader (see below) it needs to be
 told what root fs device to use. And in the case of nfsroot, where to find
 both the server and the name of the directory on the server to mount as root.
 This can be established using the following kernel command line parameters:
-
 
 root=/dev/ceph
 
@@ -77,6 +74,7 @@ found via DHCP option 17, Root Path [1]
     -------
 
   cephroot was derived from nfsroot by Rob Taylor <rob.taylor@codethink.co.uk>
+  and Mark Doffman <mark.doffman@codethink.co.uk>
 
   The nfsroot code in the kernel and the RARP support have been written
   by Gero Kuhlmann <gero@gkminix.han.de>.
@@ -86,5 +84,3 @@ found via DHCP option 17, Root Path [1]
 
   In order to write the initial version of nfsroot I would like to thank
   Jens-Uwe Mager <jum@anubis.han.de> for his help.
-
-

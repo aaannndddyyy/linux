@@ -15,8 +15,6 @@
 #include <net/ipconfig.h>
 #include <linux/ceph/ceph_root.h>
 
-// TODO Add dynamic debugging with some info debug messages
-
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 
@@ -95,7 +93,7 @@ static int __init root_ceph_parse_options(char *incoming, char *exppath,
  *
  *  cephroot=[<server-ip>:]<root-dir>[,<cephfs-options>]
  */
-static int __init ceph_root_setup(char *line) 
+static int __init ceph_root_setup(char *line)
 {
 	ROOT_DEV = Root_CEPH;
 
@@ -121,7 +119,7 @@ __setup("cephroot=", ceph_root_setup);
  * Returns: 0 and sets @root_device and @root_data if successful.
  *          -1 if unsuccessful.
  */
-int __init ceph_root_data(char **root_device, char ** root_data)
+int __init ceph_root_data(char **root_device, char **root_data)
 {
 	char *tmp = NULL;
 	const size_t tmplen = sizeof(ceph_export_path);
@@ -129,9 +127,8 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 	int retval = 0;
 
 	servaddr = root_server_addr;
-	if (servaddr == htonl(INADDR_NONE)) {
+	if (servaddr == htonl(INADDR_NONE))
 		return -1;
-	}
 
 	tmp = kzalloc(tmplen, GFP_KERNEL);
 	if (tmp == NULL)
@@ -169,7 +166,7 @@ int __init ceph_root_data(char **root_device, char ** root_data)
 	*root_device = ceph_root_device;
 	*root_data = ceph_root_options;
 
-	retval=0;
+	retval = 0;
 out:
 	kfree(tmp);
 	return retval;

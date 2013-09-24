@@ -163,6 +163,8 @@ int __init ceph_root_data(char **root_device, char **root_data)
 	if (len > (int)sizeof(ceph_root_device))
 		goto out_devnametoolong;
 
+	pr_debug("Root-CEPH: Root device: %s\n", ceph_root_device);
+	pr_debug("Root-CEPH: Root options: %s\n", ceph_root_options);
 	*root_device = ceph_root_device;
 	*root_data = ceph_root_options;
 

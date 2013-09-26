@@ -140,7 +140,7 @@ __be32 ic_addrservaddr = NONE;	/* IP Address of the IP addresses'server */
 
 __be32 ic_servaddr = NONE;	/* Boot server IP address */
 
-__be32 root_server_addr = NONE;	/* Address of NFS server */
+__be32 root_server_addr = NONE;	/* Address of NFS or CEPH server */
 u8 root_server_path[256] = { 0, };	/* Path to mount as root */
 
 __be32 ic_dev_xid;		/* Device under configuration */
@@ -1337,7 +1337,7 @@ static const struct file_operations pnp_seq_fops = {
  *  need to have root_server_addr set _before_ IPConfig gets called as it
  *  can override it.
  */
-__be32 __init root_nfs_parse_addr(char *name)
+__be32 __init root_parse_server_addr(char *name)
 {
 	__be32 addr;
 	int octets = 0;
@@ -1491,7 +1491,7 @@ static int __init ip_auto_config(void)
 		ic_dev = ic_first_dev->dev;
 	}
 
-	addr = root_nfs_parse_addr(root_server_path);
+	addr = root_parse_server_addr(root_server_path);
 	if (root_server_addr == NONE)
 		root_server_addr = addr;
 

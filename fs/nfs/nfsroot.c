@@ -144,10 +144,10 @@ static int __init nfs_root_setup(char *line)
 	 * Extract the IP address of the NFS server containing our
 	 * root file system, if one was specified.
 	 *
-	 * Note: root_nfs_parse_addr() removes the server-ip from
+	 * Note: root_parse_server_addr() removes the server-ip from
 	 *	 nfs_root_parms, if it exists.
 	 */
-	root_server_addr = root_nfs_parse_addr(nfs_root_parms);
+	root_server_addr = root_parse_server_addr(nfs_root_parms);
 
 	return 1;
 }

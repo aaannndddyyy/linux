@@ -405,7 +405,7 @@ static inline void nfs_display_fhandle(const struct nfs_fh *fh,
  */
 extern int  nfs_root_data(char **root_device, char **root_data); /*__init*/
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
-extern __be32 root_nfs_parse_addr(char *name); /*__init*/
+extern __be32 root_parse_server_addr(char *name); /*__init*/
 
 /*
  * linux/fs/nfs/file.c

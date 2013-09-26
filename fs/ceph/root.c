@@ -18,7 +18,7 @@
 #include <linux/ceph/ceph_root.h>
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
-extern __be32 root_nfs_parse_addr(char *name); /*__init*/
+extern __be32 root_parse_server_addr(char *name); /*__init*/
 
 #define MAXPATHLEN 1024
 
@@ -89,10 +89,10 @@ static int __init ceph_root_setup(char *line)
 	strlcpy(ceph_root_params, line, sizeof(ceph_root_params));
 
 	/*
-	 * Note: root_nfs_parse_addr() removes the server-ip from
+	 * root_parse_server_addr() removes the server-ip from
 	 * ceph_root_params, if it exists.
 	 */
-	root_server_addr = root_nfs_parse_addr(ceph_root_params);
+	root_server_addr = root_parse_server_addr(ceph_root_params);
 
 	return 1;
 }

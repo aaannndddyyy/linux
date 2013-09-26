@@ -239,7 +239,6 @@ dev_t name_to_dev_t(char *name)
 
 	name += 5;
 	res = Root_NFS;
-	printk(KERN_CRIT "Root device name: %s\n", name);
 	if (strcmp(name, "nfs") == 0)
 		goto done;
 	res = Root_RAM0;

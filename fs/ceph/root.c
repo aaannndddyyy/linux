@@ -37,56 +37,43 @@ static char ceph_root_options[256] __initdata;
 /* server:path string passed to mount */
 static char ceph_root_device[MAXPATHLEN + 1] __initdata;
 
-static int __init root_ceph_copy(char *dest, const char *src,
-					const size_t destlen)
-{
-	if (strlcpy(dest, src, destlen) > destlen)
-		return -1;
-	return 0;
-}
-
-static int __init root_ceph_cat(char *dest, const char *src,
-				const size_t destlen)
-{
-	size_t len = strlen(dest);
-
-	if (len && dest[len - 1] != ',')
-		if (strlcat(dest, ",", destlen) > destlen)
-			return -1;
-
-	if (strlcat(dest, src, destlen) > destlen)
-		return -1;
-	return 0;
-}
-
 /*
  * Parse out root export path and mount options from
  * passed-in string @incoming.
  *
  * Copy the export path into @exppath.
+ *
+ * Returns 0 on success -1 if the resulting options string is too long.
  */
 static int __init root_ceph_parse_options(char *incoming, char *exppath,
 						const size_t exppathlen)
 {
 	char *p;
+	int res = 0;
 
 	/*
-	 * Set the NFS remote path
+	 * Set the remote path
 	 */
 	p = strsep(&incoming, ",");
 	if (*p != '\0' && strcmp(p, "default") != 0)
-		if (root_ceph_copy(exppath, p, exppathlen))
-			return -1;
+		strlcpy(exppath, p, exppathlen);
 
 	/*
 	 * @incoming now points to the rest of the string; if it
 	 * contains something, append it to our root options buffer
 	 */
-	if (incoming != NULL && *incoming != '\0')
-		if (root_ceph_cat(ceph_root_options, incoming,
-						sizeof(ceph_root_options)))
-			return -1;
-	return 0;
+	if (incoming != NULL && *incoming != '\0') {
+		size_t len = strlen(ceph_root_options);
+		size_t destlen = sizeof(ceph_root_options);
+
+		if (len && ceph_root_options[len - 1] != ',')
+			if (strlcat(ceph_root_options, ",", destlen) > destlen)
+				res = -1;
+
+		if(strlcat(ceph_root_options, incoming, destlen) > destlen)
+			res = -1;
+	}
+	return res;
 }
 
 /*
@@ -103,7 +90,7 @@ static int __init ceph_root_setup(char *line)
 
 	/*
 	 * Note: root_nfs_parse_addr() removes the server-ip from
-	 *	 ceph_root_parms, if it exists.
+	 * ceph_root_params, if it exists.
 	 */
 	root_server_addr = root_nfs_parse_addr(ceph_root_params);
 
@@ -126,30 +113,33 @@ int __init ceph_root_data(char **root_device, char **root_data)
 	char *tmp = NULL;
 	const size_t tmplen = sizeof(ceph_export_path);
 	int len;
-	int retval = 0;
 
 	servaddr = root_server_addr;
 	if (servaddr == htonl(INADDR_NONE))
 		return -1;
 
 	tmp = kzalloc(tmplen, GFP_KERNEL);
-	if (tmp == NULL)
-		goto out_nomem;
+	if (tmp == NULL) {
+		pr_err("Root-CEPH: could not allocate memory\n");
+		return -1;
+	}
 
 	if (root_server_path[0] != '\0') {
-		if (root_ceph_parse_options(root_server_path, tmp, tmplen))
-			goto out_optionstoolong;
+		if (root_ceph_parse_options(root_server_path, tmp, tmplen)) {
+			pr_err("Root-CEPH: mount options string too long\n");
+			goto err;
+		}
 	}
 
 	if (ceph_root_params[0] != '\0') {
-		if (root_ceph_parse_options(ceph_root_params, tmp, tmplen))
-			goto out_optionstoolong;
+		if (root_ceph_parse_options(ceph_root_params, tmp, tmplen)) {
+			pr_err("Root-CEPH: mount options string too long\n");
+			goto err;
+		}
 	}
 
 	/*
-	 * Set up ceph_root_device.  This looks like
-	 *
-	 *	server:/path
+	 * Set up ceph_root_device. This looks like: server:/path
 	 *
 	 * At this point, utsname()->nodename contains our local
 	 * IP address or hostname, set by ipconfig.  If "%s" exists
@@ -158,33 +148,25 @@ int __init ceph_root_data(char **root_device, char **root_data)
 	 */
 	len = snprintf(ceph_export_path, sizeof(ceph_export_path),
 				tmp, utsname()->nodename);
-	if (len > (int)sizeof(ceph_export_path))
-		goto out_devnametoolong;
+	if (len > (int)sizeof(ceph_export_path)) {
+		pr_err("Root-CEPH: root device name too long.\n");
+		goto err;
+	}
 	len = snprintf(ceph_root_device, sizeof(ceph_root_device),
 				"%pI4:%s", &servaddr, ceph_export_path);
-	if (len > (int)sizeof(ceph_root_device))
-		goto out_devnametoolong;
+	if (len > (int)sizeof(ceph_root_device)) {
+		pr_err("Root-CEPH: root device name too long.\n");
+		goto err;
+	}
 
 	pr_debug("Root-CEPH: Root device: %s\n", ceph_root_device);
 	pr_debug("Root-CEPH: Root options: %s\n", ceph_root_options);
 	*root_device = ceph_root_device;
 	*root_data = ceph_root_options;
 
-	retval = 0;
-
-out:
 	kfree(tmp);
-	return retval;
-
-out_nomem:
-	pr_err("Root-CEPH: could not allocate memory\n");
-	goto out;
-
-out_optionstoolong:
-	pr_err("Root-CEPH: mount options string too long\n");
-	goto out;
-
-out_devnametoolong:
-	pr_err("Root-CEPH: root device name too long.\n");
-	goto out;
+	return 0;
+err:
+	kfree(tmp);
+	return -1;
 }

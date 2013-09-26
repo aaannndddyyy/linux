@@ -49,6 +49,9 @@ This is necessary to enable the pseudo-Ceph-device. Note that it's not a
 real device but just a synonym to tell the kernel to use Ceph instead of
 a real device.
 
+If cephroot is not specified, it is expected that that a valid mount will be
+found via DHCP option 17, Root Path [1]
+
 cephroot=<monaddr>:/[<subdir>],<ceph-opts>
 
   <monaddr>     Monitor address. Each takes the form host[:port]. If the port
@@ -64,6 +67,7 @@ cephroot=<monaddr>:/[<subdir>],<ceph-opts>
 4.) References
     ----------
 
+[1] http://tools.ietf.org/html/rfc2132
 
 5.) Credits
     -------

@@ -1435,10 +1435,10 @@ static int __init ip_auto_config(void)
 	 * missing values.
 	 */
 	if (ic_myaddr == NONE ||
-#ifdef CONFIG_ROOT_NFS
+#if defined(CONFIG_ROOT_NFS) || defined(CONFIG_ROOT_CEPH)
 	    (root_server_addr == NONE &&
 	     ic_servaddr == NONE &&
-	     ROOT_DEV == Root_NFS) ||
+	     (ROOT_DEV == Root_NFS || ROOT_DEV == Root_CEPH)) ||
 #endif
 	    ic_first_dev->next) {
 #ifdef IPCONFIG_DYNAMIC
@@ -1462,6 +1462,12 @@ static int __init ip_auto_config(void)
 #ifdef CONFIG_ROOT_NFS
 			if (ROOT_DEV ==  Root_NFS) {
 				pr_err("IP-Config: Retrying forever (NFS root)...\n");
+				goto try_try_again;
+			}
+#endif
+#ifdef CONFIG_ROOT_CEPH
+			if (ROOT_DEV ==  Root_CEPH) {
+				pr_err("IP-Config: Retrying forever (CEPH root)...\n");
 				goto try_try_again;
 			}
 #endif

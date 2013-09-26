@@ -37,9 +37,6 @@ static char ceph_root_options[256] __initdata;
 /* server:path string passed to mount */
 static char ceph_root_device[MAXPATHLEN + 1] __initdata;
 
-/* Address of CEPH server */
-static __be32 root_ceph_server_addr = htonl(INADDR_NONE);
-
 /*
  * Parse out root export path and mount options from
  * passed-in string @incoming.
@@ -95,7 +92,7 @@ static int __init ceph_root_setup(char *line)
 	 * Note: root_nfs_parse_addr() removes the server-ip from
 	 * ceph_root_params, if it exists.
 	 */
-	root_ceph_server_addr = root_nfs_parse_addr(ceph_root_params);
+	root_server_addr = root_nfs_parse_addr(ceph_root_params);
 
 	return 1;
 }
@@ -118,13 +115,20 @@ int __init ceph_root_data(char **root_device, char **root_data)
 	int len;
 	int ret = 0;
 
-	servaddr = root_ceph_server_addr;
+	servaddr = root_server_addr;
 	if (servaddr == htonl(INADDR_NONE))
 		return -ENOENT;
 
 	tmp = kzalloc(tmplen, GFP_KERNEL);
 	if (tmp == NULL)
 		return -ENOMEM;
+
+	if (root_server_path[0] != '\0') {
+		if (root_ceph_parse_options(root_server_path, tmp, tmplen)) {
+			ret = -E2BIG;
+			goto out;
+		}
+	}
 
 	if (ceph_root_params[0] != '\0') {
 		if (root_ceph_parse_options(ceph_root_params, tmp, tmplen)) {

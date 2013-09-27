@@ -55,7 +55,7 @@
         "yes '' | make oldconfig"
     ],
     "build-commands": [
-        "make"
+        "make $MAKEFLAGS"
     ],
     "install-commands": [
         "mkdir -p \"$DESTDIR\"/boot",

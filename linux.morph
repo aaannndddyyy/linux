@@ -19,7 +19,7 @@
         "yes '' | make oldconfig"
     ],
     "build-commands": [
-        "make ARCH=arm zImage"
+        "make ARCH=arm zImage $MAKEFLAGS"
     ],
     "install-commands": [
         "mkdir -p \"$DESTDIR\"/boot",

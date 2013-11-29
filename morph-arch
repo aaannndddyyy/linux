@@ -14,6 +14,8 @@ case "$MORPH_ARCH" in
         echo i386 ;;
     x86_64)
         echo x86_64 ;;
+    ppc64)
+        echo powerpc ;;
     *)
         echo "Error: unsupported Morph architecture: $MORPH_ARCH" >&2
         exit 1

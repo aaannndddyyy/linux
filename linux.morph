@@ -53,6 +53,11 @@
         "scripts/config -d DEBUG_STACK_TRACE",
         "scripts/config -e NFSD",
         "scripts/config -e NFSD_V3",
+        "scripts/config -e NET_9P",
+        "scripts/config -e NET_9P_VIRTIO",
+        "scripts/config -e NET_9P_DEBUG",
+        "scripts/config -e 9P_FS",
+        "scripts/config -e 9P_FS_POSIX_ACL",
         "yes '' | make oldconfig"
     ],
     "build-commands": [

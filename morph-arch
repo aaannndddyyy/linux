@@ -8,7 +8,7 @@ if [ -z "$MORPH_ARCH" ]; then
 fi
 
 case "$MORPH_ARCH" in
-    armv7b|armv7l)
+    armv7b|armv7l|armv7lhf)
         echo arm ;;
     x86_32)
         echo i386 ;;

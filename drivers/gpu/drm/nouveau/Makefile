@@ -325,6 +325,7 @@ nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
 nouveau-y += nouveau_prime.o nouveau_abi16.o
 nouveau-y += nv04_fence.o nv10_fence.o nv17_fence.o
 nouveau-y += nv50_fence.o nv84_fence.o nvc0_fence.o
+nouveau-y += nouveau_debug.o
 
 # drm/kms
 nouveau-y += nouveau_bios.o nouveau_fbcon.o nouveau_display.o

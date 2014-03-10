@@ -1,5 +1,15 @@
 name: linux
 kind: chunk
+products:
+  - artifact: linux-devel
+    include:
+      - (usr/)?src/linux/.*
+  - artifact: linux-bins
+    include:
+      - boot/.*
+  - artifact: linux-libs
+    include:
+      - lib/.*
 configure-commands:
   - make defconfig
   - scripts/config -e PACKET

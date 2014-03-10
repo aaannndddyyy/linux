@@ -59,3 +59,17 @@ install-commands:
   - mkdir -p "$DESTDIR"/boot
   - make INSTALL_PATH="$DESTDIR"/boot install
   - make INSTALL_MOD_PATH="$DESTDIR" modules_install
+  - install -d "$DESTDIR$PREFIX/src/linux"
+  - |
+    (
+        printf 'Makefile\0'
+        printf 'Module.symvers\0'
+        find arch/x86 -maxdepth 1 -name 'Makefile*' -print0
+        find arch/x86 \( -name 'module.lds' -o -name 'Kbuild.platforms' -o -name 'Platform' \) -print0
+        find arch/x86 \( -type d -a \( -name include -o -name scripts \) \) -o \
+                                 \! -type d -a \( -path '*include/*' -o -path '*scripts/*' \) -print0
+        find include -name 'asm*' -prune -o -print0
+        find include/asm-generic -print0
+        find include/uapi -print0
+        find scripts -print0
+    ) | cpio -0pumd "$DESTDIR$PREFIX/src/linux"

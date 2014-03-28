@@ -62,6 +62,13 @@ configure-commands:
   - scripts/config -d DEBUG_STACK_TRACE
   - scripts/config -e NFSD
   - scripts/config -e NFSD_V3
+  - scripts/config -e KVM
+  - scripts/config -e TUN
+  - scripts/config -e BRIDGE
+  - scripts/config -e VHOST_NET
+  - scripts/config -e NF_NAT
+  - scripts/config -e NF_NAT_IPV4
+  - scripts/config -e IP_NF_TARGET_MASQUERADE
   - yes '' | make oldconfig
 build-commands:
   - make $MAKEFLAGS

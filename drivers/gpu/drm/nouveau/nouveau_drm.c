@@ -172,6 +172,11 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		return;
 	}
 
+	if (device->chipset == 0xea) {
+		/* gk20a does not have CE0/CE1 */
+		arg0 = NVE0_CHANNEL_IND_ENGINE_GR;
+		arg1 = 1;
+	} else
 	if (device->card_type >= NV_E0) {
 		ret = nouveau_channel_new(drm, &drm->client, NVDRM_DEVICE,
 					  NVDRM_CHAN + 1,

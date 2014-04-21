@@ -10,7 +10,6 @@
 #include <linux/cpufreq.h>
 #include <linux/errno.h>
 #include <linux/export.h>
-#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -29,16 +28,16 @@ enum {
 };
 
 struct cpufreq_frequency_table loongson2_clockmod_table[] = {
-	{DC_RESV, CPUFREQ_ENTRY_INVALID},
-	{DC_ZERO, CPUFREQ_ENTRY_INVALID},
-	{DC_25PT, 0},
-	{DC_37PT, 0},
-	{DC_50PT, 0},
-	{DC_62PT, 0},
-	{DC_75PT, 0},
-	{DC_87PT, 0},
-	{DC_DISABLE, 0},
-	{DC_RESV, CPUFREQ_TABLE_END},
+	{0, DC_RESV, CPUFREQ_ENTRY_INVALID},
+	{0, DC_ZERO, CPUFREQ_ENTRY_INVALID},
+	{0, DC_25PT, 0},
+	{0, DC_37PT, 0},
+	{0, DC_50PT, 0},
+	{0, DC_62PT, 0},
+	{0, DC_75PT, 0},
+	{0, DC_87PT, 0},
+	{0, DC_DISABLE, 0},
+	{0, DC_RESV, CPUFREQ_TABLE_END},
 };
 EXPORT_SYMBOL_GPL(loongson2_clockmod_table);
 
@@ -121,7 +120,8 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	clk->rate = rate;
 
 	regval = LOONGSON_CHIPCFG0;
-	regval = (regval & ~0x7) | (loongson2_clockmod_table[i].index - 1);
+	regval = (regval & ~0x7) |
+		(loongson2_clockmod_table[i].driver_data - 1);
 	LOONGSON_CHIPCFG0 = regval;
 
 	return ret;

@@ -550,7 +550,11 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
+#if defined(__arm__)
+		man->default_caching = TTM_PL_FLAG_UNCACHED;
+#else
 		man->default_caching = TTM_PL_FLAG_WC;
+#endif
 		break;
 	case TTM_PL_TT:
 		if (nv_device(drm->device)->card_type >= NV_50)

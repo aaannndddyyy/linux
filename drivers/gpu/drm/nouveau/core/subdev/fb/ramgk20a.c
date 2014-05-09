@@ -36,6 +36,8 @@ gk20a_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 	int i;
 
 	*pmem = NULL;
+	if (unlikely(mem == NULL))
+		return;
 
 	for (i = 0; i < mem->size; i++) {
 		struct page *page;

@@ -33,6 +33,7 @@
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
+#include <subdev/timer.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -518,6 +519,10 @@ nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
 
 		ttm_dma_tt_cache_sync_for_device((struct ttm_dma_tt *)ttm,
 						 nv_device_base(device));
+
+		nv_wr32(device, 0x70004, 0x00000001);
+		if (!nv_wait(device, 0x070004, 0x00000001, 0x00000000))
+			nv_warn(device, "L2 invalidate timeout\n");
 	}
 }
 

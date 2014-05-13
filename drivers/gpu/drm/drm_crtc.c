@@ -3568,7 +3568,7 @@ done:
 
 static struct drm_property_blob *
 drm_property_create_blob(struct drm_device *dev, size_t length,
-			 void *data)
+			 const void *data)
 {
 	struct drm_property_blob *blob;
 	int ret;
@@ -3662,7 +3662,7 @@ done:
  * Zero on success, errno on failure.
  */
 int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-					    struct edid *edid)
+					    const struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
 	size_t size;

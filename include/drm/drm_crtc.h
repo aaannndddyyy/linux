@@ -930,7 +930,8 @@ extern void drm_mode_config_reset(struct drm_device *dev);
 extern void drm_mode_config_cleanup(struct drm_device *dev);
 
 extern int drm_mode_connector_update_edid_property(struct drm_connector *connector,
-						struct edid *edid);
+						   const struct edid *edid);
+
 extern int drm_object_property_set_value(struct drm_mode_object *obj,
 					 struct drm_property *property,
 					 uint64_t val);

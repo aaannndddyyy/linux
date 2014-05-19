@@ -340,6 +340,9 @@ nouveau-y += nv50_display.o
 # drm/pm
 nouveau-y += nouveau_hwmon.o nouveau_sysfs.o
 
+# platform driver
+nouveau-$(CONFIG_NOUVEAU_PLATFORM_DRIVER) += nouveau_platform.o
+
 # other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o
 ifdef CONFIG_X86

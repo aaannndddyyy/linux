@@ -359,6 +359,9 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
+	if (dev->platformdev)
+		platform_set_drvdata(dev->platformdev, dev);
+
 	nouveau_client(drm)->debug = nouveau_dbgopt(nouveau_debug, "DRM");
 
 	INIT_LIST_HEAD(&drm->clients);
@@ -1005,23 +1008,19 @@ nouveau_drm_pci_driver = {
 	.driver.pm = &nouveau_pm_ops,
 };
 
-int nouveau_drm_platform_probe(struct platform_device *pdev)
+int nouveau_drm_platform_device_create(struct platform_device *pdev, int length,
+				       void **pobject)
 {
-	struct nouveau_device *device;
-	int ret;
+	return nouveau_device_create_(pdev, NOUVEAU_BUS_PLATFORM,
+				      nouveau_platform_name(pdev),
+				      dev_name(&pdev->dev),
+				      nouveau_config, nouveau_debug, length,
+				      pobject);
+}
 
-	ret = nouveau_device_create(pdev, NOUVEAU_BUS_PLATFORM,
-				    nouveau_platform_name(pdev),
-				    dev_name(&pdev->dev), nouveau_config,
-				    nouveau_debug, &device);
-
-	ret = drm_platform_init(&driver, pdev);
-	if (ret) {
-		nouveau_object_ref(NULL, (struct nouveau_object **)&device);
-		return ret;
-	}
-
-	return ret;
+int nouveau_drm_platform_device_init(struct platform_device *pdev)
+{
+	return drm_platform_init(&driver, pdev);
 }
 
 static int __init
@@ -1037,6 +1036,8 @@ nouveau_drm_init(void)
 	if (!nouveau_modeset)
 		return 0;
 
+	nouveau_platform_driver_init();
+
 	nouveau_register_dsm_handler();
 	return drm_pci_init(&driver, &nouveau_drm_pci_driver);
 }
@@ -1049,6 +1050,8 @@ nouveau_drm_exit(void)
 
 	drm_pci_exit(&driver, &nouveau_drm_pci_driver);
 	nouveau_unregister_dsm_handler();
+
+	nouveau_platform_driver_exit();
 }
 
 module_init(nouveau_drm_init);

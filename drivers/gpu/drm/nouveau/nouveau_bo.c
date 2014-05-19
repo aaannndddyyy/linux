@@ -437,8 +437,10 @@ nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
 	mem = &mem[index];
 	if (is_iomem)
 		iowrite16_native(val, (void __force __iomem *)mem);
-	else
+	else {
 		*mem = val;
+		nv_cpu_cache_flush_area(mem, 2);
+	}
 }
 
 u32
@@ -461,8 +463,10 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	mem = &mem[index];
 	if (is_iomem)
 		iowrite32_native(val, (void __force __iomem *)mem);
-	else
+	else {
 		*mem = val;
+		nv_cpu_cache_flush_area(mem, 4);
+	}
 }
 
 static struct ttm_tt *

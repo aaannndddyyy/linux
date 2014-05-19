@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/log2.h>
 #include <linux/pm_runtime.h>
+#include <asm/cacheflush.h>
 
 #include <asm/unaligned.h>
 
@@ -37,5 +38,24 @@
 #define iowrite32_native iowrite32
 #endif /* def __BIG_ENDIAN else */
 #endif /* !ioread32_native */
+
+#if defined(__arm__)
+
+static inline void
+nv_cpu_cache_flush_area(void *va, size_t size)
+{
+	phys_addr_t pa = virt_to_phys(va);
+	__cpuc_flush_dcache_area(va, size);
+	outer_flush_range(pa, pa + size);
+}
+
+#else
+
+static inline void
+nv_cpu_cache_flush_area(void *va, size_t size)
+{
+}
+
+#endif /* defined(__arm__) */
 
 #endif

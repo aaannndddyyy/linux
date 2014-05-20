@@ -555,6 +555,21 @@
 		iommu-cells = <2>;
 	};
 
+	hda@0,70030000 {
+		compatible = "nvidia,tegra124-hda", "nvidia,tegra30-hda";
+		reg = <0x0 0x70030000 0x0 0x10000>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&tegra_car TEGRA124_CLK_HDA>,
+		         <&tegra_car TEGRA124_CLK_HDA2HDMI>,
+			 <&tegra_car TEGRA124_CLK_HDA2CODEC_2X>;
+		clock-names = "hda", "hda2hdmi", "hdacodec_2x";
+		resets = <&tegra_car 125>, /* hda */
+			 <&tegra_car 128>, /* hda2hdmi */
+			 <&tegra_car 111>; /* hda2codec_2x */
+		reset-names = "hda", "hda2hdmi", "hdacodec_2x";
+		status = "disabled";
+	};
+
 	padctl: padctl@0,7009f000 {
 		compatible = "nvidia,tegra124-xusb-padctl";
 		reg = <0x0 0x7009f000 0x0 0x1000>;

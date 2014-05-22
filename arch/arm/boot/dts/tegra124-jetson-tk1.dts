@@ -1645,6 +1645,10 @@
 		nvidia,sys-clock-req-active-high;
 	};
 
+	hda@0,70030000 {
+		status = "okay";
+	};
+
 	padctl@0,7009f000 {
 		pinctrl-0 = <&padctl_default>;
 		pinctrl-names = "default";

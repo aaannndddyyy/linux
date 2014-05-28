@@ -65,7 +65,7 @@ int __fence_signal(struct fence *fence)
 
 	if (!ktime_to_ns(fence->timestamp)) {
 		fence->timestamp = ktime_get();
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 	}
 
 	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
@@ -105,7 +105,7 @@ int fence_signal(struct fence *fence)
 
 	if (!ktime_to_ns(fence->timestamp)) {
 		fence->timestamp = ktime_get();
-		smp_mb__before_clear_bit();
+		smp_mb__before_atomic();
 	}
 
 	if (test_and_set_bit(FENCE_FLAG_SIGNALED_BIT, &fence->flags))

@@ -21,6 +21,42 @@
 #include <linux/limits.h>
 #include <linux/of.h>
 #include <linux/of_iommu.h>
+#include <linux/device.h>
+
+static DEFINE_MUTEX(iommus_lock);
+static LIST_HEAD(iommus_list);
+
+void iommu_add(struct iommu *iommu)
+{
+	INIT_LIST_HEAD(&iommu->list);
+	mutex_lock(&iommus_lock);
+	list_add_tail(&iommu->list, &iommus_list);
+	mutex_unlock(&iommus_lock);
+}
+
+void iommu_del(struct iommu *iommu)
+{
+	INIT_LIST_HEAD(&iommu->list);
+	mutex_lock(&iommus_lock);
+	list_del(&iommu->list);
+	mutex_unlock(&iommus_lock);
+}
+
+static struct iommu *of_find_iommu_by_node(struct device_node *np)
+{
+	struct iommu *iommu;
+
+	mutex_lock(&iommus_lock);
+	list_for_each_entry(iommu, &iommus_list, list) {
+		if (iommu->dev->of_node == np) {
+			mutex_unlock(&iommus_lock);
+			return iommu;
+		}
+	}
+	mutex_unlock(&iommus_lock);
+
+	return NULL;
+}
 
 /**
  * of_get_dma_window - Parse *dma-window property and returns 0 if found.

@@ -24,6 +24,10 @@
 
 #include <subdev/fb.h>
 
+#include <linux/types.h>
+#include <linux/mm.h>
+#include <linux/dma-mapping.h>
+
 struct gk20a_mem {
 	struct nouveau_mem base;
 	void *cpuaddr;

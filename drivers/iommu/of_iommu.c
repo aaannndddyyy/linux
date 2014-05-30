@@ -125,3 +125,16 @@ int of_get_dma_window(struct device_node *dn, const char *prefix, int index,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_dma_window);
+
+int of_iommu_attach(struct device *dev)
+{
+	struct of_phandle_iter iter;
+
+	of_property_for_each_phandle_with_args(iter, dev->of_node, "iommus",
+					       "iommu-cells", 0) {
+		if (!of_find_iommu_by_node(iter.out_args.np))
+			return -EPROBE_DEFER;
+	}
+
+	return 0;
+}

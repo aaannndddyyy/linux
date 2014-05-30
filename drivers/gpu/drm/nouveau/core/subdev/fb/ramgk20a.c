@@ -24,32 +24,32 @@
 
 #include <subdev/fb.h>
 
-#include <linux/mm.h>
 #include <linux/types.h>
-#include <linux/dma-contiguous.h>
+#include <linux/mm.h>
+#include <linux/dma-mapping.h>
+
+struct gk20a_mem {
+	struct nouveau_mem base;
+	void *cpuaddr;
+	dma_addr_t handle;
+};
+#define to_gk20a_mem(m) container_of(m, struct gk20a_mem, base)
 
 static void
 gk20a_ram_put(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 {
 	struct device *dev = nv_device_base(nv_device(pfb));
-	struct nouveau_mem *mem = *pmem;
-	int i;
+	struct gk20a_mem *mem = to_gk20a_mem(*pmem);
 
 	*pmem = NULL;
 	if (unlikely(mem == NULL))
 		return;
 
-	for (i = 0; i < mem->size; i++) {
-		struct page *page;
+	if (likely(mem->cpuaddr))
+		dma_free_coherent(dev, mem->base.size << PAGE_SHIFT,
+				  mem->cpuaddr, mem->handle);
 
-		if (mem->pages[i] == 0)
-			break;
-
-		page = pfn_to_page(mem->pages[i] >> PAGE_SHIFT);
-		dma_release_from_contiguous(dev, page, 1);
-	}
-
-	kfree(mem->pages);
+	kfree(mem->base.pages);
 	kfree(mem);
 }
 
@@ -58,11 +58,9 @@ gk20a_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	     u32 memtype, struct nouveau_mem **pmem)
 {
 	struct device *dev = nv_device_base(nv_device(pfb));
-	struct nouveau_mem *mem;
-	int type = memtype & 0xff;
-	dma_addr_t dma_addr;
-	int npages;
-	int order;
+	struct gk20a_mem *mem;
+	u32 type = memtype & 0xff;
+	u32 npages, order;
 	int i;
 
 	nv_debug(pfb, "%s: size: %llx align: %x, ncmin: %x\n", __func__, size,
@@ -80,59 +78,48 @@ gk20a_ram_get(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	order = fls(align);
 	if ((align & (align - 1)) == 0)
 		order--;
+	align = BIT(order);
 
-	ncmin >>= PAGE_SHIFT;
-	/*
-	 * allocate pages by chunks of "align" size, otherwise we may leave
-	 * holes in the contiguous memory area.
-	 */
-	if (ncmin == 0)
-		ncmin = npages;
-	else if (align > ncmin)
-		ncmin = align;
+	/* ensure returned address is correctly aligned */
+	npages = max(align, npages);
 
 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	if (!mem)
 		return -ENOMEM;
 
-	mem->size = npages;
-	mem->memtype = type;
+	mem->base.size = npages;
+	mem->base.memtype = type;
 
-	mem->pages = kzalloc(sizeof(dma_addr_t) * npages, GFP_KERNEL);
-	if (!mem) {
+	mem->base.pages = kzalloc(sizeof(dma_addr_t) * npages, GFP_KERNEL);
+	if (!mem->base.pages) {
 		kfree(mem);
 		return -ENOMEM;
 	}
 
-	while (npages) {
-		struct page *pages;
-		int pos = 0;
+	*pmem = &mem->base;
 
-		/* don't overflow in case size is not a multiple of ncmin */
-		if (ncmin > npages)
-			ncmin = npages;
-
-		pages = dma_alloc_from_contiguous(dev, ncmin, order);
-		if (!pages) {
-			gk20a_ram_put(pfb, &mem);
-			return -ENOMEM;
-		}
-
-		dma_addr = (dma_addr_t)(page_to_pfn(pages) << PAGE_SHIFT);
-
-		nv_debug(pfb, "  alloc count: %x, order: %x, addr: %pad\n", ncmin,
-			 order, &dma_addr);
-
-		for (i = 0; i < ncmin; i++)
-			mem->pages[pos + i] = dma_addr + (PAGE_SIZE * i);
-
-		pos += ncmin;
-		npages -= ncmin;
+	mem->cpuaddr = dma_alloc_coherent(dev, npages << PAGE_SHIFT,
+					  &mem->handle, GFP_KERNEL);
+	if (!mem->cpuaddr) {
+		nv_error(pfb, "%s: cannot allocate memory!\n", __func__);
+		gk20a_ram_put(pfb, pmem);
+		return -ENOMEM;
 	}
 
-	mem->offset = (u64)mem->pages[0];
+	align <<= PAGE_SHIFT;
 
-	*pmem = mem;
+	/* alignment check */
+	if (unlikely(mem->handle & (align - 1)))
+		nv_warn(pfb, "memory not aligned as requested: %pad (0x%x)\n",
+			&mem->handle, align);
+
+	nv_debug(pfb, "alloc size: 0x%x, align: 0x%x, paddr: %pad, vaddr: %p\n",
+		 npages << PAGE_SHIFT, align, &mem->handle, mem->cpuaddr);
+
+	for (i = 0; i < npages; i++)
+		mem->base.pages[i] = mem->handle + (PAGE_SIZE * i);
+
+	mem->base.offset = (u64)mem->base.pages[0];
 
 	return 0;
 }

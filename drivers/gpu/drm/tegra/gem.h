@@ -19,6 +19,17 @@
 #define TEGRA_BO_TILED     (1 << 0)
 #define TEGRA_BO_BOTTOM_UP (1 << 1)
 
+enum tegra_bo_tiling_mode {
+	TEGRA_BO_TILING_MODE_PITCH,
+	TEGRA_BO_TILING_MODE_TILED,
+	TEGRA_BO_TILING_MODE_BLOCK,
+};
+
+struct tegra_bo_tiling {
+	enum tegra_bo_tiling_mode mode;
+	unsigned long value;
+};
+
 struct tegra_bo {
 	struct drm_gem_object gem;
 	struct host1x_bo base;
@@ -26,6 +37,8 @@ struct tegra_bo {
 	struct sg_table *sgt;
 	dma_addr_t paddr;
 	void *vaddr;
+
+	struct tegra_bo_tiling tiling;
 };
 
 static inline struct tegra_bo *to_tegra_bo(struct drm_gem_object *gem)

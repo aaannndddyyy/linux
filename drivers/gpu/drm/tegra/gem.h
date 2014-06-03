@@ -16,8 +16,7 @@
 #include <drm/drm.h>
 #include <drm/drmP.h>
 
-#define TEGRA_BO_TILED     (1 << 0)
-#define TEGRA_BO_BOTTOM_UP (1 << 1)
+#define TEGRA_BO_BOTTOM_UP (1 << 0)
 
 enum tegra_bo_tiling_mode {
 	TEGRA_BO_TILING_MODE_PITCH,

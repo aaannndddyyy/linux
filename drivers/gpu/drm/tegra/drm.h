@@ -196,8 +196,9 @@ struct tegra_output {
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
+
+	struct gpio_desc *hpd_gpio;
 	unsigned int hpd_irq;
-	int hpd_gpio;
 
 	struct drm_encoder encoder;
 	struct drm_connector connector;
@@ -248,10 +249,6 @@ static inline int tegra_output_check_mode(struct tegra_output *output,
 
 	return output ? -ENOSYS : -EINVAL;
 }
-
-/* from bus.c */
-int drm_host1x_init(struct drm_driver *driver, struct host1x_device *device);
-void drm_host1x_exit(struct drm_driver *driver, struct host1x_device *device);
 
 /* from rgb.c */
 int tegra_dc_rgb_probe(struct tegra_dc *dc);

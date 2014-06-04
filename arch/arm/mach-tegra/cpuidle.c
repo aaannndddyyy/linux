@@ -56,3 +56,4 @@ void tegra_cpuidle_pcie_irqs_in_use(void)
 		break;
 	}
 }
+EXPORT_SYMBOL(tegra_cpuidle_pcie_irqs_in_use);

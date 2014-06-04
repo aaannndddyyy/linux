@@ -552,7 +552,8 @@
 		       0x0 0x70019a88 0x0 0x24>;
 		nvidia,#asids = <128>;
 		dma-window = <0x0 0x0 0x0 0x40000000>;
-		iommu-cells = <2>;
+		iommu-cells = <1>;
+		status = "disabled";
 	};
 
 	memory-controller@0,70019000 {

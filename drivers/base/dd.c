@@ -288,9 +288,11 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 
 	dev->driver = drv;
 
+	/*
 	ret = of_iommu_attach(dev);
 	if (ret)
 		goto probe_failed;
+	*/
 
 	/* If using pinctrl, bind pins now before probing */
 	ret = pinctrl_bind_pins(dev);

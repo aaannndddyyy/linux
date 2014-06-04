@@ -73,6 +73,8 @@ u32 tegra_uart_config[3] = {
 static void __init tegra_init_early(void)
 {
 	of_register_trusted_foundations();
+	/* workaround to avoid FIFO regs freeze on T124 */
+	writel(0x1, IO_ADDRESS(0x70019000 + 0x650));
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_cpu_reset_handler_init();

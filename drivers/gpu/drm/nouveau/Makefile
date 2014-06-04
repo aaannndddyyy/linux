@@ -64,6 +64,7 @@ nouveau-y += core/subdev/clock/nva3.o
 nouveau-y += core/subdev/clock/nvaa.o
 nouveau-y += core/subdev/clock/nvc0.o
 nouveau-y += core/subdev/clock/nve0.o
+nouveau-y += core/subdev/clock/gk20a.o
 nouveau-y += core/subdev/clock/pllnv04.o
 nouveau-y += core/subdev/clock/pllnva3.o
 nouveau-y += core/subdev/devinit/base.o
@@ -102,6 +103,7 @@ nouveau-y += core/subdev/fb/nvaa.o
 nouveau-y += core/subdev/fb/nvaf.o
 nouveau-y += core/subdev/fb/nvc0.o
 nouveau-y += core/subdev/fb/nve0.o
+nouveau-y += core/subdev/fb/gk20a.o
 nouveau-y += core/subdev/fb/gm107.o
 nouveau-y += core/subdev/fb/ramnv04.o
 nouveau-y += core/subdev/fb/ramnv10.o
@@ -117,6 +119,7 @@ nouveau-y += core/subdev/fb/ramnva3.o
 nouveau-y += core/subdev/fb/ramnvaa.o
 nouveau-y += core/subdev/fb/ramnvc0.o
 nouveau-y += core/subdev/fb/ramnve0.o
+nouveau-y += core/subdev/fb/ramgk20a.o
 nouveau-y += core/subdev/fb/ramgm107.o
 nouveau-y += core/subdev/fb/sddr3.o
 nouveau-y += core/subdev/fb/gddr5.o
@@ -136,10 +139,12 @@ nouveau-y += core/subdev/i2c/nv94.o
 nouveau-y += core/subdev/i2c/nvd0.o
 nouveau-y += core/subdev/ibus/nvc0.o
 nouveau-y += core/subdev/ibus/nve0.o
+nouveau-y += core/subdev/ibus/gk20a.o
 nouveau-y += core/subdev/instmem/base.o
 nouveau-y += core/subdev/instmem/nv04.o
 nouveau-y += core/subdev/instmem/nv40.o
 nouveau-y += core/subdev/instmem/nv50.o
+nouveau-y += core/subdev/instmem/gk20a.o
 nouveau-y += core/subdev/ltcg/gf100.o
 nouveau-y += core/subdev/ltcg/gm107.o
 nouveau-y += core/subdev/mc/base.o
@@ -245,6 +250,7 @@ nouveau-y += core/engine/fifo/nv50.o
 nouveau-y += core/engine/fifo/nv84.o
 nouveau-y += core/engine/fifo/nvc0.o
 nouveau-y += core/engine/fifo/nve0.o
+nouveau-y += core/engine/fifo/gk20a.o
 nouveau-y += core/engine/fifo/nv108.o
 nouveau-y += core/engine/graph/ctxnv40.o
 nouveau-y += core/engine/graph/ctxnv50.o
@@ -255,6 +261,7 @@ nouveau-y += core/engine/graph/ctxnvc8.o
 nouveau-y += core/engine/graph/ctxnvd7.o
 nouveau-y += core/engine/graph/ctxnvd9.o
 nouveau-y += core/engine/graph/ctxnve4.o
+nouveau-y += core/engine/graph/ctxgk20a.o
 nouveau-y += core/engine/graph/ctxnvf0.o
 nouveau-y += core/engine/graph/ctxnv108.o
 nouveau-y += core/engine/graph/ctxgm107.o
@@ -275,6 +282,7 @@ nouveau-y += core/engine/graph/nvc8.o
 nouveau-y += core/engine/graph/nvd7.o
 nouveau-y += core/engine/graph/nvd9.o
 nouveau-y += core/engine/graph/nve4.o
+nouveau-y += core/engine/graph/gk20a.o
 nouveau-y += core/engine/graph/nvf0.o
 nouveau-y += core/engine/graph/nv108.o
 nouveau-y += core/engine/graph/gm107.o
@@ -310,6 +318,7 @@ nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
 nouveau-y += nouveau_prime.o nouveau_abi16.o
 nouveau-y += nv04_fence.o nv10_fence.o nv17_fence.o
 nouveau-y += nv50_fence.o nv84_fence.o nvc0_fence.o
+nouveau-y += nouveau_debug.o
 
 # drm/kms
 nouveau-y += nouveau_bios.o nouveau_fbcon.o nouveau_display.o
@@ -324,6 +333,9 @@ nouveau-y += nv50_display.o
 
 # drm/pm
 nouveau-y += nouveau_hwmon.o nouveau_sysfs.o
+
+# platform driver
+nouveau-$(CONFIG_NOUVEAU_PLATFORM_DRIVER) += nouveau_platform.o
 
 # other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

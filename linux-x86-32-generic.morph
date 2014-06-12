@@ -1,13 +1,13 @@
-name: linux
+name: linux-x86-32-generic
 kind: chunk
 products:
-  - artifact: linux-devel
+  - artifact: linux-x86-32-generic-devel
     include:
       - (usr/)?src/linux/.*
-  - artifact: linux-bins
+  - artifact: linux-x86-32-generic-bins
     include:
       - boot/.*
-  - artifact: linux-libs
+  - artifact: linux-x86-32-generic-libs
     include:
       - lib/.*
 configure-commands:
@@ -53,6 +53,11 @@ configure-commands:
   - scripts/config -e VIRTIO_NET
   - scripts/config -e VIRTIO_CONSOLE
   - scripts/config -e HW_RANDOM_VIRTIO
+  - scripts/config -e 9P_FS
+  - scripts/config -e 9P_FSCACHE
+  - scripts/config -e 9P_FS_POSIX_ACL
+  - scripts/config -e NET_9P
+  - scripts/config -e NET_9P_VIRTIO
   - scripts/config -e R8169
   - scripts/config -e 8139TOO
   - scripts/config -e 8139CP

@@ -45,24 +45,38 @@ static LIST_HEAD(kernel_fb_helper_list);
  * DOC: fbdev helpers
  *
  * The fb helper functions are useful to provide an fbdev on top of a drm kernel
- * mode setting driver. They can be used mostly independantely from the crtc
+ * mode setting driver. They can be used mostly independently from the crtc
  * helper functions used by many drivers to implement the kernel mode setting
  * interfaces.
  *
- * Initialization is done as a three-step process with drm_fb_helper_init(),
- * drm_fb_helper_single_add_all_connectors() and drm_fb_helper_initial_config().
- * Drivers with fancier requirements than the default beheviour can override the
- * second step with their own code.  Teardown is done with drm_fb_helper_fini().
+ * Initialization is done as a four-step process with drm_fb_helper_prepare(),
+ * drm_fb_helper_init(), drm_fb_helper_single_add_all_connectors() and
+ * drm_fb_helper_initial_config(). Drivers with fancier requirements than the
+ * default behaviour can override the third step with their own code.
+ * Teardown is done with drm_fb_helper_fini().
  *
  * At runtime drivers should restore the fbdev console by calling
  * drm_fb_helper_restore_fbdev_mode() from their ->lastclose callback. They
  * should also notify the fb helper code from updates to the output
  * configuration by calling drm_fb_helper_hotplug_event(). For easier
  * integration with the output polling code in drm_crtc_helper.c the modeset
- * code proves a ->output_poll_changed callback.
+ * code provides a ->output_poll_changed callback.
  *
  * All other functions exported by the fb helper library can be used to
  * implement the fbdev driver interface by the driver.
+ *
+ * It is possible, though perhaps somewhat tricky, to implement race-free
+ * hotplug detection using the fbdev helpers. The drm_fb_helper_prepare()
+ * helper must be called first to initialize the minimum required to make
+ * hotplug detection work. Drivers also need to make sure to properly set up
+ * the dev->mode_config.funcs member. After calling drm_kms_helper_poll_init()
+ * it is safe to enable interrupts and start processing hotplug events. At the
+ * same time, drivers should initialize all modeset objects such as CRTCs,
+ * encoders and connectors. To finish up the fbdev helper initialization, the
+ * drm_fb_helper_init() function is called. To probe for all attached displays
+ * and set up an initial configuration using the detected hardware, drivers
+ * should call drm_fb_helper_single_add_all_connectors() followed by
+ * drm_fb_helper_initial_config().
  */
 
 /**
@@ -326,12 +340,21 @@ static bool drm_fb_helper_force_kernel_mode(void)
 		return false;
 
 	list_for_each_entry(helper, &kernel_fb_helper_list, kernel_fb_list) {
-		if (helper->dev->switch_power_state == DRM_SWITCH_POWER_OFF)
+		struct drm_device *dev = helper->dev;
+
+		if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 			continue;
+
+		if (!mutex_trylock(&dev->mode_config.mutex)) {
+			error = true;
+			continue;
+		}
 
 		ret = drm_fb_helper_restore_fbdev_mode(helper);
 		if (ret)
 			error = true;
+
+		mutex_unlock(&dev->mode_config.mutex);
 	}
 	return error;
 }
@@ -493,6 +516,24 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
 }
 
 /**
+ * drm_fb_helper_prepare - setup a drm_fb_helper structure
+ * @dev: DRM device
+ * @helper: driver-allocated fbdev helper structure to set up
+ * @funcs: pointer to structure of functions associate with this helper
+ *
+ * Sets up the bare minimum to make the framebuffer helper usable. This is
+ * useful to implement race-free initialization of the polling helpers.
+ */
+void drm_fb_helper_prepare(struct drm_device *dev, struct drm_fb_helper *helper,
+			   const struct drm_fb_helper_funcs *funcs)
+{
+	INIT_LIST_HEAD(&helper->kernel_fb_list);
+	helper->funcs = funcs;
+	helper->dev = dev;
+}
+EXPORT_SYMBOL(drm_fb_helper_prepare);
+
+/**
  * drm_fb_helper_init - initialize a drm_fb_helper structure
  * @dev: drm device
  * @fb_helper: driver-allocated fbdev helper structure to initialize
@@ -504,8 +545,7 @@ static void drm_fb_helper_crtc_free(struct drm_fb_helper *helper)
  * nor register the fbdev. This is only done in drm_fb_helper_initial_config()
  * to allow driver writes more control over the exact init sequence.
  *
- * Drivers must set fb_helper->funcs before calling
- * drm_fb_helper_initial_config().
+ * Drivers must call drm_fb_helper_prepare() before calling this function.
  *
  * RETURNS:
  * Zero if everything went ok, nonzero otherwise.
@@ -519,10 +559,6 @@ int drm_fb_helper_init(struct drm_device *dev,
 
 	if (!max_conn_count)
 		return -EINVAL;
-
-	fb_helper->dev = dev;
-
-	INIT_LIST_HEAD(&fb_helper->kernel_fb_list);
 
 	fb_helper->crtc_info = kcalloc(crtc_count, sizeof(struct drm_fb_helper_crtc), GFP_KERNEL);
 	if (!fb_helper->crtc_info)
@@ -1578,8 +1614,10 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
  * either the output polling work or a work item launched from the driver's
  * hotplug interrupt).
  *
- * Note that the driver must ensure that this is only called _after_ the fb has
- * been fully set up, i.e. after the call to drm_fb_helper_initial_config.
+ * Note that drivers may call this even before calling
+ * drm_fb_helper_initial_config but only aftert drm_fb_helper_init. This allows
+ * for a race-free fbcon setup and will make sure that the fbdev emulation will
+ * not miss any hotplug events.
  *
  * RETURNS:
  * 0 on success and a non-zero error code otherwise.
@@ -1589,11 +1627,8 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	struct drm_device *dev = fb_helper->dev;
 	u32 max_width, max_height;
 
-	if (!fb_helper->fb)
-		return 0;
-
 	mutex_lock(&fb_helper->dev->mode_config.mutex);
-	if (!drm_fb_helper_is_bound(fb_helper)) {
+	if (!fb_helper->fb || !drm_fb_helper_is_bound(fb_helper)) {
 		fb_helper->delayed_hotplug = true;
 		mutex_unlock(&fb_helper->dev->mode_config.mutex);
 		return 0;

@@ -547,7 +547,7 @@ smb2_clone_range(const unsigned int xid,
 		goto cchunk_out;
 
 	/* For now array only one chunk long, will make more flexible later */
-	pcchunk->ChunkCount = __constant_cpu_to_le32(1);
+	pcchunk->ChunkCount = cpu_to_le32(1);
 	pcchunk->Reserved = 0;
 	pcchunk->Reserved2 = 0;
 
@@ -1047,6 +1047,7 @@ smb2_create_lease_buf(u8 *lease_key, u8 oplock)
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
 				(struct create_lease, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_REQUEST_LEASE is "RqLs" */
 	buf->Name[0] = 'R';
 	buf->Name[1] = 'q';
 	buf->Name[2] = 'L';
@@ -1073,6 +1074,7 @@ smb3_create_lease_buf(u8 *lease_key, u8 oplock)
 	buf->ccontext.NameOffset = cpu_to_le16(offsetof
 				(struct create_lease_v2, Name));
 	buf->ccontext.NameLength = cpu_to_le16(4);
+	/* SMB2_CREATE_REQUEST_LEASE is "RqLs" */
 	buf->Name[0] = 'R';
 	buf->Name[1] = 'q';
 	buf->Name[2] = 'L';

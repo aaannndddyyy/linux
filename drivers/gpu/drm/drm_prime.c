@@ -336,7 +336,13 @@ static const struct dma_buf_ops drm_gem_prime_dmabuf_ops =  {
 struct dma_buf *drm_gem_prime_export(struct drm_device *dev,
 				     struct drm_gem_object *obj, int flags)
 {
-	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size, flags);
+	struct reservation_object *robj = NULL;
+
+	if (dev->driver->gem_prime_res_obj)
+		robj = dev->driver->gem_prime_res_obj(obj);
+
+	return dma_buf_export(obj, &drm_gem_prime_dmabuf_ops, obj->size,
+			      flags, robj);
 }
 EXPORT_SYMBOL(drm_gem_prime_export);
 
@@ -660,7 +666,7 @@ int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
  * the driver is responsible for mapping the pages into the
  * importers address space for use with dma_buf itself.
  */
-struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages)
+struct sg_table *drm_prime_pages_to_sg(struct page **pages, unsigned int nr_pages)
 {
 	struct sg_table *sg = NULL;
 	int ret;

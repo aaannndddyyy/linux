@@ -55,7 +55,7 @@
 #include <linux/times.h>
 #include <linux/syscalls.h>
 #include <linux/mount.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 #include <linux/blkdev.h> /* sector_div */
 #include <linux/pid_namespace.h>
@@ -93,6 +93,7 @@ struct bsd_acct_struct {
 
 static DEFINE_SPINLOCK(acct_lock);
 static LIST_HEAD(acct_list);
+static LIST_HEAD(acct_close_list);
 
 /*
  * Check the amount of free space and suspend/resume accordingly.
@@ -134,7 +135,7 @@ static int check_free_space(struct bsd_acct_struct *acct, struct file *file)
 	spin_lock(&acct_lock);
 	if (file != acct->file) {
 		if (act)
-			res = act>0;
+			res = act > 0;
 		goto out;
 	}
 
@@ -262,7 +263,7 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 	if (name) {
 		struct filename *tmp = getname(name);
 		if (IS_ERR(tmp))
-			return (PTR_ERR(tmp));
+			return PTR_ERR(tmp);
 		error = acct_on(tmp);
 		putname(tmp);
 	} else {
@@ -280,6 +281,20 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
 	return error;
 }
 
+static void acct_close_mnts(struct work_struct *unused)
+{
+	struct bsd_acct_struct *acct;
+
+	spin_lock(&acct_lock);
+restart:
+	list_for_each_entry(acct, &acct_close_list, list) {
+		acct_file_reopen(acct, NULL, NULL);
+		goto restart;
+	}
+	spin_unlock(&acct_lock);
+}
+static DECLARE_WORK(acct_close_work, acct_close_mnts);
+
 /**
  * acct_auto_close - turn off a filesystem's accounting if it is on
  * @m: vfsmount being shut down
@@ -289,15 +304,15 @@ SYSCALL_DEFINE1(acct, const char __user *, name)
  */
 void acct_auto_close_mnt(struct vfsmount *m)
 {
-	struct bsd_acct_struct *acct;
+	struct bsd_acct_struct *acct, *tmp;
 
 	spin_lock(&acct_lock);
-restart:
-	list_for_each_entry(acct, &acct_list, list)
+	list_for_each_entry_safe(acct, tmp, &acct_list, list) {
 		if (acct->file && acct->file->f_path.mnt == m) {
-			acct_file_reopen(acct, NULL, NULL);
-			goto restart;
+			list_move_tail(&acct->list, &acct_close_list);
+			schedule_work(&acct_close_work);
 		}
+	}
 	spin_unlock(&acct_lock);
 }
 

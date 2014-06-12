@@ -17,6 +17,7 @@ struct irq_data;
 struct platform_device;
 struct pt_regs;
 struct clk;
+struct device_node;
 enum mxc_cpu_pwr_mode;
 
 void mx1_map_io(void);
@@ -25,45 +26,35 @@ void mx25_map_io(void);
 void mx27_map_io(void);
 void mx31_map_io(void);
 void mx35_map_io(void);
-void mx51_map_io(void);
-void mx53_map_io(void);
 void imx1_init_early(void);
 void imx21_init_early(void);
 void imx25_init_early(void);
 void imx27_init_early(void);
 void imx31_init_early(void);
 void imx35_init_early(void);
-void imx51_init_early(void);
-void imx53_init_early(void);
 void mxc_init_irq(void __iomem *);
-void tzic_init_irq(void __iomem *);
+void tzic_init_irq(void);
 void mx1_init_irq(void);
 void mx21_init_irq(void);
 void mx25_init_irq(void);
 void mx27_init_irq(void);
 void mx31_init_irq(void);
 void mx35_init_irq(void);
-void mx51_init_irq(void);
-void mx53_init_irq(void);
 void imx1_soc_init(void);
 void imx21_soc_init(void);
 void imx25_soc_init(void);
 void imx27_soc_init(void);
 void imx31_soc_init(void);
 void imx35_soc_init(void);
-void imx51_soc_init(void);
-void imx51_init_late(void);
-void imx53_init_late(void);
 void epit_timer_init(void __iomem *base, int irq);
 void mxc_timer_init(void __iomem *, int);
+void mxc_timer_init_dt(struct device_node *);
 int mx1_clocks_init(unsigned long fref);
 int mx21_clocks_init(unsigned long lref, unsigned long fref);
 int mx25_clocks_init(void);
 int mx27_clocks_init(unsigned long fref);
 int mx31_clocks_init(unsigned long fref);
 int mx35_clocks_init(void);
-int mx51_clocks_init(unsigned long ckil, unsigned long osc,
-			unsigned long ckih1, unsigned long ckih2);
 int mx25_clocks_init_dt(void);
 int mx27_clocks_init_dt(void);
 int mx31_clocks_init_dt(void);
@@ -73,6 +64,7 @@ void mxc_set_cpu_type(unsigned int type);
 void mxc_restart(enum reboot_mode, const char *);
 void mxc_arch_reset_init(void __iomem *);
 void mxc_arch_reset_init_dt(void);
+int mx51_revision(void);
 int mx53_revision(void);
 void imx_set_aips(void __iomem *);
 int mxc_device_init(void);
@@ -98,19 +90,6 @@ enum mx3_cpu_pwr_mode {
 
 void mx3_cpu_lp_set(enum mx3_cpu_pwr_mode mode);
 void imx_print_silicon_rev(const char *cpu, int srev);
-
-void avic_handle_irq(struct pt_regs *);
-void tzic_handle_irq(struct pt_regs *);
-
-#define imx1_handle_irq avic_handle_irq
-#define imx21_handle_irq avic_handle_irq
-#define imx25_handle_irq avic_handle_irq
-#define imx27_handle_irq avic_handle_irq
-#define imx31_handle_irq avic_handle_irq
-#define imx35_handle_irq avic_handle_irq
-#define imx50_handle_irq tzic_handle_irq
-#define imx51_handle_irq tzic_handle_irq
-#define imx53_handle_irq tzic_handle_irq
 
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
@@ -158,9 +137,13 @@ void imx6sl_pm_init(void);
 void imx6q_pm_set_ccm_base(void __iomem *base);
 
 #ifdef CONFIG_PM
-void imx5_pm_init(void);
+void imx51_pm_init(void);
+void imx53_pm_init(void);
+void imx5_pm_set_ccm_base(void __iomem *base);
 #else
-static inline void imx5_pm_init(void) {}
+static inline void imx51_pm_init(void) {}
+static inline void imx53_pm_init(void) {}
+static inline void imx5_pm_set_ccm_base(void __iomem *base) {}
 #endif
 
 #ifdef CONFIG_NEON

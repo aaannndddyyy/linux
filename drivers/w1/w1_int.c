@@ -92,9 +92,8 @@ static struct w1_master * w1_alloc_dev(u32 id, int slave_count, int slave_ttl,
 	err = device_register(&dev->dev);
 	if (err) {
 		printk(KERN_ERR "Failed to register master device. err=%d\n", err);
-		memset(dev, 0, sizeof(struct w1_master));
-		kfree(dev);
-		dev = NULL;
+		put_device(&dev->dev);
+		return NULL;
 	}
 
 	return dev;
@@ -219,9 +218,13 @@ void __w1_remove_master_device(struct w1_master *dev)
 
 		if (msleep_interruptible(1000))
 			flush_signals(current);
+		mutex_lock(&dev->list_mutex);
 		w1_process_callbacks(dev);
+		mutex_unlock(&dev->list_mutex);
 	}
+	mutex_lock(&dev->list_mutex);
 	w1_process_callbacks(dev);
+	mutex_unlock(&dev->list_mutex);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.id.mst.id = dev->id;

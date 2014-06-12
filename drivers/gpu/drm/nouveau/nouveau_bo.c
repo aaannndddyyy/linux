@@ -33,6 +33,7 @@
 #include <subdev/fb.h>
 #include <subdev/vm.h>
 #include <subdev/bar.h>
+#include <subdev/timer.h>
 
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
@@ -407,6 +408,8 @@ nouveau_bo_validate(struct nouveau_bo *nvbo, bool interruptible,
 {
 	int ret;
 
+	nouveau_bo_sync_for_device(nvbo);
+
 	ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
 			      interruptible, no_wait_gpu);
 	if (ret)
@@ -435,8 +438,10 @@ nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val)
 	mem = &mem[index];
 	if (is_iomem)
 		iowrite16_native(val, (void __force __iomem *)mem);
-	else
+	else {
 		*mem = val;
+		nv_cpu_cache_flush_area(mem, 2);
+	}
 }
 
 u32
@@ -459,8 +464,10 @@ nouveau_bo_wr32(struct nouveau_bo *nvbo, unsigned index, u32 val)
 	mem = &mem[index];
 	if (is_iomem)
 		iowrite32_native(val, (void __force __iomem *)mem);
-	else
+	else {
 		*mem = val;
+		nv_cpu_cache_flush_area(mem, 4);
+	}
 }
 
 static struct ttm_tt *
@@ -487,6 +494,38 @@ nouveau_bo_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 	return 0;
 }
 
+void
+nouveau_bo_sync_for_cpu(struct nouveau_bo *nvbo)
+{
+	struct nouveau_device *device;
+	struct ttm_tt *ttm = nvbo->bo.ttm;
+
+	device = nouveau_dev(nouveau_bdev(ttm->bdev)->dev);
+
+	if (nvbo->bo.ttm && nvbo->bo.ttm->caching_state == tt_cached)
+		ttm_dma_tt_cache_sync_for_cpu((struct ttm_dma_tt *)nvbo->bo.ttm,
+					      nv_device_base(device));
+}
+
+void
+nouveau_bo_sync_for_device(struct nouveau_bo *nvbo)
+{
+	struct ttm_tt *ttm = nvbo->bo.ttm;
+
+	if (ttm && ttm->caching_state == tt_cached) {
+		struct nouveau_device *device;
+
+		device = nouveau_dev(nouveau_bdev(ttm->bdev)->dev);
+
+		ttm_dma_tt_cache_sync_for_device((struct ttm_dma_tt *)ttm,
+						 nv_device_base(device));
+
+		nv_wr32(device, 0x70004, 0x00000001);
+		if (!nv_wait(device, 0x070004, 0x00000001, 0x00000000))
+			nv_warn(device, "L2 invalidate timeout\n");
+	}
+}
+
 static int
 nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			 struct ttm_mem_type_manager *man)
@@ -511,7 +550,11 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
 		man->available_caching = TTM_PL_FLAG_UNCACHED |
 					 TTM_PL_FLAG_WC;
+#if defined(__arm__)
+		man->default_caching = TTM_PL_FLAG_UNCACHED;
+#else
 		man->default_caching = TTM_PL_FLAG_WC;
+#endif
 		break;
 	case TTM_PL_TT:
 		if (nv_device(drm->device)->card_type >= NV_50)

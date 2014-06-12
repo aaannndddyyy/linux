@@ -894,6 +894,10 @@ nvc0_graph_init_fw(struct nvc0_graph_priv *priv, u32 fuc_base,
 			nv_wr32(priv, fuc_base + 0x0188, i >> 6);
 		nv_wr32(priv, fuc_base + 0x0184, code->data[i]);
 	}
+
+	/* code must be padded to 0x40 words */
+	for (; i & 0x3f; i++)
+		nv_wr32(priv, fuc_base + 0x0184, 0);
 }
 
 static void
@@ -942,17 +946,17 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 {
 	struct nvc0_graph_oclass *oclass = (void *)nv_object(priv)->oclass;
 	struct nvc0_grctx_oclass *cclass = (void *)nv_engine(priv)->cclass;
-	u32 r000260;
+	//u32 r000260;
 	int i;
 
 	if (priv->firmware) {
 		/* load fuc microcode */
-		r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+		//r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
 		nvc0_graph_init_fw(priv, 0x409000, &priv->fuc409c,
 						   &priv->fuc409d);
 		nvc0_graph_init_fw(priv, 0x41a000, &priv->fuc41ac,
 						   &priv->fuc41ad);
-		nv_wr32(priv, 0x000260, r000260);
+		//nv_wr32(priv, 0x000260, r000260);
 
 		/* start both of them running */
 		nv_wr32(priv, 0x409840, 0xffffffff);
@@ -1039,7 +1043,7 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 	}
 
 	/* load HUB microcode */
-	r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
+	//r000260 = nv_mask(priv, 0x000260, 0x00000001, 0x00000000);
 	nv_wr32(priv, 0x4091c0, 0x01000000);
 	for (i = 0; i < oclass->fecs.ucode->data.size / 4; i++)
 		nv_wr32(priv, 0x4091c4, oclass->fecs.ucode->data.data[i]);
@@ -1062,7 +1066,7 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 			nv_wr32(priv, 0x41a188, i >> 6);
 		nv_wr32(priv, 0x41a184, oclass->gpccs.ucode->code.data[i]);
 	}
-	nv_wr32(priv, 0x000260, r000260);
+	//nv_wr32(priv, 0x000260, r000260);
 
 	/* load register lists */
 	nvc0_graph_init_csdata(priv, cclass->hub, 0x409000, 0x000, 0x000000);
@@ -1259,10 +1263,14 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nvc0_graph_oclass *oclass = (void *)bclass;
 	struct nouveau_device *device = nv_device(parent);
 	struct nvc0_graph_priv *priv;
+	bool use_ext_fw, enable;
 	int ret, i;
 
-	ret = nouveau_graph_create(parent, engine, bclass,
-				   (oclass->fecs.ucode != NULL), &priv);
+	use_ext_fw = nouveau_boolopt(device->cfgopt, "NvGrUseFW",
+				     oclass->fecs.ucode == NULL);
+	enable = use_ext_fw || oclass->fecs.ucode != NULL;
+
+	ret = nouveau_graph_create(parent, engine, bclass, enable, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -1272,7 +1280,7 @@ nvc0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 
 	priv->base.units = nvc0_graph_units;
 
-	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", false)) {
+	if (use_ext_fw) {
 		nv_info(priv, "using external firmware\n");
 		if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
 		    nvc0_graph_ctor_fw(priv, "fuc409d", &priv->fuc409d) ||

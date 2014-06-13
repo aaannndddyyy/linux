@@ -50,18 +50,17 @@ configure-commands:
 - scripts/config -e NFSD_V3
 - yes '' | make oldconfig
 build-commands:
-- make $MAKEFLAGS ARCH=arm uImage
-- make $MAKEFLAGS ARCH=arm arch/arm/boot/dts/imx6dl-wandboard.dtb
-- make $MAKEFLAGS ARCH=arm arch/arm/boot/dts/imx6q-wandboard.dtb
+- make $MAKEFLAGS ARCH=arm LOADADDR=0x10800000 uImage dtbs
 - |
-  mkimage -A arm -T script -C none -n "Wandboard TFTP Boot Script" -d /proc/self/fd/0 boot.scr <<EOF
+  cat >boot.script <<'EOF'
   setenv image_addr "0x12000000"
   setenv bootargs "console=ttymxc0,115200 root=/dev/nfs rw ip=dhcp nfsroot=${fileserver}:${nfsroot},v3,tcp"
   dhcp ${image_addr} ${fileserver}:${tfpboot}/uImage
   bootm ${image_addr}
   EOF
+- mkimage -A arm -T script -C none -n "Wandboard TFTP Boot Script" -d boot.script boot.scr
 install-commands:
 - mkdir -p "$DESTDIR"/boot
 - cp arch/arm/boot/uImage "$DESTDIR"/boot/uImage
 - cp boot.scr "$DESTDIR"/boot/boot.scr
-- cp arch/arm/boot/dts/imx6*-wandboard.dtb "$DESTDIR/boot/.
+- cp arch/arm/boot/dts/imx6*-wandboard.dtb "$DESTDIR"/boot/.

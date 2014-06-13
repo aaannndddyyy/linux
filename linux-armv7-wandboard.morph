@@ -2,6 +2,12 @@ name: linux-armv7-wandboard
 kind: chunk
 configure-commands:
 - make ARCH=arm imx_v6_v7_defconfig
+# Our lzo comes from busybox, which is missing features linux requires
+# for lzo compressed kernels. This comes from the defconfig, so we should
+# fix this here.
+- scripts/config -d KERNEL_LZO
+- scripts/config -e KERNEL_GZIP
+
 - scripts/config -e NAMESPACES
 - scripts/config -e PACKET
 - scripts/config -e SATA_AHCI

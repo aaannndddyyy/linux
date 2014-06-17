@@ -54,7 +54,7 @@ build-commands:
   cat >boot.script <<'EOF'
   ext4load mmc 1 80200000 /boot/uImage
   ext4load mmc 1 80000000 /boot/tegra124-jetson-tk1.dtb
-  setenv bootargs 'console=ttyS0,115200n8 debug_uartport=lsport,3 no_console_suspeend=1 console=tty1 root=/dev/mmcblk0p1 rw rootwait tegraid=40.1.1.0.0 tegraboot=ssdmmc gpt gpt_sector=49151 modem_id=0 core_edp_ma=4000 pmuboard=0x0177:0x0000:0x003:0x45:0x00 board_info=0x0177:0x0000:0x03:0x45:0x00 mem=1862M@2048M memtype=255 vpr=151M@3945M tsec=32M@3913M otf_key=2479a1da92c95b730b256f0a5830905b ddr_die=22048M@2048M section=256M commchip_id=0 usb_port_owner_info=0'
+  setenv bootargs 'cma=256M console=ttyS0,115200n8 debug_uartport=lsport,3 no_console_suspeend=1 root=/dev/mmcblk0p1 rw rootwait tegraid=40.1.1.0.0 tegraboot=ssdmmc gpt gpt_sector=49151 modem_id=0 core_edp_ma=4000 pmuboard=0x0177:0x0000:0x003:0x45:0x00 board_info=0x0177:0x0000:0x03:0x45:0x00 mem=1862M@2048M memtype=255 vpr=151M@3945M tsec=32M@3913M otf_key=2479a1da92c95b730b256f0a5830905b ddr_die=22048M@2048M section=256M commchip_id=0 usb_port_owner_info=0'
   bootm 80200000 - 80000000
   EOF
 - mkimage -A arm -T script -C none -n "Jetson Script" -d boot.script boot.scr

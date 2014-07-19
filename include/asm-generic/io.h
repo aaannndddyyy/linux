@@ -24,10 +24,10 @@
 #define mmiowb() do {} while (0)
 #endif
 
-/*****************************************************************************/
 /*
- * readX/writeX() are used to access memory mapped devices. On some
- * architectures the memory mapped IO stuff needs to be accessed
+ * raw_{read,write}{b,w,l,q} access memory in native endian.
+ *
+ * On some architectures the memory mapped IO stuff needs to be accessed
  * differently. On the simple architectures, we just read/write the
  * memory location directly.
  */
@@ -55,25 +55,16 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 }
 #endif
 
-#ifndef readb
-#define readb __raw_readb
-#endif
-
-#ifndef readw
-#define readw readw
-static inline u16 readw(const volatile void __iomem *addr)
+#ifdef CONFIG_64BIT
+#ifndef __raw_readq
+#define __raw_readq __raw_readq
+static inline u64 __raw_readq(const volatile void __iomem *addr)
 {
-	return __le16_to_cpu(__raw_readw(addr));
+	return *(const volatile u64 __force *) addr;
 }
 #endif
+#endif /* CONFIG_64BIT */
 
-#ifndef readl
-#define readl readl
-static inline u32 readl(const volatile void __iomem *addr)
-{
-	return __le32_to_cpu(__raw_readl(addr));
-}
-#endif
 
 #ifndef __raw_writeb
 #define __raw_writeb __raw_writeb
@@ -99,6 +90,52 @@ static inline void __raw_writel(u32 b, volatile void __iomem *addr)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+#ifndef __raw_writeq
+#define __raw_writeq __raw_writeq
+static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
+{
+	*(volatile u64 __force *) addr = b;
+}
+#endif
+#endif /* CONFIG_64BIT */
+
+
+/*
+ * {read,write}{b,w,l,q} access little endian memory
+ * and return result in native endian
+ */
+#ifndef readb
+#define readb __raw_readb
+#endif
+
+#ifndef readw
+#define readw readw
+static inline u16 readw(const volatile void __iomem *addr)
+{
+	return __le16_to_cpu(__raw_readw(addr));
+}
+#endif
+
+#ifndef readl
+#define readl readl
+static inline u32 readl(const volatile void __iomem *addr)
+{
+	return __le32_to_cpu(__raw_readl(addr));
+}
+#endif
+
+#ifdef CONFIG_64BIT
+#ifndef readq
+#define readq readq
+static inline u64 readq(const volatile void __iomem *addr)
+{
+	return __le64_to_cpu(__raw_readq(addr));
+}
+#endif
+#endif /* CONFIG_64BIT */
+
+
 #ifndef writeb
 #define writeb __raw_writeb
 #endif
@@ -112,35 +149,15 @@ static inline void __raw_writel(u32 b, volatile void __iomem *addr)
 #endif
 
 #ifdef CONFIG_64BIT
-#ifndef __raw_readq
-#define __raw_readq __raw_readq
-static inline u64 __raw_readq(const volatile void __iomem *addr)
-{
-	return *(const volatile u64 __force *) addr;
-}
-#endif
-
-#ifndef readq
-#define readq readq
-static inline u64 readq(const volatile void __iomem *addr)
-{
-	return __le64_to_cpu(__raw_readq(addr));
-}
-#endif
-
-#ifndef __raw_writeq
-#define __raw_writeq __raw_writeq
-static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
-{
-	*(volatile u64 __force *) addr = b;
-}
-#endif
-
 #ifndef writeq
 #define writeq(b, addr) __raw_writeq(__cpu_to_le64(b), addr)
 #endif
 #endif /* CONFIG_64BIT */
 
+
+/*
+ * {read,write}s{b,w,l.q}b access native memory in chunks specified by count
+ */
 #ifndef readsb
 #define readsb readsb
 static inline void readsb(const void __iomem *addr, void *buffer, int count)
@@ -183,6 +200,23 @@ static inline void readsl(const void __iomem *addr, void *buffer, int count)
 }
 #endif
 
+#ifdef CONFIG_64BIT
+#ifndef readsq
+#define readsq readsq
+static inline void readsq(const void __iomem *addr, void *buffer, int count)
+{
+	if (count) {
+		u64 *buf = buffer;
+		do {
+			u64 x = __raw_readq(addr);
+			*buf++ = x;
+		} while (--count);
+	}
+}
+#endif
+#endif /* CONFIG_64BIT */
+
+
 #ifndef writesb
 #define writesb writesb
 static inline void writesb(void __iomem *addr, const void *buffer, int count)
@@ -223,20 +257,6 @@ static inline void writesl(void __iomem *addr, const void *buffer, int count)
 #endif
 
 #ifdef CONFIG_64BIT
-#ifndef readsq
-#define readsq readsq
-static inline void readsq(const void __iomem *addr, void *buffer, int count)
-{
-	if (count) {
-		u64 *buf = buffer;
-		do {
-			u64 x = __raw_readq(addr);
-			*buf++ = x;
-		} while (--count);
-	}
-}
-#endif
-
 #ifndef writesq
 #define writesq writesq
 static inline void writesq(void __iomem *addr, const void *buffer, int count)
@@ -356,6 +376,10 @@ static inline void outl(u32 b, unsigned long addr)
 #define ioread16(addr)		readw(addr)
 #define ioread32(addr)		readl(addr)
 
+#define iowrite8(v, addr)	writeb((v), (addr))
+#define iowrite16(v, addr)	writew((v), (addr))
+#define iowrite32(v, addr)	writel((v), (addr))
+
 #ifndef ioread16be
 #define ioread16be(addr)	__be16_to_cpu(__raw_readw(addr))
 #endif
@@ -363,10 +387,6 @@ static inline void outl(u32 b, unsigned long addr)
 #ifndef ioread32be
 #define ioread32be(addr)	__be32_to_cpu(__raw_readl(addr))
 #endif
-
-#define iowrite8(v, addr)	writeb((v), (addr))
-#define iowrite16(v, addr)	writew((v), (addr))
-#define iowrite32(v, addr)	writel((v), (addr))
 
 #ifndef iowrite16be
 #define iowrite16be(v, addr)	__raw_writew(__cpu_to_be16(v), addr)

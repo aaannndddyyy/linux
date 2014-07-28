@@ -151,7 +151,7 @@ static inline void writeb(u8 value, void __iomem *addr)
 #define writew writew
 static inline void writew(u16 value, void __iomem *addr)
 {
-	__raw_writew(cpu_to_le16(value), addr)
+	__raw_writew(cpu_to_le16(value), addr);
 }
 #endif
 
@@ -159,7 +159,7 @@ static inline void writew(u16 value, void __iomem *addr)
 #define writel writel
 static inline void writel(u32 value, void __iomem *addr)
 {
-	__raw_writel(__cpu_to_le32(value), addr)
+	__raw_writel(__cpu_to_le32(value), addr);
 }
 #endif
 
@@ -741,9 +741,9 @@ extern void ioport_unmap(void __iomem *p);
 
 #ifndef xlate_dev_kmem_ptr
 #define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
-static inline void *xlate_dev_kmem_ptr(phys_addr_t addr)
+static inline void *xlate_dev_kmem_ptr(void *addr)
 {
-	return (void *)addr;
+	return addr;
 }
 #endif
 
@@ -771,10 +771,9 @@ static inline void *bus_to_virt(unsigned long address)
 
 #ifndef memset_io
 #define memset_io memset_io
-static inline void memset_io(void __iomem *addr, const void *buffer,
-			     size_t size)
+static inline void memset_io(void __iomem *addr, int value, size_t size)
 {
-	memset(__io_virt(addr), buffer, size);
+	memset(__io_virt(addr), value, size);
 }
 #endif
 
@@ -788,7 +787,7 @@ static inline void memcpy_fromio(void *buffer, const void __iomem *addr,
 #endif
 
 #ifndef memcpy_toio
-#define memcpy_toio
+#define memcpy_toio memcpy_toio
 static inline void memcpy_toio(void __iomem *addr, const void *buffer,
 			       size_t size)
 {

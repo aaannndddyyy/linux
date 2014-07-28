@@ -25,17 +25,18 @@
 #endif
 
 /*
- * raw_{read,write}{b,w,l,q} access memory in native endian.
+ * __raw_{read,write}{b,w,l,q}() access memory in native endianness.
  *
- * On some architectures the memory mapped IO stuff needs to be accessed
- * differently. On the simple architectures, we just read/write the
- * memory location directly.
+ * On some architectures memory mapped IO needs to be accessed differently.
+ * On the simple architectures, we just read/write the memory location
+ * directly.
  */
+
 #ifndef __raw_readb
 #define __raw_readb __raw_readb
 static inline u8 __raw_readb(const volatile void __iomem *addr)
 {
-	return *(const volatile u8 __force *) addr;
+	return *(const volatile u8 __force *)addr;
 }
 #endif
 
@@ -43,7 +44,7 @@ static inline u8 __raw_readb(const volatile void __iomem *addr)
 #define __raw_readw __raw_readw
 static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
-	return *(const volatile u16 __force *) addr;
+	return *(const volatile u16 __force *)addr;
 }
 #endif
 
@@ -51,7 +52,7 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 #define __raw_readl __raw_readl
 static inline u32 __raw_readl(const volatile void __iomem *addr)
 {
-	return *(const volatile u32 __force *) addr;
+	return *(const volatile u32 __force *)addr;
 }
 #endif
 
@@ -60,53 +61,56 @@ static inline u32 __raw_readl(const volatile void __iomem *addr)
 #define __raw_readq __raw_readq
 static inline u64 __raw_readq(const volatile void __iomem *addr)
 {
-	return *(const volatile u64 __force *) addr;
+	return *(const volatile u64 __force *)addr;
 }
 #endif
 #endif /* CONFIG_64BIT */
 
-
 #ifndef __raw_writeb
 #define __raw_writeb __raw_writeb
-static inline void __raw_writeb(u8 b, volatile void __iomem *addr)
+static inline void __raw_writeb(u8 value, volatile void __iomem *addr)
 {
-	*(volatile u8 __force *) addr = b;
+	*(volatile u8 __force *)addr = value;
 }
 #endif
 
 #ifndef __raw_writew
 #define __raw_writew __raw_writew
-static inline void __raw_writew(u16 b, volatile void __iomem *addr)
+static inline void __raw_writew(u16 value, volatile void __iomem *addr)
 {
-	*(volatile u16 __force *) addr = b;
+	*(volatile u16 __force *)addr = value;
 }
 #endif
 
 #ifndef __raw_writel
 #define __raw_writel __raw_writel
-static inline void __raw_writel(u32 b, volatile void __iomem *addr)
+static inline void __raw_writel(u32 value, volatile void __iomem *addr)
 {
-	*(volatile u32 __force *) addr = b;
+	*(volatile u32 __force *)addr = value;
 }
 #endif
 
 #ifdef CONFIG_64BIT
 #ifndef __raw_writeq
 #define __raw_writeq __raw_writeq
-static inline void __raw_writeq(u64 b, volatile void __iomem *addr)
+static inline void __raw_writeq(u64 value, volatile void __iomem *addr)
 {
-	*(volatile u64 __force *) addr = b;
+	*(volatile u64 __force *)addr = value;
 }
 #endif
 #endif /* CONFIG_64BIT */
 
-
 /*
- * {read,write}{b,w,l,q} access little endian memory
- * and return result in native endian
+ * {read,write}{b,w,l,q}() access little endian memory and return result in
+ * native endianness.
  */
+
 #ifndef readb
-#define readb __raw_readb
+#define readb readb
+static inline u8 readb(const volatile void __iomem *addr)
+{
+	return __raw_readb(addr);
+}
 #endif
 
 #ifndef readw
@@ -135,35 +139,52 @@ static inline u64 readq(const volatile void __iomem *addr)
 #endif
 #endif /* CONFIG_64BIT */
 
-
 #ifndef writeb
-#define writeb __raw_writeb
+#define writeb writeb
+static inline void writeb(u8 value, volatile void __iomem *addr)
+{
+	__raw_writeb(value, addr);
+}
 #endif
 
 #ifndef writew
-#define writew(b,addr) __raw_writew(__cpu_to_le16(b),addr)
+#define writew writew
+static inline void writew(u16 value, volatile void __iomem *addr)
+{
+	__raw_writew(cpu_to_le16(value), addr)
+}
 #endif
 
 #ifndef writel
-#define writel(b,addr) __raw_writel(__cpu_to_le32(b),addr)
+#define writel writel
+static inline void writel(u32 value, volatile void __iomem *addr)
+{
+	__raw_writel(__cpu_to_le32(value), addr)
+}
 #endif
 
 #ifdef CONFIG_64BIT
 #ifndef writeq
-#define writeq(b, addr) __raw_writeq(__cpu_to_le64(b), addr)
+#define writeq writeq
+static inline void writeq(u64 value, volatile void __iomem *addr)
+{
+	__raw_writeq(__cpu_to_le64(value), addr);
+}
 #endif
 #endif /* CONFIG_64BIT */
 
-
 /*
- * {read,write}s{b,w,l.q}b access native memory in chunks specified by count
+ * {read,write}s{b,w,l,q}() repeatedly access the same memory address in
+ * native endianness in 8-, 16-, 32- or 64-bit chunks (@count times).
  */
 #ifndef readsb
 #define readsb readsb
-static inline void readsb(const void __iomem *addr, void *buffer, int count)
+static inline void readsb(const volatile void __iomem *addr, void *buffer,
+			  unsigned int count)
 {
 	if (count) {
 		u8 *buf = buffer;
+
 		do {
 			u8 x = __raw_readb(addr);
 			*buf++ = x;
@@ -174,10 +195,12 @@ static inline void readsb(const void __iomem *addr, void *buffer, int count)
 
 #ifndef readsw
 #define readsw readsw
-static inline void readsw(const void __iomem *addr, void *buffer, int count)
+static inline void readsw(const volatile void __iomem *addr, void *buffer,
+			  unsigned int count)
 {
 	if (count) {
 		u16 *buf = buffer;
+
 		do {
 			u16 x = __raw_readw(addr);
 			*buf++ = x;
@@ -188,10 +211,12 @@ static inline void readsw(const void __iomem *addr, void *buffer, int count)
 
 #ifndef readsl
 #define readsl readsl
-static inline void readsl(const void __iomem *addr, void *buffer, int count)
+static inline void readsl(const volatile void __iomem *addr, void *buffer,
+			  unsigned int count)
 {
 	if (count) {
 		u32 *buf = buffer;
+
 		do {
 			u32 x = __raw_readl(addr);
 			*buf++ = x;
@@ -203,10 +228,12 @@ static inline void readsl(const void __iomem *addr, void *buffer, int count)
 #ifdef CONFIG_64BIT
 #ifndef readsq
 #define readsq readsq
-static inline void readsq(const void __iomem *addr, void *buffer, int count)
+static inline void readsq(const volatile void __iomem *addr, void *buffer,
+			  unsigned int count)
 {
 	if (count) {
 		u64 *buf = buffer;
+
 		do {
 			u64 x = __raw_readq(addr);
 			*buf++ = x;
@@ -216,13 +243,14 @@ static inline void readsq(const void __iomem *addr, void *buffer, int count)
 #endif
 #endif /* CONFIG_64BIT */
 
-
 #ifndef writesb
 #define writesb writesb
-static inline void writesb(void __iomem *addr, const void *buffer, int count)
+static inline void writesb(volatile void __iomem *addr, const void *buffer,
+			   unsigned int count)
 {
 	if (count) {
 		const u8 *buf = buffer;
+
 		do {
 			__raw_writeb(*buf++, addr);
 		} while (--count);
@@ -232,10 +260,12 @@ static inline void writesb(void __iomem *addr, const void *buffer, int count)
 
 #ifndef writesw
 #define writesw writesw
-static inline void writesw(void __iomem *addr, const void *buffer, int count)
+static inline void writesw(volatile void __iomem *addr, const void *buffer,
+			   unsigned int count)
 {
 	if (count) {
 		const u16 *buf = buffer;
+
 		do {
 			__raw_writew(*buf++, addr);
 		} while (--count);
@@ -245,10 +275,12 @@ static inline void writesw(void __iomem *addr, const void *buffer, int count)
 
 #ifndef writesl
 #define writesl writesl
-static inline void writesl(void __iomem *addr, const void *buffer, int count)
+static inline void writesl(volatile void __iomem *addr, const void *buffer,
+			   unsigned int count)
 {
 	if (count) {
 		const u32 *buf = buffer;
+
 		do {
 			__raw_writel(*buf++, addr);
 		} while (--count);
@@ -259,10 +291,12 @@ static inline void writesl(void __iomem *addr, const void *buffer, int count)
 #ifdef CONFIG_64BIT
 #ifndef writesq
 #define writesq writesq
-static inline void writesq(void __iomem *addr, const void *buffer, int count)
+static inline void writesq(volatile void __iomem *addr, const void *buffer,
+			   unsigned int count)
 {
 	if (count) {
 		const u64 *buf = buffer;
+
 		do {
 			__raw_writeq(*buf++, addr);
 		} while (--count);
@@ -272,16 +306,17 @@ static inline void writesq(void __iomem *addr, const void *buffer, int count)
 #endif /* CONFIG_64BIT */
 
 #ifndef PCI_IOBASE
-#define PCI_IOBASE ((void __iomem *) 0)
+#define PCI_IOBASE ((void __iomem *)0)
 #endif
 
 #ifndef IO_SPACE_LIMIT
 #define IO_SPACE_LIMIT 0xffff
 #endif
 
-/*****************************************************************************/
 /*
- * traditional input/output functions
+ * {in,out}{b,w,l}() access little endian I/O. {in,out}{b,w,l}_p() can be
+ * implemented on hardware that needs an additional delay for I/O accesses to
+ * take effect.
  */
 
 #ifndef inb
@@ -310,15 +345,15 @@ static inline u32 inl(unsigned long addr)
 
 #ifndef outb
 #define outb outb
-static inline void outb(u8 b, unsigned long addr)
+static inline void outb(u8 value, unsigned long addr)
 {
-	writeb(b, PCI_IOBASE + addr);
+	writeb(value, PCI_IOBASE + addr);
 }
 #endif
 
 #ifndef outw
 #define outw outw
-static inline void outw(u16 b, unsigned long addr)
+static inline void outw(u16 value, unsigned long addr)
 {
 	writew(b, PCI_IOBASE + addr);
 }
@@ -326,83 +361,283 @@ static inline void outw(u16 b, unsigned long addr)
 
 #ifndef outl
 #define outl outl
-static inline void outl(u32 b, unsigned long addr)
+static inline void outl(u32 value, unsigned long addr)
 {
 	writel(b, PCI_IOBASE + addr);
 }
 #endif
 
-#define inb_p(addr)	inb(addr)
-#define inw_p(addr)	inw(addr)
-#define inl_p(addr)	inl(addr)
-#define outb_p(x, addr)	outb((x), (addr))
-#define outw_p(x, addr)	outw((x), (addr))
-#define outl_p(x, addr)	outl((x), (addr))
+#ifndef inb_p
+#define inb_p inb_p
+static inline u8 inb_p(unsigned long addr)
+{
+	return inb(addr);
+}
+#endif
+
+#ifndef inw_p
+#define inw_p inw_p
+static inline u16 inw_p(unsigned long addr)
+{
+	return inw(addr);
+}
+#endif
+
+#ifndef inl_p
+#define inl_p inl_p
+static inline u32 inl_p(unsigned long addr)
+{
+	return inl(addr);
+}
+#endif
+
+#ifndef outb_p
+#define outb_p outb_p
+static inline void outb_p(u8 value, unsigned long addr)
+{
+	outb(value, addr);
+}
+#endif
+
+#ifndef outw_p
+#define outw_p outw_p
+static inline void outw_p(u16 value, unsigned long addr)
+{
+	outw(value, addr);
+}
+#endif
+
+#ifndef outl_p
+#define outl_p outl_p
+static inline void outl_p(u32 value, unsigned long addr)
+{
+	outl(value, addr);
+}
+#endif
+
+/*
+ * {in,out}s{b,w,l}{,_p}() are variants of the above that repeatedly access a
+ * single I/O port multiple times.
+ */
 
 #ifndef insb
-#define insb(addr, buffer, count) readsb(PCI_IOBASE + addr, buffer, count)
+#define insb insb
+static inline void insb(unsigned long addr, void *buffer, unsigned int count)
+{
+	readsb(PCI_IOBASE + addr, buffer, count);
+}
 #endif
 
 #ifndef insw
-#define insw(addr, buffer, count) readsw(PCI_IOBASE + addr, buffer, count)
+#define insw insw
+static inline void insw(unsigned long addr, void *buffer, unsigned int count)
+{
+	readsw(PCI_IOBASE + addr, buffer, count)
+}
 #endif
 
 #ifndef insl
-#define insl(addr, buffer, count) readsl(PCI_IOBASE + addr, buffer, count)
+#define insl insl
+static inline void insl(unsigned long addr, void *buffer, unsigned int count)
+{
+	readsl(PCI_IOBASE + addr, buffer, count);
+}
 #endif
 
 #ifndef outsb
-#define outsb(addr, buffer, count) writesb(PCI_IOBASE + addr, buffer, count)
+#define outsb outsb
+static inline void outsb(unsigned long addr, const void *buffer,
+			 unsigned int count)
+{
+	writesb(PCI_IOBASE + addr, buffer, count);
+}
 #endif
 
 #ifndef outsw
-#define outsw(addr, buffer, count) writesw(PCI_IOBASE + addr, buffer, count)
+#define outsw outsw
+static inline void outsw(unsigned long addr, const void *buffer,
+			 unsigned int count)
+{
+	writesw(PCI_IOBASE + addr, buffer, count);
+}
 #endif
 
 #ifndef outsl
-#define outsl(addr, buffer, count) writesl(PCI_IOBASE + addr, buffer, count)
+#define outsl outsl
+static inline void outsl(unsigned long addr, const void *buffer,
+			 unsigned int count)
+{
+	writesl(PCI_IOBASE + addr, buffer, count);
+}
 #endif
 
-#define insb_p(port,to,len)	insb(port,to,len)
-#define insw_p(port,to,len)	insw(port,to,len)
-#define insl_p(port,to,len)	insl(port,to,len)
+#ifndef insb_p
+#define insb_p insb_p
+static inline void insb_p(unsigned long addr, void *buffer, unsigned int count)
+{
+	insb(addr, buffer, count);
+}
+#endif
 
-#define outsb_p(port,from,len)	outsb(port,from,len)
-#define outsw_p(port,from,len)	outsw(port,from,len)
-#define outsl_p(port,from,len)	outsl(port,from,len)
+#ifndef insw_p
+#define insw_p insw_p
+static inline void insw_p(unsigned long addr, void *buffer, unsigned int count)
+{
+	insw(addr, buffer, count);
+}
+#endif
+
+#ifndef insl_p
+#define insl_p insl_p
+static inline void insl_p(unsigned long addr, void *buffer, unsigned int count)
+{
+	insl(addr, buffer, count);
+}
+#endif
+
+#ifndef outsb_p
+#define outsb_p outsb_p
+static inline void outsb_p(unsigned long addr, const void *buffer,
+			   unsigned int count)
+{
+	outsb(addr, buffer, count);
+}
+#endif
+
+#ifndef outsw_p
+#define outsw_p outsw_p
+static inline void outsw_p(unsigned long addr, const void *buffer,
+			   unsigned int count)
+{
+	outsw(addr, buffer, count);
+}
+#endif
+
+#ifndef outsl_p
+#define outsl_p outsl_p
+static inline void outsl_p(unsigned long addr, const void *buffer,
+			   unsigned int count)
+{
+	outsl(addr, buffer, count);
+}
+#endif
 
 #ifndef CONFIG_GENERIC_IOMAP
-#define ioread8(addr)		readb(addr)
-#define ioread16(addr)		readw(addr)
-#define ioread32(addr)		readl(addr)
+static inline u8 ioread8(const volatile void __iomem *addr)
+{
+	return readb(addr);
+}
 
-#define iowrite8(v, addr)	writeb((v), (addr))
-#define iowrite16(v, addr)	writew((v), (addr))
-#define iowrite32(v, addr)	writel((v), (addr))
+static inline u16 ioread16(const volatile void __iomem *addr)
+{
+	return readw(addr);
+}
+
+static inline u32 ioread32(const volatile void __iomem *addr)
+{
+	return readl(addr);
+}
+
+static inline void iowrite8(u8 value, volatile void __iomem *addr)
+{
+	writeb(value, addr);
+}
+
+static inline void iowrite16(u16 value, volatile void __iomem *addr)
+{
+	writew(value, addr);
+}
+
+static inline void iowrite32(u32 value, volatile void __iomem *addr)
+{
+	writel(value, addr);
+}
 
 #ifndef ioread16be
-#define ioread16be(addr)	__be16_to_cpu(__raw_readw(addr))
+#define ioread16be ioread16be
+static inline u16 ioread16be(const volatile void __iomem *addr)
+{
+	return __be16_to_cpu(__raw_readw(addr));
+}
 #endif
 
 #ifndef ioread32be
-#define ioread32be(addr)	__be32_to_cpu(__raw_readl(addr))
+#define ioread32be ioread32be
+static inline u32 ioread32be(const volatile void __iomem *addr)
+{
+	return __be32_to_cpu(__raw_readl(addr));
+}
 #endif
 
 #ifndef iowrite16be
-#define iowrite16be(v, addr)	__raw_writew(__cpu_to_be16(v), addr)
+#define iowrite16be iowrite16be
+static inline void iowrite16be(u16 value, volatile void __iomem *addr)
+{
+	__raw_writew(__cpu_to_be16(value), addr);
+}
 #endif
 
 #ifndef iowrite32be
-#define iowrite32be(v, addr)	__raw_writel(__cpu_to_be32(v), addr)
+#define iowrite32be iowrite32be
+static inline void iowrite32be(u32 value, volatile void __iomem *addr)
+{
+	__raw_writel(__cpu_to_be32(value), addr);
+}
 #endif
 
-#define ioread8_rep(p, dst, count) readsb(p, dst, count)
-#define ioread16_rep(p, dst, count) readsw(p, dst, count)
-#define ioread32_rep(p, dst, count) readsl(p, dst, count)
+#ifndef ioread8_rep
+#define ioread8_rep ioread8_rep
+static inline void ioread8_rep(const volatile void __iomem *addr,
+			       void *buffer, unsigned int count)
+{
+	readsb(addr, buffer, count);
+}
+#endif
 
-#define iowrite8_rep(p, src, count) writesb(p, src, count)
-#define iowrite16_rep(p, src, count) writesw(p, src, count)
-#define iowrite32_rep(p, src, count) writesl(p, src, count)
+#ifndef ioread16_rep
+#define ioread16_rep ioread16_rep
+static inline void ioread16_rep(const volatile void __iomem *addr,
+				void *buffer, unsigned int count)
+{
+	readsw(addr, buffer, count);
+}
+#endif
+
+#ifndef ioread32_rep
+#define ioread32_rep ioread32_rep
+static inline void ioread32_rep(const volatile void __iomem *addr,
+				void *buffer, unsigned int count)
+{
+	readsl(addr, buffer, count);
+}
+#endif
+
+#ifndef iowrite8_rep
+#define iowrite8_rep iowrite8_rep
+static inline void iowrite8_rep(volatile void __iomem *addr,
+				const void *buffer, unsigned int count)
+{
+	writesb(addr, buffer, count);
+}
+#endif
+
+#ifndef iowrite16_rep
+#define iowrite16_rep iowrite16_rep
+static inline void iowrite16_rep(volatile void __iomem *addr,
+				 const void *buffer, unsigned int count)
+{
+	writesw(addr, buffer, count);
+}
+#endif
+
+#ifndef iowrite32_rep
+#define iowrite32_rep iowrite32_rep
+static inline void iowrite32_rep(volatile void __iomem *addr,
+				 const void *buffer, unsigned int count)
+{
+	writesl(addr, buffer, count);
+}
+#endif
 #endif /* CONFIG_GENERIC_IOMAP */
 
 #ifdef __KERNEL__
@@ -448,20 +683,33 @@ static inline void *phys_to_virt(unsigned long address)
  * This implementation is for the no-MMU case only... if you have an MMU
  * you'll need to provide your own definitions.
  */
+
 #ifndef CONFIG_MMU
-static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
+static inline void __iomem *ioremap(phys_addr_t offset, size_t size)
 {
-	return (void __iomem*) (unsigned long)offset;
+	return (void __iomem *)(unsigned long)offset;
 }
 
-#define __ioremap(offset, size, flags)	ioremap(offset, size)
+static inline void __iomem *__ioremap(phys_addr_t offset, size_t size,
+				      unsigned long flags)
+{
+	return ioremap(offset, size);
+}
 
 #ifndef ioremap_nocache
-#define ioremap_nocache ioremap
+#define ioremap_nocache ioremap_nocache
+static inline void __iomem *ioremap_nocache(phys_addr_t offset, size_t size)
+{
+	return ioremap(offset, size);
+}
 #endif
 
 #ifndef ioremap_wc
-#define ioremap_wc ioremap_nocache
+#define ioremap_wc ioremap_wc
+static inline void __iomem *ioremap_wc(phys_addr_t offset, size_t size)
+{
+	return ioremap_nocache(offset, size);
+}
 #endif
 
 static inline void iounmap(void __iomem *addr)
@@ -492,35 +740,60 @@ extern void ioport_unmap(void __iomem *p);
 #endif /* CONFIG_HAS_IOPORT_MAP */
 
 #ifndef xlate_dev_kmem_ptr
-#define xlate_dev_kmem_ptr(p)	p
+#define xlate_dev_kmem_ptr xlate_dev_kmem_ptr
+static inline void *xlate_dev_kmem_ptr(phys_addr_t addr)
+{
+	return (void *)addr;
+}
 #endif
+
 #ifndef xlate_dev_mem_ptr
-#define xlate_dev_mem_ptr(p)	__va(p)
+#define xlate_dev_mem_ptr xlate_dev_mem_ptr
+static inline void *xlate_dev_mem_ptr(phys_addr_t addr)
+{
+	return __va(addr);
+}
 #endif
 
 #ifdef CONFIG_VIRT_TO_BUS
 #ifndef virt_to_bus
-static inline unsigned long virt_to_bus(volatile void *address)
+static inline unsigned long virt_to_bus(void *address)
 {
-	return ((unsigned long) address);
+	return (unsigned long)address;
 }
 
 static inline void *bus_to_virt(unsigned long address)
 {
-	return (void *) address;
+	return (void *)address;
 }
 #endif
 #endif
 
 #ifndef memset_io
-#define memset_io(a, b, c)	memset(__io_virt(a), (b), (c))
+#define memset_io memset_io
+static inline void memset_io(void __iomem *addr, const void *buffer,
+			     size_t size)
+{
+	memset(__io_virt(addr), buffer, size);
+}
 #endif
 
 #ifndef memcpy_fromio
-#define memcpy_fromio(a, b, c)	memcpy((a), __io_virt(b), (c))
+#define memcpy_fromio memcpy_fromio
+static inline void memcpy_fromio(void *buffer, const void __iomem *addr,
+				 size_t size)
+{
+	memcpy(buffer, __io_virt(addr), size);
+}
 #endif
+
 #ifndef memcpy_toio
-#define memcpy_toio(a, b, c)	memcpy(__io_virt(a), (b), (c))
+#define memcpy_toio
+static inline void memcpy_toio(void __iomem *addr, const void *buffer,
+			       size_t size)
+{
+	memcpy(__io_virt(addr), buffer, size);
+}
 #endif
 
 #endif /* __KERNEL__ */

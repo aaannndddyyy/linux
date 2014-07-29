@@ -83,8 +83,6 @@ enum iommu_attr {
 	DOMAIN_ATTR_MAX,
 };
 
-#ifdef CONFIG_IOMMU_API
-
 /**
  * struct iommu_ops - iommu ops and capabilities
  * @domain_init: init iommu domain
@@ -139,6 +137,8 @@ struct iommu_ops {
 #define IOMMU_GROUP_NOTIFY_BOUND_DRIVER		4 /* Post Driver bind */
 #define IOMMU_GROUP_NOTIFY_UNBIND_DRIVER	5 /* Pre Driver unbind */
 #define IOMMU_GROUP_NOTIFY_UNBOUND_DRIVER	6 /* Post Driver unbind */
+
+#ifdef CONFIG_IOMMU_API
 
 extern int bus_set_iommu(struct bus_type *bus, const struct iommu_ops *ops);
 extern bool iommu_present(struct bus_type *bus);
@@ -241,9 +241,6 @@ static inline int report_iommu_fault(struct iommu_domain *domain,
 }
 
 #else /* CONFIG_IOMMU_API */
-
-struct iommu_ops {};
-struct iommu_group {};
 
 static inline bool iommu_present(struct bus_type *bus)
 {

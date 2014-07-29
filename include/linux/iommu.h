@@ -242,6 +242,12 @@ static inline int report_iommu_fault(struct iommu_domain *domain,
 
 #else /* CONFIG_IOMMU_API */
 
+static inline int bus_set_iommu(struct bus_type *bus,
+				const struct iommu_ops *ops)
+{
+	return -ENOSYS;
+}
+
 static inline bool iommu_present(struct bus_type *bus)
 {
 	return false;

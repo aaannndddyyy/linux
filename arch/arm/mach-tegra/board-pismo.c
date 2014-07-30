@@ -1,7 +1,7 @@
 /*
  * arch/arm/mach-tegra/board-pismo.c
  *
- * Copyright (c) 2012-2013, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2012-2014, NVIDIA CORPORATION.  All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -595,7 +595,6 @@ static void __init tegra_pismo_init(void)
 	pismo_uart_init();
 	pismo_audio_init();
 	platform_add_devices(pismo_devices, ARRAY_SIZE(pismo_devices));
-	//tegra_ram_console_debug_init();
 	tegra_io_dpd_init();
 	pismo_regulator_init();
 	pismo_sdhci_init();
@@ -617,11 +616,6 @@ static void __init tegra_pismo_init(void)
 	tegra_serial_debug_init(TEGRA_UARTD_BASE, INT_WDT_CPU, NULL, -1, -1);
 	pismo_sensors_init();
 	pismo_soctherm_init();
-}
-
-static void __init pismo_ramconsole_reserve(unsigned long size)
-{
-	tegra_ram_console_debug_reserve(SZ_1M);
 }
 
 #ifdef CONFIG_USE_OF
@@ -661,7 +655,6 @@ static void __init tegra_pismo_reserve(void)
 #else
 	tegra_reserve(SZ_128M, SZ_16M + SZ_2M, SZ_4M);
 #endif
-	pismo_ramconsole_reserve(SZ_1M);
 }
 
 static const char * const pismo_dt_board_compat[] = {

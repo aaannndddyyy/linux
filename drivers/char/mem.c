@@ -84,9 +84,12 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 }
 #endif
 
+#ifndef unxlate_dev_mem_ptr
+#define unxlate_dev_mem_ptr unxlate_dev_mem_ptr
 void __weak unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
 {
 }
+#endif
 
 /*
  * This funcion reads the *physical* memory. The f_pos points directly to the

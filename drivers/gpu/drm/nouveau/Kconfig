@@ -25,6 +25,14 @@ config DRM_NOUVEAU
 	help
 	  Choose this option for open-source nVidia support.
 
+config NOUVEAU_PLATFORM_DRIVER
+	bool
+	depends on DRM_NOUVEAU
+	default y if ARCH_TEGRA
+	help
+	 Support for Nouveau platform driver, used for integrated GPUs as found
+	 on NVIDIA Tegra K1.
+
 config NOUVEAU_DEBUG
 	int "Maximum debug level"
 	depends on DRM_NOUVEAU

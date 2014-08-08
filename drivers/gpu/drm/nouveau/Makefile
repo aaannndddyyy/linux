@@ -64,6 +64,7 @@ nouveau-y += core/subdev/clock/nva3.o
 nouveau-y += core/subdev/clock/nvaa.o
 nouveau-y += core/subdev/clock/nvc0.o
 nouveau-y += core/subdev/clock/nve0.o
+nouveau-y += core/subdev/clock/gk20a.o
 nouveau-y += core/subdev/clock/pllnv04.o
 nouveau-y += core/subdev/clock/pllnva3.o
 nouveau-y += core/subdev/devinit/base.o
@@ -149,6 +150,7 @@ nouveau-y += core/subdev/instmem/base.o
 nouveau-y += core/subdev/instmem/nv04.o
 nouveau-y += core/subdev/instmem/nv40.o
 nouveau-y += core/subdev/instmem/nv50.o
+nouveau-y += core/subdev/instmem/gk20a.o
 nouveau-y += core/subdev/ltcg/gf100.o
 nouveau-y += core/subdev/ltcg/gm107.o
 nouveau-y += core/subdev/mc/base.o
@@ -325,6 +327,7 @@ nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
 nouveau-y += nouveau_prime.o nouveau_abi16.o
 nouveau-y += nv04_fence.o nv10_fence.o nv17_fence.o
 nouveau-y += nv50_fence.o nv84_fence.o nvc0_fence.o
+nouveau-y += nouveau_debug.o
 
 # drm/kms
 nouveau-y += nouveau_bios.o nouveau_fbcon.o nouveau_display.o
@@ -339,6 +342,9 @@ nouveau-y += nv50_display.o
 
 # drm/pm
 nouveau-y += nouveau_hwmon.o nouveau_sysfs.o
+
+# platform driver
+nouveau-$(CONFIG_NOUVEAU_PLATFORM_DRIVER) += nouveau_platform.o
 
 # other random bits
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

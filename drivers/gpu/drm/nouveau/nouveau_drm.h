@@ -157,6 +157,27 @@ nouveau_dev(struct drm_device *dev)
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
 
+int nouveau_drm_platform_device_create(struct platform_device *, int, void **);
+int nouveau_drm_platform_device_init(struct platform_device *);
+
+#if IS_ENABLED(CONFIG_NOUVEAU_PLATFORM_DRIVER)
+
+int nouveau_platform_driver_init(void);
+void nouveau_platform_driver_exit(void);
+
+#else
+
+static inline int nouveau_platform_driver_init(void)
+{
+	return 0;
+}
+
+static inline void nouveau_platform_driver_exit(void)
+{
+}
+
+#endif
+
 #define NV_FATAL(cli, fmt, args...) nv_fatal((cli), fmt, ##args)
 #define NV_ERROR(cli, fmt, args...) nv_error((cli), fmt, ##args)
 #define NV_WARN(cli, fmt, args...) nv_warn((cli), fmt, ##args)

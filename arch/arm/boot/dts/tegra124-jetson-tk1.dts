@@ -1683,7 +1683,7 @@
 
 	/* eMMC */
 	sdhci@0,700b0600 {
-		status = "disabled";
+		status = "okay";
 		bus-width = <8>;
 		non-removable;
 	};

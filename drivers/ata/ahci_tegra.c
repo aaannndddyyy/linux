@@ -24,7 +24,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/tegra-powergate.h>
+#include <soc/tegra/pmc.h>
 #include <linux/regulator/consumer.h>
 #include "ahci.h"
 

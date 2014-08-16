@@ -1,4 +1,4 @@
-name: linux
+name: linux-tegra
 kind: chunk
 configure-commands:
 - make ARCH=arm tegra_defconfig

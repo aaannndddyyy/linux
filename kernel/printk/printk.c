@@ -1678,6 +1678,12 @@ asmlinkage int vprintk_emit(int facility, int level,
 	 */
 	text_len = vscnprintf(text, sizeof(textbuf), fmt, args);
 
+	if (1) {
+		extern void printascii(const char *);
+		printascii(text);
+	}
+
+
 	/* mark and strip a trailing newline */
 	if (text_len && text[text_len-1] == '\n') {
 		text_len--;

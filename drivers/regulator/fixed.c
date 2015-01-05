@@ -89,8 +89,16 @@ of_get_fixed_voltage_config(struct device *dev,
 	 * Once they are check in, we should replace this with:
 	 * if (config->gpio < 0 && config->gpio != -ENOENT)
 	 */
-	if ((config->gpio == -ENODEV) || (config->gpio == -EPROBE_DEFER))
+	if ((config->gpio == -ENODEV) || (config->gpio == -EPROBE_DEFER)) {
+		if (config->gpio == -ENODEV) {
+			printk(KERN_WARNING "***** config->gpio == -ENODEV");
+		}
+		else {
+			printk(KERN_WARNING "***** config->gpio == -EPROBE_DEFER");
+		}
+
 		return ERR_PTR(-EPROBE_DEFER);
+	}
 
 	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
 
@@ -122,8 +130,10 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 	if (pdev->dev.of_node) {
 		config = of_get_fixed_voltage_config(&pdev->dev,
 						     &drvdata->desc);
-		if (IS_ERR(config))
+		if (IS_ERR(config)) {
+			printk("returning error: %s%d\n",  __func__, __LINE__);
 			return PTR_ERR(config);
+		}
 	} else {
 		config = dev_get_platdata(&pdev->dev);
 	}

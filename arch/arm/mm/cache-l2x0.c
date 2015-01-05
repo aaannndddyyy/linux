@@ -1631,15 +1631,21 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 	u32 cache_id, old_aux;
 
 	np = of_find_matching_node(NULL, l2x0_ids);
-	if (!np)
+	if (!np) {
+		printk(KERN_WARNING "******* l2x0_of_init, !of_find_matching_node");
 		return -ENODEV;
+	}
 
-	if (of_address_to_resource(np, 0, &res))
+	if (of_address_to_resource(np, 0, &res)) {
+		printk(KERN_WARNING "******* l2x0_of_init, !of_address_to_resource(np, 0, &res)");
 		return -ENODEV;
+	}
 
 	l2x0_base = ioremap(res.start, resource_size(&res));
-	if (!l2x0_base)
+	if (!l2x0_base) {
+		printk(KERN_WARNING "******* !ioremap");
 		return -ENOMEM;
+	}
 
 	l2x0_saved_regs.phy_base = res.start;
 
@@ -1673,6 +1679,7 @@ int __init l2x0_of_init(u32 aux_val, u32 aux_mask)
 
 	__l2c_init(data, aux_val, aux_mask, cache_id);
 
+	printk(KERN_WARNING "****** l2x0_of_init exit success");
 	return 0;
 }
 #endif

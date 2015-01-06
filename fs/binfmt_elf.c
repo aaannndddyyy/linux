@@ -222,7 +222,7 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
 	} while (0)
 
 #ifdef ARCH_DLINFO
-	/* 
+	/*
 	 * ARCH_DLINFO must come first so PPC can do its special alignment of
 	 * AUXV.
 	 * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT() in
@@ -668,7 +668,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	unsigned long error;
 	struct elf_phdr *elf_ppnt, *elf_phdata, *interp_elf_phdata = NULL;
 	unsigned long elf_bss, elf_brk;
-	int retval, i;
+	int retval, i, b;
 	unsigned long elf_entry;
 	unsigned long interp_load_addr = 0;
 	unsigned long start_code, end_code, start_data, end_data;
@@ -681,30 +681,54 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	} *loc;
 	struct arch_elf_state arch_state = INIT_ARCH_ELF_STATE;
 
+	printk(KERN_WARNING "********* load_elf_binary called");
+
 	loc = kmalloc(sizeof(*loc), GFP_KERNEL);
 	if (!loc) {
 		retval = -ENOMEM;
 		goto out_ret;
 	}
-	
+
 	/* Get the exec-header */
 	loc->elf_ex = *((struct elfhdr *)bprm->buf);
 
+	/* TEST */
+	printk(KERN_WARNING "********* ELF header size %d bytes\n", sizeof(loc->elf_ex));
+	for (i = 0; i < sizeof(loc->elf_ex); i++) {
+		printk(KERN_WARNING "%04x ", (int)((void*)loc->elf_ex)[i]);
+		if (i%10==0) {
+				printk(KERN_WARNING "\n");
+		}
+	}
+	printk(KERN_WARNING "\n");
+
 	retval = -ENOEXEC;
 	/* First of all, some simple consistency checks */
-	if (memcmp(loc->elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
+	if (memcmp(loc->elf_ex.e_ident, ELFMAG, SELFMAG) != 0) {
+		printk(KERN_WARNING "********* ");
+		for (b = 0; b < sizeof(loc->elf_ex.e_ident); b++) {
+			printk(KERN_WARNING "%d ", loc->elf_ex.e_ident[b]);
+		}
+		printk(KERN_WARNING "\n********* memcmp(loc->elf_ex.e_ident, ELFMAG, SELFMAG) != 0\n");
 		goto out;
+	}
 
-	if (loc->elf_ex.e_type != ET_EXEC && loc->elf_ex.e_type != ET_DYN)
+	if (loc->elf_ex.e_type != ET_EXEC && loc->elf_ex.e_type != ET_DYN) {
+		printk(KERN_WARNING "********* loc->elf_ex.e_type != ET_EXEC && loc->elf_ex.e_type != ET_DYN %d", loc->elf_ex.e_type);
 		goto out;
-	if (!elf_check_arch(&loc->elf_ex))
+	}
+	if (!elf_check_arch(&loc->elf_ex)) {
+		printk(KERN_WARNING "********* !elf_check_arch(&loc->elf_ex) %d", elf_check_arch(&loc->elf_ex));
 		goto out;
+	}
 	if (!bprm->file->f_op->mmap)
 		goto out;
 
 	elf_phdata = load_elf_phdrs(&loc->elf_ex, bprm->file);
-	if (!elf_phdata)
+	if (!elf_phdata) {
+		printk(KERN_WARNING "******* !load_elf_phdrs");
 		goto out;
+	}
 
 	elf_ppnt = elf_phdata;
 	elf_bss = 0;
@@ -722,15 +746,19 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			 * is an a.out format binary
 			 */
 			retval = -ENOEXEC;
-			if (elf_ppnt->p_filesz > PATH_MAX || 
-			    elf_ppnt->p_filesz < 2)
+			if (elf_ppnt->p_filesz > PATH_MAX ||
+			    elf_ppnt->p_filesz < 2) {
+				printk(KERN_WARNING "******** elf_ppnt->p_filesz > PATH_MAX || elf_ppnt->p_filesz < 2 %d", elf_ppnt->p_filesz);
 				goto out_free_ph;
+			}
 
 			retval = -ENOMEM;
 			elf_interpreter = kmalloc(elf_ppnt->p_filesz,
 						  GFP_KERNEL);
-			if (!elf_interpreter)
+			if (!elf_interpreter) {
+				printk(KERN_WARNING "********* !kmalloc(elf_ppnt->p_filesz");
 				goto out_free_ph;
+			}
 
 			retval = kernel_read(bprm->file, elf_ppnt->p_offset,
 					     elf_interpreter,
@@ -738,17 +766,22 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			if (retval != elf_ppnt->p_filesz) {
 				if (retval >= 0)
 					retval = -EIO;
+				printk(KERN_WARNING "********** retval != elf_ppnt->p_filesz");
 				goto out_free_interp;
 			}
 			/* make sure path is NULL terminated */
 			retval = -ENOEXEC;
-			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
+			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0') {
+				printk(KERN_WARNING "********* elf_interpreter[elf_ppnt->p_filesz - 1] != '\0'");
 				goto out_free_interp;
+			}
 
 			interpreter = open_exec(elf_interpreter);
 			retval = PTR_ERR(interpreter);
-			if (IS_ERR(interpreter))
+			if (IS_ERR(interpreter)) {
+				printk(KERN_WARNING "********* PTR_ERR(interpreter)");
 				goto out_free_interp;
+			}
 
 			/*
 			 * If the binary is not readable then enforce
@@ -762,6 +795,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			if (retval != BINPRM_BUF_SIZE) {
 				if (retval >= 0)
 					retval = -EIO;
+				printk(KERN_WARNING "********** kernel_read");
 				goto out_free_dentry;
 			}
 
@@ -786,8 +820,10 @@ static int load_elf_binary(struct linux_binprm *bprm)
 			retval = arch_elf_pt_proc(&loc->elf_ex, elf_ppnt,
 						  bprm->file, false,
 						  &arch_state);
-			if (retval)
+			if (retval) {
+				printk(KERN_WARNING "********** arch_elf_pt_proc");
 				goto out_free_dentry;
+			}
 			break;
 		}
 
@@ -795,17 +831,23 @@ static int load_elf_binary(struct linux_binprm *bprm)
 	if (elf_interpreter) {
 		retval = -ELIBBAD;
 		/* Not an ELF interpreter */
-		if (memcmp(loc->interp_elf_ex.e_ident, ELFMAG, SELFMAG) != 0)
+		if (memcmp(loc->interp_elf_ex.e_ident, ELFMAG, SELFMAG) != 0) {
+			printk(KERN_WARNING "********* memcmp(loc->interp_elf_ex.e_ident, ELFMAG, SELFMAG) != 0");
 			goto out_free_dentry;
+		}
 		/* Verify the interpreter has a valid arch */
-		if (!elf_check_arch(&loc->interp_elf_ex))
+		if (!elf_check_arch(&loc->interp_elf_ex)) {
+			printk(KERN_WARNING "********* elf_check_arch(&loc->interp_elf_ex)");
 			goto out_free_dentry;
+		}
 
 		/* Load the interpreter program headers */
 		interp_elf_phdata = load_elf_phdrs(&loc->interp_elf_ex,
 						   interpreter);
-		if (!interp_elf_phdata)
+		if (!interp_elf_phdata) {
+			printk(KERN_WARNING "****** load_elf_phdrs");
 			goto out_free_dentry;
+		}
 
 		/* Pass PT_LOPROC..PT_HIPROC headers to arch code */
 		elf_ppnt = interp_elf_phdata;
@@ -852,7 +894,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 				 executable_stack);
 	if (retval < 0)
 		goto out_free_dentry;
-	
+
 	current->mm->start_stack = bprm->p;
 
 	/* Now we do a little grungy work by mmapping the ELF image into
@@ -867,7 +909,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
 
 		if (unlikely (elf_brk > elf_bss)) {
 			unsigned long nbyte;
-	            
+
 			/* There was a PT_LOAD segment with p_memsz > p_filesz
 			   before this one. Map anonymous pages, if needed,
 			   and clear the area.  */
@@ -1380,7 +1422,7 @@ static void fill_elf_note_phdr(struct elf_phdr *phdr, int sz, loff_t offset)
 	return;
 }
 
-static void fill_note(struct memelfnote *note, const char *name, int type, 
+static void fill_note(struct memelfnote *note, const char *name, int type,
 		unsigned int sz, void *data)
 {
 	note->name = name;
@@ -1432,7 +1474,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 {
 	const struct cred *cred;
 	unsigned int i, len;
-	
+
 	/* first copy the parameters from user space */
 	memset(psinfo, 0, sizeof(struct elf_prpsinfo));
 
@@ -1466,7 +1508,7 @@ static int fill_psinfo(struct elf_prpsinfo *psinfo, struct task_struct *p,
 	SET_GID(psinfo->pr_gid, from_kgid_munged(cred->user_ns, cred->gid));
 	rcu_read_unlock();
 	strncpy(psinfo->pr_fname, p->comm, sizeof(psinfo->pr_fname));
-	
+
 	return 0;
 }
 
@@ -1868,8 +1910,8 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
 	t->num_notes = 0;
 
 	fill_prstatus(&t->prstatus, p, signr);
-	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);	
-	
+	elf_core_copy_task_regs(p, &t->prstatus.pr_reg);
+
 	fill_note(&t->notes[0], "CORE", NT_PRSTATUS, sizeof(t->prstatus),
 		  &(t->prstatus));
 	t->num_notes++;
@@ -1890,7 +1932,7 @@ static int elf_dump_thread_status(long signr, struct elf_thread_status *t)
 		t->num_notes++;
 		sz += notesize(&t->notes[2]);
 	}
-#endif	
+#endif
 	return sz;
 }
 
@@ -2133,7 +2175,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 
 	/*
 	 * We no longer stop all VM operations.
-	 * 
+	 *
 	 * This is because those proceses that could possibly change map_count
 	 * or the mmap / vma pages are now blocked in do_exit on current
 	 * finishing this core dump.
@@ -2142,7 +2184,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * the map_count or the pages allocated. So no possibility of crashing
 	 * exists while dumping the mm->vm_next areas to the core file.
 	 */
-  
+
 	/* alloc memory for large data structures: too large to be on stack */
 	elf = kmalloc(sizeof(*elf), GFP_KERNEL);
 	if (!elf)

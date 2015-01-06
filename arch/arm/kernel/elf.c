@@ -10,30 +10,41 @@ int elf_check_arch(const struct elf32_hdr *x)
 	unsigned int eflags;
 
 	/* Make sure it's an ARM executable */
-	if (x->e_machine != EM_ARM)
+	if (x->e_machine != EM_ARM) {
+		printk(KERN_WARNING "****** x->e_machine != EM_ARM  %d", x->e_machine);
 		return 0;
+	}
 
 	/* Make sure the entry address is reasonable */
 	if (x->e_entry & 1) {
-		if (!(elf_hwcap & HWCAP_THUMB))
+		if (!(elf_hwcap & HWCAP_THUMB)) {
+			printk(KERN_WARNING "****** !(elf_hwcap & HWCAP_THUMB) %d", elf_hwcap);
 			return 0;
-	} else if (x->e_entry & 3)
+		}
+	} else if (x->e_entry & 3) {
+		printk(KERN_WARNING "****** !x->e_entry & 3 %d", x->e_entry);
 		return 0;
+	}
 
 	eflags = x->e_flags;
 	if ((eflags & EF_ARM_EABI_MASK) == EF_ARM_EABI_UNKNOWN) {
 		unsigned int flt_fmt;
 
 		/* APCS26 is only allowed if the CPU supports it */
-		if ((eflags & EF_ARM_APCS_26) && !(elf_hwcap & HWCAP_26BIT))
+		if ((eflags & EF_ARM_APCS_26) && !(elf_hwcap & HWCAP_26BIT)) {
+			printk(KERN_WARNING "****** (eflags & EF_ARM_APCS_26) && !(elf_hwcap & HWCAP_26BIT) %d %d", eflags, elf_hwcap);
 			return 0;
+		}
 
 		flt_fmt = eflags & (EF_ARM_VFP_FLOAT | EF_ARM_SOFT_FLOAT);
 
 		/* VFP requires the supporting code */
-		if (flt_fmt == EF_ARM_VFP_FLOAT && !(elf_hwcap & HWCAP_VFP))
+		if (flt_fmt == EF_ARM_VFP_FLOAT && !(elf_hwcap & HWCAP_VFP)) {
+			printk(KERN_WARNING "****** flt_fmt == EF_ARM_VFP_FLOAT && !(elf_hwcap & HWCAP_VFP) %d %d", flt_fmt, elf_hwcap);
 			return 0;
+		}
 	}
+	printk(KERN_WARNING "elf_check_arch success");
 	return 1;
 }
 EXPORT_SYMBOL(elf_check_arch);

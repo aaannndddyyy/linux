@@ -1,11 +1,12 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
-
+#include <asm/assembler.h>
 #include "sleep.h"
 
         .section ".text.head", "ax"
 
 ENTRY(tegra_secondary_startup)
+        ARM_BE8(setend    be)
         check_cpu_part_num 0xc09, r8, r9
         bleq    v7_invalidate_l1
         b       secondary_startup
